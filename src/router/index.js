@@ -35,12 +35,6 @@ const routes = [
     meta: { title: '檢舉管理' }
   },
   {
-    path: '/support',
-    name: 'AdminSupport',
-    component: () => import('@/views/SupportAdmin.vue'),
-    meta: { title: '客服表單' }
-  },
-  {
     path: '/products',
     name: 'AdminProducts',
     component: () => import('@/views/ProductAdmin.vue'),
