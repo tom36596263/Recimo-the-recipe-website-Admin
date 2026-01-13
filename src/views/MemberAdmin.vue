@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue';
-
+import axios from 'axios';
 // 從套件中導入你需要的圖示
 import { Edit } from '@element-plus/icons-vue'
 // 1. 定義一個響應式變數來存資料
@@ -9,19 +9,18 @@ const tableData = ref([])
 // 2. 寫一個函式去抓資料
 const loadJsonData = async () => {
   try {
-    // 直接 fetch 相對路徑（注意：不用寫 public，直接從 / 開始）
-    const response = await fetch('/data/user/users.json')
-    const data = await response.json()
-
+    // axios 會自動將 response 轉為物件，資料就在 .data 屬性裡
+    const response = await axios.get('/data/user/users.json')
+    
     // 3. 把抓到的資料塞給表格
-    tableData.value = data
-    console.log(data);
+    tableData.value = response.data
+    console.log('取得的資料：', response.data);
 
   } catch (error) {
-    console.error('抓取 JSON 失敗:', error)
+    // axios 的錯誤處理更詳細
+    console.error('抓取 JSON 失敗:', error.message)
   }
 }
-
 // 4. 當畫面掛載完成後執行
 onMounted(() => {
   loadJsonData()
@@ -29,11 +28,8 @@ onMounted(() => {
 })
 
 const handleStatusChange = (row) => {
-  console.log('當前這筆資料的 ID:', row.id); // 假設你的資料有 id
+  console.log('當前這筆資料的 ID:', row.USER_ID); // 修正：你的 JSON 欄位是 USER_ID
   console.log('新的狀態值是:', row.status);
-
-  // 這裡通常會呼叫 API 把新狀態存回資料庫
-  // updateStatusApi(row.id, row.status).then(...)
 };
 
 
@@ -68,7 +64,7 @@ const handleStatusChange = (row) => {
             @change="handleStatusChange(scope.row)" 
         /> -->
           <template #default="scope">
-            <el-switch v-model="scope.row.status" class="ml-2" inline-prompt
+            <el-switch v-model="scope.row.status" size="large" class="ml-2" inline-prompt
               style="--el-switch-on-color: #3E8D60; --el-switch-off-color: #ABABAB" active-text="啟用" inactive-text="停權"
               @change="handleStatusChange(scope.row)" />
           </template>
