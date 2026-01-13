@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue';
-import Datatables from '@/components/Datatables.vue';
+import Datatables from '@/components/Datatables.vue'
 
 
 </script>
@@ -9,7 +9,6 @@ import Datatables from '@/components/Datatables.vue';
   <div class="test">
     <h2 class="zh-h2 content-title">會員管理</h2>
     <Datatables/>
-    
   </div>
 </template>
 
