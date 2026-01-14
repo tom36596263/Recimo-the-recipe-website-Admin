@@ -1,89 +1,223 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
-// 從套件中導入你需要的圖示
-import { Edit } from '@element-plus/icons-vue'
-// 1. 定義一個響應式變數來存資料
-const tableData = ref([])
+import { Edit ,Search} from '@element-plus/icons-vue'
+import MyPagination from '@/components/MyPagination.vue';
+import MemberManagement from '@/components/MemberManagement.vue'
 
-// 2. 寫一個函式去抓資料
+const tableData = ref([])        // 原始總資料
+const currentPage = ref(1)
+const pageSize = ref(8)
+const category = ref('')
+const search = ref('')
+const isModalOpen = ref(false); //彈窗
+const selectedMember = ref({}); //點擊的資料彈窗
+
 const loadJsonData = async () => {
   try {
-    // axios 會自動將 response 轉為物件，資料就在 .data 屬性裡
     const response = await axios.get('/data/user/users.json')
-    
-    // 3. 把抓到的資料塞給表格
     tableData.value = response.data
-    console.log('取得的資料：', response.data);
-
   } catch (error) {
-    // axios 的錯誤處理更詳細
     console.error('抓取 JSON 失敗:', error.message)
   }
 }
-// 4. 當畫面掛載完成後執行
+
+// --- 排序邏輯 ---
+const handleSortChange = ({ prop, order }) => {
+  if (!order) return; // 如果沒有排序順序（取消排序），不做動作
+
+  // 直接對原始陣列 tableData 進行排序
+  tableData.value.sort((a, b) => {
+    let valA = a[prop];
+    let valB = b[prop];
+
+    // 如果是日期格式，需要轉成 Date 物件才能正確比較
+    if (prop === 'USER_STARTDATE') {
+      valA = new Date(valA);
+      valB = new Date(valB);
+    }
+
+    if (order === 'ascending') {
+      return valA > valB ? 1 : -1;
+    } else {
+      return valA < valB ? 1 : -1;
+    }
+  });
+
+  // 排序完建議回到第一頁
+  currentPage.value = 1;
+};
+
+// 顯示資料依然是計算出來的（會隨著 tableData 排序而變動）
+const displayData = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  const end = start + pageSize.value
+  return tableData.value.slice(start, end)
+})
+
 onMounted(() => {
   loadJsonData()
-
 })
 
 const handleStatusChange = (row) => {
-  console.log('當前這筆資料的 ID:', row.USER_ID); // 修正：你的 JSON 欄位是 USER_ID
-  console.log('新的狀態值是:', row.status);
+  //暫無改動資料狀態功能
+  console.log('當前這筆資料的 ID:', row.USER_ID);
 };
 
+//-------------彈窗功能-----------
+const showDetail = (member) => {
+  console.log(member);
+  
+  selectedMember.value = member; // 帶入該列資料
+  isModalOpen.value = true;      // 開啟彈窗
+};
 
+// const handleCurrentChange = (val) => {
+//   console.log(val);
+  
+//   currentPage.value = val
+// }
 </script>
 
 <template>
-  <div class="test">
-    <h2 class="zh-h2 content-title">會員管理</h2>
-    <div style="padding: 20px">
-      <div style="display: flex; justify-content: space-between; margin-bottom: 20px">
-        <el-select v-model="category" placeholder="全部">
-          <el-option label="蔬菜" value="vegetable" />
-          <el-option label="肉類" value="meat" />
-        </el-select>
+  <div>
+    <!-- 內容區頂部 -->
+      <div class="content-header">
+        <div class="content-title">
+          <h2 class="zh-h2">會員管理</h2>
+          <!-- <el-select v-model="category" placeholder="全部" style="width: 150px">
+            <el-option label="蔬菜" value="vegetable" />
+            <el-option label="肉類" value="meat" />
+          </el-select> -->
+        </div>
+        
 
-        <!-- <div style="display: flex; gap: 10px"> -->
-        <el-button type="success">新增食材</el-button>
-        <!-- <el-input v-model="search" placeholder="搜尋..." style="width: 200px" /> -->
-        <!-- </div> -->
+        <div class="content-header-function">
+          <!-- <div style="width: 160px">
+            <button class="btn h-40 btn-solid">新增食材</button>
+          </div> -->
+          <el-input
+            v-model="input"
+            placeholder="搜尋..."
+            class="rounded-search"
+          >
+      <template #prefix>
+        <el-icon class="search-icon"><Search /></el-icon>
+      </template>
+    </el-input>
+        </div>
       </div>
 
-      <el-table :data="tableData" style="width: 100%">
-        <el-table-column prop="USER_ID" label="會員編號" sortable />
-        <el-table-column prop="USER_NAME" label="姓名" sortable />
-        <el-table-column prop="USER_EMAIL" label="電子信箱" />
-        <el-table-column prop="USER_STARTDATE" label="加入日期" sortable />
+      <!-- 表格 -->
+      <el-table 
+        :data="displayData" 
+        @sort-change="handleSortChange"
+        style="width: 100%" 
+        stripe 
+        :header-cell-style="{backgroundColor: '#F1F6EF' , color:'#000', fontWeight: 'normal'}"
+      >
+        <el-table-column prop="USER_ID" label="會員編號" sortable="custom" align="center" width="180"/>
+        <el-table-column prop="USER_NAME" label="姓名" sortable="custom" align="center"/>
+        <el-table-column prop="USER_EMAIL" label="電子信箱" align="center"/>
+        <el-table-column prop="USER_STARTDATE" label="加入日期" sortable="custom" align="center"/>
 
-        <el-table-column label="狀態">
-          <!-- <el-switch 
-            v-model="scope.row.status" 
-            active-text="上架" 
-            @change="handleStatusChange(scope.row)" 
-        /> -->
+        <el-table-column label="狀態" align="center" width="120">
           <template #default="scope">
-            <el-switch v-model="scope.row.status" size="large" class="ml-2" inline-prompt
-              style="--el-switch-on-color: #3E8D60; --el-switch-off-color: #ABABAB" active-text="啟用" inactive-text="停權"
-              @change="handleStatusChange(scope.row)" />
+            <el-switch 
+            v-model="scope.row.IS_ACTIVE" 
+            size="large" 
+            class="ml-2" 
+            inline-prompt
+            style="--el-switch-on-color: #3E8D60; --el-switch-off-color: #ABABAB" 
+            active-text="啟用" 
+            inactive-text="停權"
+            @change="handleStatusChange(scope.row)" />
           </template>
         </el-table-column>
 
-        <el-table-column label="詳情">
-          <template #default>
-            <el-button link type="primary">
-              <el-icon>
-                <Edit />
-              </el-icon>
+        <el-table-column label="詳情" align="center" width="120">
+          <template #default="scope">
+            <el-button link  @click="showDetail(scope.row)">
+              <el-icon><Edit /></el-icon>
             </el-button>
           </template>
         </el-table-column>
       </el-table>
 
-      <el-pagination layout="prev, pager, next" :total="50" style="margin-top: 20px; justify-content: flex-end" />
-    </div>
+
+      <!-- 頁籤 -->
+      <MyPagination 
+      v-model:currentPage="currentPage" 
+      :pageSize="pageSize" 
+      :total="tableData.length"
+      />
+      <!-- <el-pagination 
+        background
+        v-model:current-page=currentPage
+        :page-size="pageSize"
+        layout="prev, pager, next, slot" 
+        :total=tableData.length 
+        style="margin-top: 20px; justify-content: flex-end"
+      >
+        <span class="p-p1" style="margin-right: 10px;">共 {{ tableData.length }} 筆資料</span>
+      </el-pagination> -->
+      <MemberManagement 
+      v-model="isModalOpen"
+      :memberData="selectedMember"
+      />
   </div>
 </template>
 
-<style lang="scss"></style>
+<style lang="scss" scoped>
+  .content-header{
+    display: flex;
+    justify-content: space-between;
+    align-items: end;
+    margin-bottom: 20px;
+    .content-title{
+
+      display: flex;
+      align-items: end;
+      gap: 20px;
+    }
+    .content-header-function{
+      display: flex;
+      gap: 20px;
+    }
+  }
+
+  
+  
+
+  /* 容器寬度設定（參考圖片 307px） */
+.custom-search-container {
+  width: 307px;
+}
+
+:deep(.rounded-search .el-input__wrapper) {
+  border-radius: 20px;          /* 高度 40px 的一半，達成全圓角 */
+  background-color: #ffffff;
+  box-shadow: 0 0 0 1px #3E8D60 inset; /* 預設邊框顏色 */
+  padding: 0 15px;
+  height: 40px;                 /* 參考圖片高度 */
+}
+
+/* 滑鼠移入或選取時的邊框顏色保持一致或稍微加深 */
+// :deep(.rounded-search .el-input__wrapper:hover),
+:deep(.rounded-search .el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 2px #2E6F4A inset !important;
+}
+
+/* 調整搜尋圖標顏色與位置 */
+.search-icon {
+  color: #555555;
+  font-size: 18px;
+  margin-right: 8px;
+}
+
+/* 調整 Placeholder 字體顏色 */
+:deep(.rounded-search .el-input__inner::placeholder) {
+  color: #4a8b6f;
+  opacity: 0.8;
+}
+</style>

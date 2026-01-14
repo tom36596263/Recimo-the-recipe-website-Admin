@@ -1,8 +1,10 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
-import { Edit ,Search} from '@element-plus/icons-vue'
+import { Edit ,Search,Delete} from '@element-plus/icons-vue'
 import MyPagination from '@/components/MyPagination.vue';
+import DeleteButton from '@/components/DeleteButton.vue';
+
 
 const tableData = ref([])        // 原始總資料
 const currentPage = ref(1)
@@ -10,17 +12,16 @@ const pageSize = ref(8)
 const category = ref('')
 const search = ref('')
 
-//--------取資料-------
 const loadJsonData = async () => {
   try {
-    const response = await axios.get('/data/others/admins.json')
+    const response = await axios.get('/data/recipe/ingredients.json')
     tableData.value = response.data
   } catch (error) {
     console.error('抓取 JSON 失敗:', error.message)
   }
 }
 
-// --- 排序邏輯 -------------
+// --- 排序邏輯 ---
 const handleSortChange = ({ prop, order }) => {
   if (!order) return; // 如果沒有排序順序（取消排序），不做動作
 
@@ -41,6 +42,7 @@ const handleSortChange = ({ prop, order }) => {
       return valA < valB ? 1 : -1;
     }
   });
+
   // 排序完建議回到第一頁
   currentPage.value = 1;
 };
@@ -52,15 +54,17 @@ const displayData = computed(() => {
   return tableData.value.slice(start, end)
 })
 
-//-------掛載調用-------
 onMounted(() => {
   loadJsonData()
 })
 
-//-------switch------
+
+
+
+
 const handleStatusChange = (row) => {
   //暫無改動資料狀態功能
-  console.log('當前這筆資料的 ID:', row);
+  console.log('當前這筆資料的 ID:', row.USER_ID);
 };
 
 // const handleCurrentChange = (val) => {
@@ -68,12 +72,6 @@ const handleStatusChange = (row) => {
   
 //   currentPage.value = val
 // }
-
-// ---------點擊事件--------
-const showDetail = (member) => {
-  selectedMember.value = member; // 帶入該列資料
-  isModalOpen.value = true;      // 開啟彈窗
-};
 </script>
 
 <template>
@@ -81,26 +79,22 @@ const showDetail = (member) => {
     <!-- 內容區頂部 -->
       <div class="content-header">
         <div class="content-title">
-          <h2 class="zh-h2">後台人員管理</h2>
-          <!-- <el-select v-model="category" placeholder="全部" style="width: 150px">
-            <el-option label="蔬菜" value="vegetable" />
-            <el-option label="肉類" value="meat" />
-          </el-select> -->
+          <h2 class="zh-h2">預設備餐計畫管理</h2>
         </div>
-        
 
         <div class="content-header-function">
           <div style="width: 160px">
-            <button class="btn h-40 btn-solid">新增人員</button>
+            <button class="btn h-40 btn-solid">新增計畫</button>
           </div>
           <el-input
+            v-model="input"
             placeholder="搜尋..."
             class="rounded-search"
           >
-      <template #prefix>
-        <el-icon class="search-icon"><Search /></el-icon>
-      </template>
-    </el-input>
+            <template #prefix>
+              <el-icon class="search-icon"><Search /></el-icon>
+            </template>
+          </el-input>
         </div>
       </div>
 
@@ -112,34 +106,34 @@ const showDetail = (member) => {
         stripe 
         :header-cell-style="{backgroundColor: '#F1F6EF' , color:'#000', fontWeight: 'normal'}"
       >
-        <el-table-column prop="ADMIN_ID" label="管理員編號" sortable="custom" align="center" width="180"/>
-        <el-table-column prop="ADMIN_NAME" label="名稱" sortable="custom" align="center"/>
-        <el-table-column prop="ADMIN_ACCOUNT" label="帳號" align="center"/>
-        <!-- <el-table-column prop="USER_STARTDATE" label="加入日期" sortable="custom" align="center"/> -->
+        <el-table-column prop="" label="計畫編號" sortable="custom" align="center" width="180"/>
+        <el-table-column prop="" label="計劃名稱" sortable="custom" align="center"/>
+        <el-table-column prop="" label="建立時間" align="center"/>
 
-        <el-table-column label="人員狀態" align="center" width="120">
+        <el-table-column label="上/下架" align="center" width="120">
           <template #default="scope">
-            <span v-if="scope.row.ADMIN_LEVEL == 2">主要管理員</span>
             <el-switch 
-            v-else
-            v-model="scope.row.ADMIN_LEVEL" 
-            :active-value="1" 
-            :inactive-value="0"
+            v-model="scope.row.IS_ACTIVE" 
             size="large" 
             class="ml-2" 
             inline-prompt
             style="--el-switch-on-color: #3E8D60; --el-switch-off-color: #ABABAB" 
-            active-text="啟用" 
-            inactive-text="停權"
-            @change="handleStatusChange(scope.row.ADMIN_LEVEL)" />
+            active-text="上架" 
+            inactive-text="下架"
+            @change="handleStatusChange(scope.row)" />
           </template>
         </el-table-column>
 
         <el-table-column label="詳情" align="center" width="120">
-          <template #default="scope">
-            <el-button link >
+          <template #default>
+            <el-button link type="primary">
               <el-icon><Edit /></el-icon>
             </el-button>
+          </template>
+        </el-table-column>
+        <el-table-column label="刪除" align="center" width="120">
+          <template #default>
+            <DeleteButton/>
           </template>
         </el-table-column>
       </el-table>

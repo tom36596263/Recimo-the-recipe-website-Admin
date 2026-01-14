@@ -59,6 +59,12 @@ const routes = [
     meta: { title: '常見問題管理' }
   },
   {
+    path: '/plans',
+    name: 'AdminPlans',
+    component: () => import('@/views/PlansAdmin.vue'),
+    meta: { title: '備餐計畫管理' }
+  },
+  {
     path: '/staff',
     name: 'AdminStaff',
     component: () => import('@/views/StaffAdmin.vue'),

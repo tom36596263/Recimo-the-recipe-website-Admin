@@ -2,7 +2,6 @@
 import { computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import Sidebar from '@/components/site/Sidebar.vue'
-import { Header } from 'element-plus/es/components/table-v2/src/components/index.mjs';
 import Headerbar from '@/components/site/Headerbar.vue';
 
 const router = useRouter();
