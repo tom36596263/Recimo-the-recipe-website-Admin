@@ -117,7 +117,7 @@ const handleStatusChange = (row) => {
         </el-table-column>
         <el-table-column label="詳情" align="center" width="120">
           <template #default>
-            <el-button link type="primary">
+            <el-button link>
               <el-icon><Edit /></el-icon>
             </el-button>
           </template>

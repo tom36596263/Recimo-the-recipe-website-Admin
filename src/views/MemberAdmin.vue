@@ -3,15 +3,12 @@ import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 import { Edit ,Search} from '@element-plus/icons-vue'
 import MyPagination from '@/components/MyPagination.vue';
-import MemberManagement from '@/components/MemberManagement.vue'
+import MemberModal from '@/components/modal/MemberModal.vue'
 
 const tableData = ref([])        // 原始總資料
 const currentPage = ref(1)
 const pageSize = ref(8)
-const category = ref('')
-const search = ref('')
-const isModalOpen = ref(false); //彈窗
-const selectedMember = ref({}); //點擊的資料彈窗
+const modalRef = ref(null)
 
 const loadJsonData = async () => {
   try {
@@ -65,12 +62,9 @@ const handleStatusChange = (row) => {
 };
 
 //-------------彈窗功能-----------
-const showDetail = (member) => {
-  console.log(member);
-  
-  selectedMember.value = member; // 帶入該列資料
-  isModalOpen.value = true;      // 開啟彈窗
-};
+const showDetail = (data) =>{
+  modalRef.value.open(data)
+}
 
 // const handleCurrentChange = (val) => {
 //   console.log(val);
@@ -85,17 +79,10 @@ const showDetail = (member) => {
       <div class="content-header">
         <div class="content-title">
           <h2 class="zh-h2">會員管理</h2>
-          <!-- <el-select v-model="category" placeholder="全部" style="width: 150px">
-            <el-option label="蔬菜" value="vegetable" />
-            <el-option label="肉類" value="meat" />
-          </el-select> -->
         </div>
         
 
         <div class="content-header-function">
-          <!-- <div style="width: 160px">
-            <button class="btn h-40 btn-solid">新增食材</button>
-          </div> -->
           <el-input
             v-model="input"
             placeholder="搜尋..."
@@ -151,20 +138,8 @@ const showDetail = (member) => {
       :pageSize="pageSize" 
       :total="tableData.length"
       />
-      <!-- <el-pagination 
-        background
-        v-model:current-page=currentPage
-        :page-size="pageSize"
-        layout="prev, pager, next, slot" 
-        :total=tableData.length 
-        style="margin-top: 20px; justify-content: flex-end"
-      >
-        <span class="p-p1" style="margin-right: 10px;">共 {{ tableData.length }} 筆資料</span>
-      </el-pagination> -->
-      <MemberManagement 
-      v-model="isModalOpen"
-      :memberData="selectedMember"
-      />
+      <!-- 彈窗 -->
+      <MemberModal ref="modalRef"/>
   </div>
 </template>
 

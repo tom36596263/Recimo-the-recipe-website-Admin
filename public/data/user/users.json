@@ -1,8 +1,8 @@
 [
   {
     "USER_ID": 1,
-    "USER_NAME": "王大明",
-    "USER_EMAIL": "daming.wang@example.com",
+    "USER_NAME": "官方帳號",
+    "USER_EMAIL": "recimo@example.com",
     "USER_PHONE": "0912345678",
     "USER_ADDRESS": "台北市大安區信義路三段100號",
     "USER_PASSWORD": "password01",

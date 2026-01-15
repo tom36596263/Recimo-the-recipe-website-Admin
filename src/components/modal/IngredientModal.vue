@@ -30,6 +30,7 @@ const open = (type, data = null) => {
   visible.value = true
 }
 
+
 const handleImageChange = (file) => {
   // 這裡處理圖片預覽邏輯
   form.imageUrl = URL.createObjectURL(file.raw)
@@ -139,6 +140,7 @@ defineExpose({ open })
 .ingredient-dialog {
   border-radius: 8px;
   overflow: hidden;
+  padding: 0;
 
   .el-dialog__header {
     background-color: #e8f5e9; // 淺綠色頂部

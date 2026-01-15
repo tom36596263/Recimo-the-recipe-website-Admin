@@ -32,7 +32,7 @@ const open = () => {
 </script>
 
 <template>
-  <el-button link type="primary" @click="open">
+  <el-button link @click="open">
         <el-icon><Delete /></el-icon>
     </el-button>
 </template>

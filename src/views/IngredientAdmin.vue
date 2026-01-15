@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
-import { Edit ,Search,Delete} from '@element-plus/icons-vue'
+import { Edit ,Search} from '@element-plus/icons-vue'
 import MyPagination from '@/components/MyPagination.vue';
 import DeleteButton from '@/components/DeleteButton.vue';
 import IngredientModal from '@/components/modal/IngredientModal.vue';
@@ -19,17 +19,37 @@ const handleAdd = () => {
   modalRef.value.open('add')
 }
 
-const handleEdit = () => {
+const handleEdit = (data) => {
+  const { INGREDIENT_ID:id,
+    INGREDIENT_NAME:name,
+    MAIN_CATEGORY:category,
+    UNIT_NAME:unit,
+    CARBS_PER_100G:carbs,
+    PROTEIN_PER_100G:protein,
+    FAT_PER_100G:fat,
+    KCAL_PER_100G:calories,
+    INGREDIENT_IMAGE_URL:imageUrl
+  } = data
   modalRef.value.open('edit', {
-    id: '087',
-    name: '雞蛋',
-    category: 'eggs_dairy',
-    unit: '顆',
-    carbs: '14g',
-    protein: '12g',
-    fat: '12g',
-    calories: '100',
-    imageUrl: 'https://example.com/egg.png'
+    id,
+    name,
+    category,
+    unit,
+    carbs,
+    protein,
+    fat,
+    calories,
+    imageUrl
+  //   id: '087',
+  //   name: '雞蛋',
+  //   category: 'eggs_dairy',
+  //   unit: '顆',
+  //   carbs: '14g',
+  //   protein: '12g',
+  //   fat: '12g',
+  //   calories: '100',
+  //   imageUrl: 'https://example.com/egg.png'
+  // 
   })
 }
 
@@ -152,8 +172,8 @@ const handleStatusChange = (row) => {
         </el-table-column>
 
         <el-table-column label="詳情" align="center" width="120">
-          <template #default>
-            <el-button link type="primary" @click="handleEdit">
+          <template #default="scope">
+            <el-button link @click="handleEdit(scope.row)">
               <el-icon><Edit /></el-icon>
             </el-button>
           </template>

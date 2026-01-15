@@ -3,7 +3,7 @@ import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 import { Edit ,Search,Delete} from '@element-plus/icons-vue'
 import MyPagination from '@/components/MyPagination.vue';
-import DeleteButton from '@/components/DeleteButton.vue';
+
 
 const tableData = ref([])        // 原始總資料
 const currentPage = ref(1)
@@ -114,7 +114,7 @@ const handleStatusChange = (row) => {
 
         <el-table-column label="詳情" align="center" width="120">
           <template #default>
-            <el-button link type="primary">
+            <el-button link>
               <el-icon><Edit /></el-icon>
             </el-button>
           </template>
@@ -129,6 +129,7 @@ const handleStatusChange = (row) => {
       :total="tableData.length"
       />
   </div>
+
 </template>
 
 <style lang="scss" scoped>

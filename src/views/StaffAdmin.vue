@@ -3,12 +3,24 @@ import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 import { Edit ,Search} from '@element-plus/icons-vue'
 import MyPagination from '@/components/MyPagination.vue';
+import StaffAdminModal from '@/components/modal/StaffAdminModal.vue';
 
 const tableData = ref([])        // 原始總資料
 const currentPage = ref(1)
 const pageSize = ref(8)
-const category = ref('')
-const search = ref('')
+const modalRef = ref(null)
+
+
+
+//--------新增 編輯-------
+const handleAdd = () => {
+  modalRef.value.open('add')
+}
+
+//-------------彈窗功能-----------
+const showDetail = (data) =>{
+  modalRef.value.open('edit',data)
+}
 
 //--------取資料-------
 const loadJsonData = async () => {
@@ -63,17 +75,8 @@ const handleStatusChange = (row) => {
   console.log('當前這筆資料的 ID:', row);
 };
 
-// const handleCurrentChange = (val) => {
-//   console.log(val);
-  
-//   currentPage.value = val
-// }
 
-// ---------點擊事件--------
-const showDetail = (member) => {
-  selectedMember.value = member; // 帶入該列資料
-  isModalOpen.value = true;      // 開啟彈窗
-};
+
 </script>
 
 <template>
@@ -91,7 +94,7 @@ const showDetail = (member) => {
 
         <div class="content-header-function">
           <div style="width: 160px">
-            <button class="btn h-40 btn-solid">新增人員</button>
+            <button class="btn h-40 btn-solid" @click="handleAdd">新增人員</button>
           </div>
           <el-input
             placeholder="搜尋..."
@@ -137,7 +140,7 @@ const showDetail = (member) => {
 
         <el-table-column label="詳情" align="center" width="120">
           <template #default="scope">
-            <el-button link >
+            <el-button link @click="showDetail(scope.row)">
               <el-icon><Edit /></el-icon>
             </el-button>
           </template>
@@ -151,16 +154,8 @@ const showDetail = (member) => {
       :pageSize="pageSize" 
       :total="tableData.length"
       />
-      <!-- <el-pagination 
-        background
-        v-model:current-page=currentPage
-        :page-size="pageSize"
-        layout="prev, pager, next, slot" 
-        :total=tableData.length 
-        style="margin-top: 20px; justify-content: flex-end"
-      >
-        <span class="p-p1" style="margin-right: 10px;">共 {{ tableData.length }} 筆資料</span>
-      </el-pagination> -->
+
+      <StaffAdminModal ref="modalRef"/>
   </div>
 </template>
 

@@ -130,7 +130,7 @@ const handleStatusChange = (row) => {
 
         <el-table-column label="編輯" align="center" width="120">
           <template #default>
-            <el-button link type="primary">
+            <el-button link>
               <el-icon><Edit /></el-icon>
             </el-button>
           </template>
