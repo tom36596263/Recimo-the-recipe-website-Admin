@@ -15,8 +15,10 @@ const search = ref('')
 
 const loadJsonData = async () => {
   try {
-    const response = await axios.get()
+    const response = await axios.get('/data/mall/products.json')
     tableData.value = response.data
+    console.log(response.data);
+    
   } catch (error) {
     console.error('抓取 JSON 失敗:', error.message)
   }
