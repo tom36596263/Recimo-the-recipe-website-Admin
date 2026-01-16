@@ -24,7 +24,7 @@ const loadJsonData = async () => {
   }
 }
 
-// --- 排序邏輯 ---
+// --- element plus表單排序邏輯 ---
 const handleSortChange = ({ prop, order }) => {
   if (!order) return; // 如果沒有排序順序（取消排序），不做動作
 

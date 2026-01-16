@@ -19,7 +19,7 @@ defineExpose({ open })
     v-model="visible"
     title="會員詳情"
     width="600px"
-    class="ingredient-dialog"
+    class="dialog"
   >
     <div class="modal-body">
         <div class="profile-section">

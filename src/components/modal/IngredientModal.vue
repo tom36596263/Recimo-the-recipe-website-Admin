@@ -136,7 +136,7 @@ defineExpose({ open })
 </template>
 
 
-<style lang="scss">
+<style lang="scss" scoped>
 .ingredient-dialog {
   border-radius: 8px;
   overflow: hidden;
