@@ -4,6 +4,8 @@ import axios from 'axios';
 import { Edit ,Search,Delete} from '@element-plus/icons-vue'
 import MyPagination from '@/components/MyPagination.vue';
 import DeleteButton from '@/components/DeleteButton.vue';
+import { useRoute } from 'vue-router';
+const route = useRoute();
 
 const tableData = ref([])        // 原始總資料
 const currentPage = ref(1)
@@ -13,14 +15,16 @@ const search = ref('')
 
 const loadJsonData = async () => {
   try {
-    const response = await axios.get()
+    const response = await axios.get('/data/mall/products.json')
     tableData.value = response.data
+    console.log(response.data);
+    
   } catch (error) {
     console.error('抓取 JSON 失敗:', error.message)
   }
 }
 
-// --- 排序邏輯 ---
+// --- element plus表單排序邏輯 ---
 const handleSortChange = ({ prop, order }) => {
   if (!order) return; // 如果沒有排序順序（取消排序），不做動作
 
@@ -75,7 +79,7 @@ const handleStatusChange = (row) => {
     <!-- 內容區頂部 -->
       <div class="content-header">
         <div class="content-title">
-          <h2 class="zh-h2">商品管理</h2>
+          <h2 class="zh-h2">{{route.meta.title}}</h2>
           <el-select v-model="category" placeholder="全部" style="width: 150px">
             <el-option label="蔬菜" value="vegetable" />
             <el-option label="肉類" value="meat" />

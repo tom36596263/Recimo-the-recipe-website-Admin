@@ -3,6 +3,8 @@ import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 import { Edit ,Search,Delete} from '@element-plus/icons-vue'
 import MyPagination from '@/components/MyPagination.vue';
+import { useRoute } from 'vue-router';
+const route = useRoute();
 
 const tableData = ref([])        // 原始總資料
 const currentPage = ref(1)
@@ -74,7 +76,7 @@ const handleStatusChange = (row) => {
     <!-- 內容區頂部 -->
       <div class="content-header">
         <div class="content-title">
-          <h2 class="zh-h2">留言檢舉管理</h2>
+          <h2 class="zh-h2">留言{{route.meta.title}}</h2>
           <el-select v-model="category" placeholder="全部" style="width: 150px">
             <el-option label="蔬菜" value="vegetable" />
             <el-option label="肉類" value="meat" />
@@ -130,7 +132,7 @@ const handleStatusChange = (row) => {
     <!-- 內容區頂部 -->
       <div class="content-header">
         <div class="content-title">
-          <h2 class="zh-h2">圖片檢舉管理</h2>
+          <h2 class="zh-h2">圖片{{route.meta.title}}</h2>
           <el-select v-model="category" placeholder="全部" style="width: 150px">
             <el-option label="蔬菜" value="vegetable" />
             <el-option label="肉類" value="meat" />
@@ -186,7 +188,7 @@ const handleStatusChange = (row) => {
     <!-- 內容區頂部 -->
       <div class="content-header">
         <div class="content-title">
-          <h2 class="zh-h2">食譜檢舉管理</h2>
+          <h2 class="zh-h2">食譜{{route.meta.title}}</h2>
           <el-select v-model="category" placeholder="全部" style="width: 150px">
             <el-option label="蔬菜" value="vegetable" />
             <el-option label="肉類" value="meat" />
