@@ -5,6 +5,8 @@ import { Edit ,Search} from '@element-plus/icons-vue'
 import MyPagination from '@/components/MyPagination.vue';
 import DeleteButton from '@/components/DeleteButton.vue';
 import IngredientModal from '@/components/modal/IngredientModal.vue';
+import { useRoute } from 'vue-router';
+const route = useRoute();
 
 
 const tableData = ref([])        // 原始總資料
@@ -122,7 +124,7 @@ const handleStatusChange = (row) => {
     <!-- 內容區頂部 -->
       <div class="content-header">
         <div class="content-title">
-          <h2 class="zh-h2">食材管理</h2>
+          <h2 class="zh-h2">{{route.meta.title}}</h2>
           <el-select v-model="category" placeholder="全部" style="width: 150px">
             <el-option label="蔬菜" value="vegetable" />
             <el-option label="肉類" value="meat" />
