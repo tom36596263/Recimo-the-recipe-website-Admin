@@ -5,6 +5,9 @@ import { Edit ,Search} from '@element-plus/icons-vue'
 import MyPagination from '@/components/MyPagination.vue';
 import MemberModal from '@/components/modal/MemberModal.vue'
 import { useRoute } from 'vue-router';
+//要引用json的檔案一定要import以下這行
+import { publicApi } from '@/utils/publicApi.js';
+
 const route = useRoute();
 
 const tableData = ref([])        // 原始總資料
@@ -15,7 +18,7 @@ const input = ref('')
 
 const loadJsonData = async () => {
   try {
-    const response = await axios.get('data/user/users.json')
+    const response = await publicApi.get('data/user/users.json')
     tableData.value = response.data
   } catch (error) {
     console.error('抓取 JSON 失敗:', error.message)
