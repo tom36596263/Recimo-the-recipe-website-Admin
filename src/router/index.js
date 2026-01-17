@@ -24,9 +24,15 @@ const routes = [
   },
   {
     path: '/recipes',
-    name: 'AdminRecipes',
-    component: () => import('@/views/RecipeAdmin.vue'),
-    meta: { title: '食譜管理' }
+    meta: { title: '食譜管理' },
+    children:[
+        {
+        path: '', 
+        name: 'AdminRecipes',
+        component: () => import('@/views/Recipe/RecipeAdmin.vue'),
+      },
+      
+    ]
   },
   {
     path: '/reports',
@@ -48,7 +54,6 @@ const routes = [
         path: '', // 詳情頁：/orders/1
         name: 'AdminOrders',
         component: () => import('@/views/Order/OrderAdmin.vue'),
-        props: true // 將 URL 的 id 直接傳入組件作為 props
       },
       {
         path: ':id', // 詳情頁：/orders/1
