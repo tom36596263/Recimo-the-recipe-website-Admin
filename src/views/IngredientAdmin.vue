@@ -59,7 +59,7 @@ const handleEdit = (data) => {
 
 const loadJsonData = async () => {
   try {
-    const response = await axios.get('/data/recipe/ingredients.json')
+    const response = await axios.get('data/recipe/ingredients.json')
     tableData.value = response.data
   } catch (error) {
     console.error('抓取 JSON 失敗:', error.message)

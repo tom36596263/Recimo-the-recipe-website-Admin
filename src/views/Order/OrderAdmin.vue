@@ -15,7 +15,7 @@ const status = ref('0')
 
 const loadJsonData = async () => {
   try {
-    const response = await axios.get('/data/mall/orders.json')
+    const response = await axios.get('data/mall/orders.json')
     tableData.value = response.data
   } catch (error) {
     console.error('抓取 JSON 失敗:', error.message)
@@ -123,7 +123,7 @@ const handleStatusChange = (row) => {
         </el-table-column>
         <el-table-column label="詳情" align="center" width="120">
           <template #default="scope">
-            <router-link :to="'/orders/'+scope.row.ORDER_ID">
+            <router-link :to="'/admin/orders/'+scope.row.ORDER_ID">
               <el-icon><Edit /></el-icon>
             </router-link>
             <!-- <el-button link>

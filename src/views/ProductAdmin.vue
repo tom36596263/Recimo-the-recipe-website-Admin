@@ -15,7 +15,7 @@ const search = ref('')
 
 const loadJsonData = async () => {
   try {
-    const response = await axios.get('/data/mall/products.json')
+    const response = await axios.get('data/mall/products.json')
     tableData.value = response.data
     console.log(response.data);
     

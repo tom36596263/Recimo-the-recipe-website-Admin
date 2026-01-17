@@ -27,7 +27,7 @@ const showDetail = (data) =>{
 //--------取資料-------
 const loadJsonData = async () => {
   try {
-    const response = await axios.get('/data/others/admins.json')
+    const response = await axios.get('data/others/admins.json')
     tableData.value = response.data
   } catch (error) {
     console.error('抓取 JSON 失敗:', error.message)

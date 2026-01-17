@@ -11,10 +11,11 @@ const tableData = ref([])        // 原始總資料
 const currentPage = ref(1)
 const pageSize = ref(8)
 const modalRef = ref(null)
+const input = ref('')
 
 const loadJsonData = async () => {
   try {
-    const response = await axios.get('/data/user/users.json')
+    const response = await axios.get('data/user/users.json')
     tableData.value = response.data
   } catch (error) {
     console.error('抓取 JSON 失敗:', error.message)
