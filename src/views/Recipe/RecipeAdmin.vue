@@ -15,7 +15,7 @@ const search = ref('')
 
 const loadJsonData = async () => {
   try {
-    const response = await axios.get('/data/recipe/recipes.json')
+    const response = await axios.get('data/recipe/recipes.json')
     tableData.value = response.data
   } catch (error) {
     console.error('抓取 JSON 失敗:', error.message)
@@ -85,9 +85,9 @@ const handleStatusChange = (row) => {
         </div>
 
         <div class="content-header-function">
-          <div style="width: 160px">
+          <routerLink to="/admin/recipes/ingredient" style="width: 160px">
             <button class="btn h-40 btn-solid">新增食譜</button>
-          </div>
+          </routerLink>
           <el-input
             v-model="input"
             placeholder="搜尋..."
@@ -129,10 +129,10 @@ const handleStatusChange = (row) => {
         </el-table-column>
 
         <el-table-column label="詳情" align="center" width="120">
-          <template #default>
-            <el-button link>
+          <template #default="scope">
+            <router-link :to="'/admin/recipes/'+scope.row.RECIPE_ID">
               <el-icon><Edit /></el-icon>
-            </el-button>
+            </router-link>
           </template>
         </el-table-column>
         <el-table-column label="刪除" align="center" width="120">

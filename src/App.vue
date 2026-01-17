@@ -4,9 +4,9 @@ import AdminLayout from '@/layouts/AdminLayout.vue';
 </script>
 
 <template>
-  <AdminLayout>
+  <!-- <AdminLayout> -->
     <router-view />
-  </AdminLayout>
+  <!-- </AdminLayout> -->
 </template>
 
 <style lang="scss">
