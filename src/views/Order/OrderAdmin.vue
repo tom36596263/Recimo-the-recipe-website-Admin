@@ -11,10 +11,11 @@ const currentPage = ref(1)
 const pageSize = ref(8)
 const category = ref('')
 const search = ref('')
+const status = ref('0')
 
 const loadJsonData = async () => {
   try {
-    const response = await axios.get('/data/user/users.json')
+    const response = await axios.get('/data/mall/orders.json')
     tableData.value = response.data
   } catch (error) {
     console.error('抓取 JSON 失敗:', error.message)
@@ -104,24 +105,30 @@ const handleStatusChange = (row) => {
         stripe 
         :header-cell-style="{backgroundColor: '#F1F6EF' , color:'#000', fontWeight: 'normal'}"
       >
-        <el-table-column prop="" label="訂單編號" sortable="custom" align="center" width="180"/>
-        <el-table-column prop="" label="會員編號" sortable="custom" align="center"/>
-        <el-table-column prop="" label="訂單日期" align="center"/>
-        <el-table-column prop="" label="金額" align="center"/>
+        <el-table-column prop="ORDER_ID" label="訂單編號" sortable="custom" align="center" width="180"/>
+        <el-table-column prop="USER_ID" label="會員編號" sortable="custom" align="center"/>
+        <el-table-column prop="CREATED" label="訂單日期" align="center"/>
+        <el-table-column prop="TOTAL_AMOUNT" label="金額" align="center"/>
 
-        <el-table-column label="訂單狀態" align="center">
-          <template #default>
-            <el-select v-model="category" placeholder="全部" style="width: 100px">
-                <el-option label="蔬菜" value="vegetable" />
-                <el-option label="肉類" value="meat" />
+        <el-table-column label="訂單狀態" align="center" >
+          <template #default="scope">
+            <el-select v-model="scope.row.ORDER_STATUS" placeholder="" style="width: 100px">
+                <el-option label="訂購成功" :value="0"/>
+                <el-option label="訂單確認" :value="1" />
+                <el-option label="出貨" :value="2" />
+                <el-option label="送達" :value="3" />
+                <el-option label="取消訂單" :value="-1" />
             </el-select>
           </template>
         </el-table-column>
         <el-table-column label="詳情" align="center" width="120">
-          <template #default>
-            <el-button link>
+          <template #default="scope">
+            <router-link :to="'/orders/'+scope.row.ORDER_ID">
               <el-icon><Edit /></el-icon>
-            </el-button>
+            </router-link>
+            <!-- <el-button link>
+              <el-icon><Edit /></el-icon>
+            </el-button> -->
           </template>
         </el-table-column>
       </el-table>
@@ -137,6 +144,10 @@ const handleStatusChange = (row) => {
 </template>
 
 <style lang="scss" scoped>
+  .el-icon{
+    color: #555555;
+  }
+
   .content-header{
     display: flex;
     justify-content: space-between;
