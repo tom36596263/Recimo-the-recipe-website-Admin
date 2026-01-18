@@ -510,7 +510,6 @@ onMounted(() => {
 <style lang="scss" scoped>
 .product-detail-wrapper {
   padding: 20px;
-  background: #f5f7fa;
   min-height: 100vh;
 
   // ===== 頂部返回區樣式 =====
