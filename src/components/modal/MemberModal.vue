@@ -24,7 +24,7 @@ defineExpose({ open })
     <div class="modal-body">
         <div class="profile-section">
           <div class="avatar-container">
-            <img src="./test1.jpg" alt="avatar" class="avatar-img" />
+            <img src="/img/test1.jpg" alt="avatar" class="avatar-img" />
           </div>
           <div class="info-grid">
             <div class="info-item"><strong>會員編號：</strong> {{ memberData.USER_ID }}</div>
@@ -46,13 +46,7 @@ defineExpose({ open })
 
 
 <style lang="scss" scoped>
-.modal-overlay {
-  position: fixed;
-  top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex; justify-content: center; align-items: center;
-  z-index: 1000;
-}
+
 .modal-body { padding: 20px; }
 .profile-section { display: flex; gap: 30px; }
 .avatar-img { width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 2px solid #ddd; }

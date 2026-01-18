@@ -75,22 +75,25 @@ const routes = [
           {
             path: '', 
             name: 'AdminReports',
-            component: () => import('@/views/Recipe/RecipeAdmin.vue'),
+            component: () => import('@/views/Report/ReportAdmin.vue'),
           },
           {
-            path: '', 
-            name: 'CommeentsReports',
-            component: () => import('@/views/Recipe/RecipeAdmin.vue'),
+            path: 'message/:id', 
+            name: 'MessageReports',
+            component: () => import('@/views/Report/MessageReports.vue'),
+            props: true // 將 URL 的 id 直接傳入組件作為 props
           },
           {
-            path: '', 
-            name: 'Reports',
-            component: () => import('@/views/Recipe/RecipeAdmin.vue'),
+            path: 'image/:id', 
+            name: 'ImageReports',
+            component: () => import('@/views/Report/ImageReports.vue'),
+            props: true // 將 URL 的 id 直接傳入組件作為 props
           },
           {
-            path: '', 
-            name: 'Reports',
-            component: () => import('@/views/Recipe/RecipeAdmin.vue'),
+            path: 'recipe/:id', 
+            name: 'RecipeReports',
+            component: () => import('@/views/Report/RecipeReports.vue'),
+            props: true // 將 URL 的 id 直接傳入組件作為 props
           },
         ]
       },
@@ -100,9 +103,26 @@ const routes = [
 //-----------------------商品管理---------------
       {
         path: 'products',
-        name: 'AdminProducts',
-        component: () => import('@/views/ProductAdmin.vue'),
-        meta: { title: '商品管理' }
+        meta: { title: '商品管理' },
+        children:[
+          {
+            path: '', 
+            name: 'AdminProducts',
+            component: () => import('@/views/Product/ProductAdmin.vue'),
+          },
+          {
+            path: 'add', 
+            name: 'ProductAdd',
+            component: () => import('@/views/Product/ProductAdd.vue'),
+            props: true // 將 URL 的 id 直接傳入組件作為 props
+          },
+          {
+            path: ':id', 
+            name: 'ProductDetail',
+            component: () => import('@/views/Product/ProductDetail.vue'),
+            props: true // 將 URL 的 id 直接傳入組件作為 props
+          }
+        ]
       },
 
 
@@ -130,9 +150,26 @@ const routes = [
 //-----------------------通知管理---------------
       {
         path: 'notifications',
-        name: 'AdminNotifications',
-        component: () => import('@/views/NotificationAdmin.vue'),
-        meta: { title: '通知管理' }
+        meta: { title: '通知管理' },
+        children:[
+          {
+            path: '', // 詳情頁：/notifications/1
+            name: 'AdminNotifications',
+            component: () => import('@/views/Notification/NotificationAdmin.vue'),
+          },
+          {
+            path: ':id', // 詳情頁：/notifications/1
+            name: 'NotificationDetail',
+            component: () => import('@/views/Notification/NotificationDetail.vue'),
+            props: true // 將 URL 的 id 直接傳入組件作為 props
+          },
+          {
+            path: 'add', // 詳情頁：/notifications/1
+            name: 'NotificationAdd',
+            component: () => import('@/views/Notification/NotificationAdd.vue'),
+            props: true // 將 URL 的 id 直接傳入組件作為 props
+          }
+        ]
       },
 
 
@@ -140,9 +177,26 @@ const routes = [
 //-----------------------常見問題管理---------------
       {
         path: 'faqs',
-        name: 'AdminFaqs',
-        component: () => import('@/views/FaqAdmin.vue'),
-        meta: { title: '常見問題管理' }
+        meta: { title: '常見問題管理' },
+        children:[
+          { 
+            path: '', 
+            name: 'AdminFaqs',
+            component: () => import('@/views/Faq/FaqAdmin.vue'),
+          },
+          { 
+            path: 'add', 
+            name: 'FaqsAdd',
+            component: () => import('@/views/Faq/FaqAdd.vue'),
+            props: true 
+          },
+          {
+            path: ':id', 
+            name: 'FaqDetail',
+            component: () => import('@/views/Faq/FaqDetail.vue'),
+            props: true // 將 URL 的 id 直接傳入組件作為 props
+          }
+        ]
       },
 
 
@@ -150,9 +204,26 @@ const routes = [
 //-----------------------備餐計畫管理---------------
       {
         path: 'plans',
-        name: 'AdminPlans',
-        component: () => import('@/views/PlansAdmin.vue'),
-        meta: { title: '備餐計畫管理' }
+        meta: { title: '備餐計畫管理' },
+        children:[
+          {
+            path: '', // 詳情頁：/plans/1
+            name: 'AdminPlans',
+            component: () => import('@/views/Plan/PlansAdmin.vue'),
+          },
+          {
+            path: 'add', // 詳情頁：/plans/1
+            name: 'PlansAdd',
+            component: () => import('@/views/Plan/PlansAdd.vue'),
+            props: true // 將 URL 的 id 直接傳入組件作為 props
+          },
+          {
+            path: ':id', // 詳情頁：/plans/1
+            name: 'PlansDetail',
+            component: () => import('@/views/Plan/PlansDetail.vue'),
+            props: true // 將 URL 的 id 直接傳入組件作為 props
+          }
+        ]
       },
 
 

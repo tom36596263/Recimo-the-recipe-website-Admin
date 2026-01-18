@@ -3,20 +3,40 @@ import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 import { Edit ,Search,Delete} from '@element-plus/icons-vue'
 import MyPagination from '@/components/MyPagination.vue';
-import DeleteButton from '@/components/DeleteButton.vue';
+import SearchBar from '@/components/SearchBar.vue';
 import { useRoute } from 'vue-router';
+//要引用json的檔案一定要import以下這行
+import { publicApi } from '@/utils/publicApi.js';
+
 const route = useRoute();
 
 
 const tableData = ref([])        // 原始總資料
 const currentPage = ref(1)
 const pageSize = ref(8)
-const category = ref('')
 const search = ref('')
+
+// ===== 搜尋邏輯 =====
+const filteredData = computed(() => {
+  if (!search.value) {
+    return tableData.value;
+  }
+  
+  const searchLower = search.value.toLowerCase();
+  return tableData.value.filter(item => {
+    const title = item.NOTIFICATION_TITLE ? item.NOTIFICATION_TITLE.toLowerCase() : '';
+    const type = item.NOTIFICATION_TYPE ? item.NOTIFICATION_TYPE.toLowerCase() : '';
+    const id = item.NOTIFICATION_ID ? String(item.NOTIFICATION_ID) : '';
+    
+    return title.includes(searchLower) || 
+           type.includes(searchLower) || 
+           id.includes(searchLower);
+  });
+});
 
 const loadJsonData = async () => {
   try {
-    const response = await axios.get('data/recipe/ingredients.json')
+    const response = await publicApi.get('data/others/notifications.json')
     tableData.value = response.data
   } catch (error) {
     console.error('抓取 JSON 失敗:', error.message)
@@ -53,20 +73,17 @@ const handleSortChange = ({ prop, order }) => {
 const displayData = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
   const end = start + pageSize.value
-  return tableData.value.slice(start, end)
+  return filteredData.value.slice(start, end)
 })
 
 onMounted(() => {
   loadJsonData()
 })
 
-
-
-
-
 const handleStatusChange = (row) => {
   //暫無改動資料狀態功能
-  console.log('當前這筆資料的 ID:', row.USER_ID);
+  console.log(row);
+  
 };
 
 // const handleCurrentChange = (val) => {
@@ -85,18 +102,14 @@ const handleStatusChange = (row) => {
         </div>
 
         <div class="content-header-function">
-          <div style="width: 160px">
-            <button class="btn h-40 btn-solid">新增計畫</button>
-          </div>
-          <el-input
-            v-model="input"
+          <router-link style="width: 160px" to="/admin/notifications/add">
+            <button class="btn h-40 btn-solid">發布消息</button>
+          </router-link>
+          <SearchBar
+            v-model="search"
             placeholder="搜尋..."
-            class="rounded-search"
-          >
-            <template #prefix>
-              <el-icon class="search-icon"><Search /></el-icon>
-            </template>
-          </el-input>
+            width="300px"
+          />
         </div>
       </div>
 
@@ -108,34 +121,17 @@ const handleStatusChange = (row) => {
         stripe 
         :header-cell-style="{backgroundColor: '#F1F6EF' , color:'#000', fontWeight: 'normal'}"
       >
-        <el-table-column prop="" label="計畫編號" sortable="custom" align="center" width="180"/>
-        <el-table-column prop="" label="計劃名稱" sortable="custom" align="center"/>
-        <el-table-column prop="" label="建立時間" align="center"/>
-
-        <el-table-column label="上/下架" align="center" width="120">
-          <template #default="scope">
-            <el-switch 
-            v-model="scope.row.IS_ACTIVE" 
-            size="large" 
-            class="ml-2" 
-            inline-prompt
-            style="--el-switch-on-color: #3E8D60; --el-switch-off-color: #ABABAB" 
-            active-text="上架" 
-            inactive-text="下架"
-            @change="handleStatusChange(scope.row)" />
-          </template>
-        </el-table-column>
+        <el-table-column prop="NOTIFICATION_ID" label="消息編號" sortable="custom" align="center" width="180"/>
+        <el-table-column prop="NOTIFICATION_TYPE" label="消息類別" sortable="custom" align="center"/>
+        <el-table-column prop="NOTIFICATION_TITLE" label="消息標題" align="center"/>
+        <el-table-column prop="CREATED_AT" label="發布日期" align="center"/>
+        <el-table-column prop="RECEIVER_ID" label="發布對象" align="center"/>
 
         <el-table-column label="詳情" align="center" width="120">
-          <template #default>
-            <el-button link>
+          <template #default="scope">
+            <router-link :to="`/admin/notifications/${scope.row.NOTIFICATION_ID}`" style="color: #555;">
               <el-icon><Edit /></el-icon>
-            </el-button>
-          </template>
-        </el-table-column>
-        <el-table-column label="刪除" align="center" width="120">
-          <template #default>
-            <DeleteButton/>
+            </router-link>
           </template>
         </el-table-column>
       </el-table>
@@ -145,19 +141,10 @@ const handleStatusChange = (row) => {
       <MyPagination 
       v-model:currentPage="currentPage" 
       :pageSize="pageSize" 
-      :total="tableData.length"
+      :total="filteredData.length"
       />
-      <!-- <el-pagination 
-        background
-        v-model:current-page=currentPage
-        :page-size="pageSize"
-        layout="prev, pager, next, slot" 
-        :total=tableData.length 
-        style="margin-top: 20px; justify-content: flex-end"
-      >
-        <span class="p-p1" style="margin-right: 10px;">共 {{ tableData.length }} 筆資料</span>
-      </el-pagination> -->
   </div>
+
 </template>
 
 <style lang="scss" scoped>

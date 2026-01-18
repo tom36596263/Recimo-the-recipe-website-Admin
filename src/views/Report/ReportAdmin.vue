@@ -3,19 +3,32 @@ import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 import { Edit ,Search,Delete} from '@element-plus/icons-vue'
 import MyPagination from '@/components/MyPagination.vue';
+import SearchBar from '@/components/SearchBar.vue';
 import { useRoute } from 'vue-router';
+//要引用json的檔案一定要import以下這行
+import { publicApi } from '@/utils/publicApi.js';
+
 const route = useRoute();
 
-const tableData = ref([])        // 原始總資料
-const currentPage = ref(1)
+const tableData1 = ref([])        // 原始總資料
+const tableData2 = ref([])        // 原始總資料
+const tableData3 = ref([])        // 原始總資料
+const currentPage1 = ref(1)
+const currentPage2 = ref(1)
+const currentPage3 = ref(1)
 const pageSize = ref(4)
-const category = ref('')
-const search = ref('')
+const search1 = ref('')  // 評論舉報搜尋
+const search2 = ref('')  // 圖片舉報搜尋
+const search3 = ref('')  // 食譜舉報搜尋
 
 const loadJsonData = async () => {
   try {
-    const response = await axios.get()
-    tableData.value = response.data
+    const res1 = await publicApi.get('data/social/reported_comments.json')
+    const res2 = await publicApi.get('data/social/reported_images.json')
+    const res3 = await publicApi.get('data/social/reported_recipes.json')
+    tableData1.value = res1.data
+    tableData2.value = res2.data
+    tableData3.value = res3.data
   } catch (error) {
     console.error('抓取 JSON 失敗:', error.message)
   }
@@ -47,12 +60,112 @@ const handleSortChange = ({ prop, order }) => {
   currentPage.value = 1;
 };
 
+// ===== 搜尋和篩選邏輯 =====
+const filteredData1 = computed(() => {
+  if (!search1.value) {
+    return tableData1.value;
+  }
+  
+  const searchLower = search1.value.toLowerCase();
+  return tableData1.value.filter(item => {
+    const id = item.REPORTED_COMMENT_ID ? String(item.REPORTED_COMMENT_ID) : '';
+    const reporter = item.REPORTER_ID ? String(item.REPORTER_ID) : '';
+    const reason = item.REPORT_REASON ? item.REPORT_REASON.toLowerCase() : '';
+    
+    return id.includes(searchLower) || 
+           reporter.includes(searchLower) || 
+           reason.includes(searchLower);
+  });
+});
+
+const filteredData2 = computed(() => {
+  if (!search2.value) {
+    return tableData2.value;
+  }
+  
+  const searchLower = search2.value.toLowerCase();
+  return tableData2.value.filter(item => {
+    const id = item.REPORTED_IMAGE_ID ? String(item.REPORTED_IMAGE_ID) : '';
+    const reporter = item.REPORTER_ID ? String(item.REPORTER_ID) : '';
+    const reason = item.REPORT_REASON ? item.REPORT_REASON.toLowerCase() : '';
+    
+    return id.includes(searchLower) || 
+           reporter.includes(searchLower) || 
+           reason.includes(searchLower);
+  });
+});
+
+const filteredData3 = computed(() => {
+  if (!search3.value) {
+    return tableData3.value;
+  }
+  
+  const searchLower = search3.value.toLowerCase();
+  return tableData3.value.filter(item => {
+    const id = item.REPORTED_RECIPE_ID ? String(item.REPORTED_RECIPE_ID) : '';
+    const reporter = item.REPORTER_ID ? String(item.REPORTER_ID) : '';
+    const reason = item.REPORT_REASON ? item.REPORT_REASON.toLowerCase() : '';
+    
+    return id.includes(searchLower) || 
+           reporter.includes(searchLower) || 
+           reason.includes(searchLower);
+  });
+});
+
 // 顯示資料依然是計算出來的（會隨著 tableData 排序而變動）
-const displayData = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value
+const displayData1 = computed(() => {
+  const start = (currentPage1.value - 1) * pageSize.value
   const end = start + pageSize.value
-  return tableData.value.slice(start, end)
+  return filteredData1.value.slice(start, end)
 })
+const displayData2 = computed(() => {
+  const start = (currentPage2.value - 1) * pageSize.value
+  const end = start + pageSize.value
+  return filteredData2.value.slice(start, end)
+})
+const displayData3 = computed(() => {
+  const start = (currentPage3.value - 1) * pageSize.value
+  const end = start + pageSize.value
+  return filteredData3.value.slice(start, end)
+})
+
+
+
+const status = (x)=>{
+  switch (x) {
+  case 0:
+    return '待處理'
+    break;
+  case 1:
+    return '審核通過'
+    break;
+  case 2:
+    return '審核不通過'
+    break;
+  default:return '未知狀態'
+
+}
+}
+const type = (x)=>{
+  switch (x) {
+  case 0:
+    return '廣告垃圾訊息'
+    break;
+  case 1:
+    return '不當言論'
+    break;
+  case 2:
+    return '色情內容'
+    break;
+  case 3:
+    return '詐騙訊息'
+    break;
+  default:return '其他'
+
+}
+}
+
+
 
 onMounted(() => {
   loadJsonData()
@@ -77,156 +190,159 @@ const handleStatusChange = (row) => {
       <div class="content-header">
         <div class="content-title">
           <h2 class="zh-h2">留言{{route.meta.title}}</h2>
-          <el-select v-model="category" placeholder="全部" style="width: 150px">
-            <el-option label="蔬菜" value="vegetable" />
-            <el-option label="肉類" value="meat" />
-          </el-select>
         </div>
 
         <div class="content-header-function">
-          <el-input
-            v-model="input"
+          <SearchBar
+            v-model="search1"
             placeholder="搜尋..."
-            class="rounded-search"
-          >
-            <template #prefix>
-              <el-icon class="search-icon"><Search /></el-icon>
-            </template>
-          </el-input>
+            width="300px"
+          />
         </div>
       </div>
 
       <!-- 表格 -->
       <el-table 
-        :data="displayData" 
+        :data="displayData1" 
         @sort-change="handleSortChange"
         style="width: 100%" 
         stripe 
         :header-cell-style="{backgroundColor: '#F1F6EF' , color:'#000', fontWeight: 'normal'}"
       >
-        <el-table-column prop="" label="案件編號" sortable="custom" align="center" width="180"/>
-        <el-table-column prop="" label="檢舉類型" sortable="custom" align="center"/>
-        <el-table-column prop="" label="文章留言內容" align="center"/>
-        <el-table-column prop="" label="被檢舉會員編號" align="center"/>
-        <el-table-column prop="" label="審核狀態" align="center"/>
+        <el-table-column prop="REPORTED_COMMENT_ID" label="案件編號" sortable="custom" align="center" width="180"/>
+        <el-table-column label="檢舉類型" sortable="custom" align="center">
+          <template #default="scope">
+            {{ type(scope.row.REPORT_TYPE) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="REPORT_REASON" label="文章留言內容" align="center"/>
+        <el-table-column prop="REPORTER_ID" label="被檢舉會員編號" align="center"/>
+        <el-table-column prop="STATUS" label="審核狀態" align="center">
+          <template #default="scope">
+            {{ status(scope.row.STATUS) }}
+          </template>
+        </el-table-column>
 
         <el-table-column label="詳情" align="center" width="120">
-          <template #default>
-            <el-button link>
+          <template #default="scope">
+            <router-link :to="`/admin/reports/message/${scope.row.REPORTED_COMMENT_ID}`" style="color: #555;">
               <el-icon><Edit /></el-icon>
-            </el-button>
+            </router-link>
+            <!-- <el-button link>
+              <el-icon><Edit /></el-icon>
+            </el-button> -->
           </template>
         </el-table-column>
       </el-table>
 
-
       <!-- 頁籤 -->
       <MyPagination 
-      v-model:currentPage="currentPage" 
+      v-model:currentPage="currentPage1" 
       :pageSize="pageSize" 
-      :total="tableData.length"
+      :total="filteredData1.length"
       />
   </div>
+
+
 
   <div>
     <!-- 內容區頂部 -->
       <div class="content-header">
         <div class="content-title">
           <h2 class="zh-h2">圖片{{route.meta.title}}</h2>
-          <el-select v-model="category" placeholder="全部" style="width: 150px">
-            <el-option label="蔬菜" value="vegetable" />
-            <el-option label="肉類" value="meat" />
-          </el-select>
         </div>
 
         <div class="content-header-function">
-          <el-input
-            v-model="input"
+          <SearchBar
+            v-model="search2"
             placeholder="搜尋..."
-            class="rounded-search"
-          >
-            <template #prefix>
-              <el-icon class="search-icon"><Search /></el-icon>
-            </template>
-          </el-input>
+            width="300px"
+          />
         </div>
       </div>
 
       <!-- 表格 -->
       <el-table 
-        :data="displayData" 
+        :data="displayData2" 
         @sort-change="handleSortChange"
         style="width: 100%" 
         stripe 
         :header-cell-style="{backgroundColor: '#F1F6EF' , color:'#000', fontWeight: 'normal'}"
       >
-        <el-table-column prop="" label="案件編號" sortable="custom" align="center" width="180"/>
-        <el-table-column prop="" label="檢舉類型" sortable="custom" align="center"/>
-        <el-table-column prop="" label="文章留言內容" align="center"/>
-        <el-table-column prop="" label="被檢舉會員編號" align="center"/>
-        <el-table-column prop="" label="審核狀態" align="center"/>
-
+        <el-table-column prop="REPORTED_IMAGE_ID" label="案件編號" sortable="custom" align="center" width="180"/>
+        <el-table-column prop="REPORT_TYPE" label="檢舉類型" sortable="custom" align="center">
+          <template #default="scope">
+            {{ type(scope.row.REPORT_TYPE) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="REPORT_REASON" label="文章留言內容" align="center"/>
+        <el-table-column prop="REPORTER_ID" label="被檢舉會員編號" align="center"/>
+        <el-table-column prop="STATUS" label="審核狀態" align="center">
+          <template #default="scope">
+            {{ status(scope.row.STATUS) }}
+          </template>
+        </el-table-column>
         <el-table-column label="詳情" align="center" width="120">
-          <template #default>
-            <el-button link>
+          <template #default="scope">
+            <router-link :to="`/admin/reports/image/${scope.row.REPORTED_IMAGE_ID}`" style="color: #555;">
               <el-icon><Edit /></el-icon>
-            </el-button>
+            </router-link>
           </template>
         </el-table-column>
       </el-table>
 
-
       <!-- 頁籤 -->
       <MyPagination 
-      v-model:currentPage="currentPage" 
+      v-model:currentPage="currentPage2" 
       :pageSize="pageSize" 
-      :total="tableData.length"
+      :total="filteredData2.length"
       />
   </div>
+
+
 
   <div>
     <!-- 內容區頂部 -->
       <div class="content-header">
         <div class="content-title">
           <h2 class="zh-h2">食譜{{route.meta.title}}</h2>
-          <el-select v-model="category" placeholder="全部" style="width: 150px">
-            <el-option label="蔬菜" value="vegetable" />
-            <el-option label="肉類" value="meat" />
-          </el-select>
         </div>
 
         <div class="content-header-function">
-          <el-input
-            v-model="input"
+          <SearchBar
+            v-model="search3"
             placeholder="搜尋..."
-            class="rounded-search"
-          >
-            <template #prefix>
-              <el-icon class="search-icon"><Search /></el-icon>
-            </template>
-          </el-input>
+            width="300px"
+          />
         </div>
       </div>
 
       <!-- 表格 -->
       <el-table 
-        :data="displayData" 
+        :data="displayData3" 
         @sort-change="handleSortChange"
         style="width: 100%" 
         stripe 
         :header-cell-style="{backgroundColor: '#F1F6EF' , color:'#000', fontWeight: 'normal'}"
       >
-        <el-table-column prop="" label="案件編號" sortable="custom" align="center" width="180"/>
-        <el-table-column prop="" label="檢舉類型" sortable="custom" align="center"/>
-        <el-table-column prop="" label="文章留言內容" align="center"/>
-        <el-table-column prop="" label="被檢舉會員編號" align="center"/>
-        <el-table-column prop="" label="審核狀態" align="center"/>
-
+        <el-table-column prop="REPORTED_RECIPE_ID" label="案件編號" sortable="custom" align="center" width="180"/>
+        <el-table-column prop="REPORT_TYPE" label="檢舉類型" sortable="custom" align="center">
+          <template #default="scope">
+            {{ type(scope.row.REPORT_TYPE) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="REPORT_REASON" label="文章留言內容" align="center"/>
+        <el-table-column prop="REPORTER_ID" label="被檢舉會員編號" align="center"/>
+        <el-table-column prop="STATUS" label="審核狀態" align="center">
+          <template #default="scope">
+            {{ status(scope.row.STATUS) }}
+          </template>
+        </el-table-column>
         <el-table-column label="詳情" align="center" width="120">
-          <template #default>
-            <el-button link>
+          <template #default="scope">
+            <router-link :to="`/admin/reports/recipe/${scope.row.REPORTED_RECIPE_ID}`" style="color: #555;">
               <el-icon><Edit /></el-icon>
-            </el-button>
+            </router-link>
           </template>
         </el-table-column>
       </el-table>
@@ -234,9 +350,9 @@ const handleStatusChange = (row) => {
 
       <!-- 頁籤 -->
       <MyPagination 
-      v-model:currentPage="currentPage" 
+      v-model:currentPage="currentPage3" 
       :pageSize="pageSize" 
-      :total="tableData.length"
+      :total="filteredData3.length"
       />
   </div>
 </template>

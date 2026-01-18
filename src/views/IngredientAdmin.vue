@@ -3,16 +3,19 @@ import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 import { Edit ,Search} from '@element-plus/icons-vue'
 import MyPagination from '@/components/MyPagination.vue';
+import SearchBar from '@/components/SearchBar.vue';
 import DeleteButton from '@/components/DeleteButton.vue';
 import IngredientModal from '@/components/modal/IngredientModal.vue';
 import { useRoute } from 'vue-router';
+//要引用json的檔案一定要import以下這行
+import { publicApi } from '@/utils/publicApi.js';
+
 const route = useRoute();
 
 
 const tableData = ref([])        // 原始總資料
 const currentPage = ref(1)
 const pageSize = ref(8)
-const category = ref('')
 const search = ref('')
 const modalRef = ref(null)
 
@@ -59,12 +62,30 @@ const handleEdit = (data) => {
 
 const loadJsonData = async () => {
   try {
-    const response = await axios.get('data/recipe/ingredients.json')
+    const response = await publicApi.get('data/recipe/ingredients.json')
     tableData.value = response.data
   } catch (error) {
     console.error('抓取 JSON 失敗:', error.message)
   }
 }
+
+// ===== 搜尋邏輯 =====
+const filteredData = computed(() => {
+  if (!search.value) {
+    return tableData.value;
+  }
+  
+  const searchLower = search.value.toLowerCase();
+  return tableData.value.filter(item => {
+    const name = item.INGREDIENT_NAME ? item.INGREDIENT_NAME.toLowerCase() : '';
+    const categoryText = item.MAIN_CATEGORY ? item.MAIN_CATEGORY.toLowerCase() : '';
+    const id = item.INGREDIENT_ID ? String(item.INGREDIENT_ID) : '';
+    
+    return name.includes(searchLower) || 
+           categoryText.includes(searchLower) || 
+           id.includes(searchLower);
+  });
+});
 
 // --- 排序邏輯 ---
 const handleSortChange = ({ prop, order }) => {
@@ -96,7 +117,7 @@ const handleSortChange = ({ prop, order }) => {
 const displayData = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
   const end = start + pageSize.value
-  return tableData.value.slice(start, end)
+  return filteredData.value.slice(start, end)
 })
 
 onMounted(() => {
@@ -125,25 +146,17 @@ const handleStatusChange = (row) => {
       <div class="content-header">
         <div class="content-title">
           <h2 class="zh-h2">{{route.meta.title}}</h2>
-          <el-select v-model="category" placeholder="全部" style="width: 150px">
-            <el-option label="蔬菜" value="vegetable" />
-            <el-option label="肉類" value="meat" />
-          </el-select>
         </div>
 
         <div class="content-header-function">
           <div style="width: 160px">
             <button class="btn h-40 btn-solid" @click="handleAdd">新增食材</button>
           </div>
-          <el-input
-            v-model="input"
+          <SearchBar
+            v-model="search"
             placeholder="搜尋..."
-            class="rounded-search"
-          >
-            <template #prefix>
-              <el-icon class="search-icon"><Search /></el-icon>
-            </template>
-          </el-input>
+            width="300px"
+          />
         </div>
       </div>
 
@@ -192,7 +205,7 @@ const handleStatusChange = (row) => {
       <MyPagination 
       v-model:currentPage="currentPage" 
       :pageSize="pageSize" 
-      :total="tableData.length"
+      :total="filteredData.length"
       />
       <!-- <el-pagination 
         background

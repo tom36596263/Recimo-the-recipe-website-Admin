@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 import { Edit ,Search} from '@element-plus/icons-vue'
 import MyPagination from '@/components/MyPagination.vue';
+import SearchBar from '@/components/SearchBar.vue';
 import MemberModal from '@/components/modal/MemberModal.vue'
 import { useRoute } from 'vue-router';
 //要引用json的檔案一定要import以下這行
@@ -14,7 +15,47 @@ const tableData = ref([])        // 原始總資料
 const currentPage = ref(1)
 const pageSize = ref(8)
 const modalRef = ref(null)
-const input = ref('')
+// ===== 步驟1：定義搜尋關鍵詞ref =====
+// 儲存使用者輸入的搜尋文字，透過 v-model 與 SearchBar 組件雙向綁定
+const search = ref('')
+
+// ===== 步驟2：搜尋邏輯 - 過濾表格數據 =====
+/**
+ * filteredData 計算屬性
+ * 功能說明：根據搜尋關鍵詞過濾會員資料
+ * 
+ * 執行步驟：
+ * Step 1: 檢查是否有搜尋關鍵詞，若無則直接返回原始資料
+ * Step 2: 將搜尋關鍵詞轉為小寫，便於不區分大小寫的比對
+ * Step 3: 遍歷所有會員資料，檢查以下欄位是否包含搜尋關鍵詞：
+ *        - USER_NAME（會員名稱）
+ *        - USER_EMAIL（電子郵件）
+ *        - USER_ID（會員編號）
+ *        - USER_PHONE（電話號碼）
+ * Step 4: 只返回符合條件的會員資料
+ */
+const filteredData = computed(() => {
+  // Step 1: 若無搜尋關鍵詞，返回全部資料
+  if (!search.value) {
+    return tableData.value;
+  }
+  
+  // Step 2: 搜尋關鍵詞轉小寫（不區分大小寫）
+  const searchLower = search.value.toLowerCase();
+  
+  // Step 3 & 4: 過濾符合條件的資料
+  return tableData.value.filter(item => {
+    const name = item.USER_NAME ? item.USER_NAME.toLowerCase() : '';
+    const email = item.USER_EMAIL ? item.USER_EMAIL.toLowerCase() : '';
+    const id = item.USER_ID ? String(item.USER_ID) : '';
+    const phone = item.USER_PHONE ? item.USER_PHONE.toLowerCase() : '';
+    
+    return name.includes(searchLower) || 
+           email.includes(searchLower) || 
+           id.includes(searchLower) || 
+           phone.includes(searchLower);
+  });
+});
 
 const loadJsonData = async () => {
   try {
@@ -51,11 +92,24 @@ const handleSortChange = ({ prop, order }) => {
   currentPage.value = 1;
 };
 
-// 顯示資料依然是計算出來的（會隨著 tableData 排序而變動）
+// ===== 步驟3：分頁邏輯 - 計算當前頁顯示的數據 =====
+/**
+ * displayData 計算屬性
+ * 功能說明：根據當前頁碼和每頁筆數，從過濾後的資料中提取應顯示的資料
+ * 
+ * 執行步驟：
+ * Step 1: 根據當前頁碼 (currentPage) 和每頁筆數 (pageSize) 計算起始索引
+ * Step 2: 計算結束索引 (起始索引 + 每頁筆數)
+ * Step 3: 使用 slice() 方法從 filteredData 中提取該頁的資料
+ * Step 4: 將提取的資料傳給表格 el-table 進行展示
+ */
 const displayData = computed(() => {
+  // Step 1 & 2: 計算分頁的起始和結束位置
   const start = (currentPage.value - 1) * pageSize.value
   const end = start + pageSize.value
-  return tableData.value.slice(start, end)
+  
+  // Step 3 & 4: 提取該頁應顯示的資料
+  return filteredData.value.slice(start, end)
 })
 
 onMounted(() => {
@@ -72,11 +126,6 @@ const showDetail = (data) =>{
   modalRef.value.open(data)
 }
 
-// const handleCurrentChange = (val) => {
-//   console.log(val);
-  
-//   currentPage.value = val
-// }
 </script>
 
 <template>
@@ -89,15 +138,11 @@ const showDetail = (data) =>{
         
 
         <div class="content-header-function">
-          <el-input
-            v-model="input"
+          <SearchBar
+            v-model="search"
             placeholder="搜尋..."
-            class="rounded-search"
-          >
-      <template #prefix>
-        <el-icon class="search-icon"><Search /></el-icon>
-      </template>
-    </el-input>
+            width="300px"
+          />
         </div>
       </div>
 
@@ -142,7 +187,7 @@ const showDetail = (data) =>{
       <MyPagination 
       v-model:currentPage="currentPage" 
       :pageSize="pageSize" 
-      :total="tableData.length"
+      :total="filteredData.length"
       />
       <!-- 彈窗 -->
       <MemberModal ref="modalRef"/>

@@ -137,20 +137,7 @@ defineExpose({ open })
 
 
 <style lang="scss" scoped>
-.ingredient-dialog {
-  border-radius: 8px;
-  overflow: hidden;
-  padding: 0;
 
-  .el-dialog__header {
-    background-color: #e8f5e9; // 淺綠色頂部
-    margin-right: 0;
-    padding: 15px 20px;
-    .el-dialog__title {
-      font-weight: bold;
-      color: #333;
-    }
-  }
 
   .form-container {
     display: flex;
@@ -186,54 +173,6 @@ defineExpose({ open })
     }
   }
 
-  // 圖片上傳框樣式
-  .upload-section {
-    margin-top: 20px;
-    .ingredient-uploader {
-      .el-upload {
-        border: 1px solid #dcdfe6;
-        border-radius: 8px;
-        cursor: pointer;
-        position: relative;
-        overflow: hidden;
-        width: 120px;
-        height: 120px;
-        transition: border-color 0.3s;
-        &:hover { border-color: #67c23a; }
-      }
-    }
-    .upload-placeholder {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-      color: #909399;
-      font-size: 12px;
-      .el-icon { font-size: 20px; margin-bottom: 8px; }
-    }
-    .preview-img {
-      width: 120px;
-      height: 120px;
-      object-fit: cover;
-    }
-  }
 
-  // 底部按鈕樣式
-  .dialog-footer {
-    padding: 10px 20px 20px;
-    .btn-submit {
-      background-color: #40916c;
-      border-color: #40916c;
-      padding: 10px 30px;
-      &:hover { background-color: #2d6a4f; }
-    }
-    .btn-close {
-      background-color: #40916c;
-      color: white;
-      padding: 10px 30px;
-      &:hover { opacity: 0.9; }
-    }
-  }
-}
+
 </style>

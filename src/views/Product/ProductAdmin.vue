@@ -3,27 +3,49 @@ import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 import { Edit ,Search,Delete} from '@element-plus/icons-vue'
 import MyPagination from '@/components/MyPagination.vue';
+import SearchBar from '@/components/SearchBar.vue';
 import DeleteButton from '@/components/DeleteButton.vue';
 import { useRoute } from 'vue-router';
-const route = useRoute();
+//要引用json的檔案一定要import以下這行
+import { publicApi } from '@/utils/publicApi.js';
 
+const route = useRoute();
 
 const tableData = ref([])        // 原始總資料
 const currentPage = ref(1)
 const pageSize = ref(8)
-const category = ref('')
 const search = ref('')
+
+// ===== 搜尋邏輯 =====
+const filteredData = computed(() => {
+  if (!search.value) {
+    return tableData.value;
+  }
+  
+  const searchLower = search.value.toLowerCase();
+  return tableData.value.filter(item => {
+    const name = item.product_name ? item.product_name.toLowerCase() : '';
+    const categoryText = item.product_category ? item.product_category.toLowerCase() : '';
+    const id = item.product_id ? String(item.product_id) : '';
+    
+    return name.includes(searchLower) || 
+           categoryText.includes(searchLower) || 
+           id.includes(searchLower);
+  });
+});
 
 const loadJsonData = async () => {
   try {
-    const response = await axios.get('data/recipe/ingredients.json')
+    const response = await publicApi.get('data/mall/products.json')
     tableData.value = response.data
+    console.log(response.data);
+    
   } catch (error) {
     console.error('抓取 JSON 失敗:', error.message)
   }
 }
 
-// --- 排序邏輯 ---
+// --- element plus表單排序邏輯 ---
 const handleSortChange = ({ prop, order }) => {
   if (!order) return; // 如果沒有排序順序（取消排序），不做動作
 
@@ -53,20 +75,17 @@ const handleSortChange = ({ prop, order }) => {
 const displayData = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
   const end = start + pageSize.value
-  return tableData.value.slice(start, end)
+  return filteredData.value.slice(start, end)
 })
 
 onMounted(() => {
   loadJsonData()
 })
 
-
-
-
-
 const handleStatusChange = (row) => {
   //暫無改動資料狀態功能
-  console.log('當前這筆資料的 ID:', row.USER_ID);
+  console.log(row);
+  
 };
 
 // const handleCurrentChange = (val) => {
@@ -82,25 +101,19 @@ const handleStatusChange = (row) => {
       <div class="content-header">
         <div class="content-title">
           <h2 class="zh-h2">{{route.meta.title}}</h2>
-          <el-select v-model="category" placeholder="全部" style="width: 150px">
-            <el-option label="蔬菜" value="vegetable" />
-            <el-option label="肉類" value="meat" />
-          </el-select>
         </div>
 
         <div class="content-header-function">
           <div style="width: 160px">
-            <button class="btn h-40 btn-solid">新增問題</button>
+            <router-link to="/admin/products/add">
+              <button class="btn h-40 btn-solid">新增商品</button>
+            </router-link>
           </div>
-          <el-input
-            v-model="input"
+          <SearchBar
+            v-model="search"
             placeholder="搜尋..."
-            class="rounded-search"
-          >
-            <template #prefix>
-              <el-icon class="search-icon"><Search /></el-icon>
-            </template>
-          </el-input>
+            width="300px"
+          />
         </div>
       </div>
 
@@ -112,34 +125,29 @@ const handleStatusChange = (row) => {
         stripe 
         :header-cell-style="{backgroundColor: '#F1F6EF' , color:'#000', fontWeight: 'normal'}"
       >
-        <el-table-column prop="" label="編號" sortable="custom" align="center" width="180"/>
-        <el-table-column prop="" label="問題分類" sortable="custom" align="center"/>
-        <el-table-column prop="" label="問題標題" align="center"/>
+        <el-table-column prop="product_id" label="商品編號" sortable="custom" align="center" width="180"/>
+        <el-table-column prop="product_category" label="商品類型" sortable="custom" align="center"/>
+        <el-table-column prop="product_name" label="商品名稱" align="center"/>
 
         <el-table-column label="上/下架" align="center" width="120">
           <template #default="scope">
             <el-switch 
-            v-model="scope.row.IS_ACTIVE" 
+            v-model="scope.row.STATUS" 
             size="large" 
             class="ml-2" 
             inline-prompt
             style="--el-switch-on-color: #3E8D60; --el-switch-off-color: #ABABAB" 
-            active-text="上架" 
-            inactive-text="下架"
+            active-text="公開" 
+            inactive-text="不公開"
             @change="handleStatusChange(scope.row)" />
           </template>
         </el-table-column>
 
-        <el-table-column label="編輯" align="center" width="120">
-          <template #default>
-            <el-button link>
+        <el-table-column label="詳情" align="center" width="120">
+          <template #default ="scope">
+            <router-link :to="`/admin/products/${scope.row.product_id}`" style="color: #555;">
               <el-icon><Edit /></el-icon>
-            </el-button>
-          </template>
-        </el-table-column>
-        <el-table-column label="刪除" align="center" width="120">
-          <template #default>
-            <DeleteButton/>
+            </router-link>
           </template>
         </el-table-column>
       </el-table>
@@ -149,18 +157,8 @@ const handleStatusChange = (row) => {
       <MyPagination 
       v-model:currentPage="currentPage" 
       :pageSize="pageSize" 
-      :total="tableData.length"
+      :total="filteredData.length"
       />
-      <!-- <el-pagination 
-        background
-        v-model:current-page=currentPage
-        :page-size="pageSize"
-        layout="prev, pager, next, slot" 
-        :total=tableData.length 
-        style="margin-top: 20px; justify-content: flex-end"
-      >
-        <span class="p-p1" style="margin-right: 10px;">共 {{ tableData.length }} 筆資料</span>
-      </el-pagination> -->
   </div>
 </template>
 

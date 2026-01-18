@@ -3,19 +3,40 @@ import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 import { Edit ,Search,Delete} from '@element-plus/icons-vue'
 import MyPagination from '@/components/MyPagination.vue';
+import SearchBar from '@/components/SearchBar.vue';
 import DeleteButton from '@/components/DeleteButton.vue';
 import { useRoute } from 'vue-router';
+//要引用json的檔案一定要import以下這行
+import { publicApi } from '@/utils/publicApi.js';
+
 const route = useRoute();
 
 const tableData = ref([])        // 原始總資料
 const currentPage = ref(1)
 const pageSize = ref(8)
-const category = ref('')
 const search = ref('')
+
+// ===== 搜尋邏輯 =====
+const filteredData = computed(() => {
+  if (!search.value) {
+    return tableData.value;
+  }
+  
+  const searchLower = search.value.toLowerCase();
+  return tableData.value.filter(item => {
+    const title = item.RECIPE_TITLE ? item.RECIPE_TITLE.toLowerCase() : '';
+    const categoryText = item.CATEGORY ? item.CATEGORY.toLowerCase() : '';
+    const id = item.RECIPE_ID ? String(item.RECIPE_ID) : '';
+    
+    return title.includes(searchLower) || 
+           categoryText.includes(searchLower) || 
+           id.includes(searchLower);
+  });
+});
 
 const loadJsonData = async () => {
   try {
-    const response = await axios.get('data/recipe/recipes.json')
+    const response = await publicApi.get('data/recipe/recipes.json')
     tableData.value = response.data
   } catch (error) {
     console.error('抓取 JSON 失敗:', error.message)
@@ -52,7 +73,7 @@ const handleSortChange = ({ prop, order }) => {
 const displayData = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
   const end = start + pageSize.value
-  return tableData.value.slice(start, end)
+  return filteredData.value.slice(start, end)
 })
 
 onMounted(() => {
@@ -78,25 +99,17 @@ const handleStatusChange = (row) => {
       <div class="content-header">
         <div class="content-title">
           <h2 class="zh-h2">{{route.meta.title}}</h2>
-          <el-select v-model="category" placeholder="全部" style="width: 150px">
-            <el-option label="蔬菜" value="vegetable" />
-            <el-option label="肉類" value="meat" />
-          </el-select>
         </div>
 
         <div class="content-header-function">
           <routerLink to="/admin/recipes/ingredient" style="width: 160px">
             <button class="btn h-40 btn-solid">新增食譜</button>
           </routerLink>
-          <el-input
-            v-model="input"
+          <SearchBar
+            v-model="search"
             placeholder="搜尋..."
-            class="rounded-search"
-          >
-            <template #prefix>
-              <el-icon class="search-icon"><Search /></el-icon>
-            </template>
-          </el-input>
+            width="300px"
+          />
         </div>
       </div>
 
@@ -130,7 +143,7 @@ const handleStatusChange = (row) => {
 
         <el-table-column label="詳情" align="center" width="120">
           <template #default="scope">
-            <router-link :to="'/admin/recipes/'+scope.row.RECIPE_ID">
+            <router-link :to="'/admin/recipes/'+scope.row.RECIPE_ID" style="color: #555;">
               <el-icon><Edit /></el-icon>
             </router-link>
           </template>
@@ -147,7 +160,7 @@ const handleStatusChange = (row) => {
       <MyPagination 
       v-model:currentPage="currentPage" 
       :pageSize="pageSize" 
-      :total="tableData.length"
+      :total="filteredData.length"
       />
   </div>
 </template>
