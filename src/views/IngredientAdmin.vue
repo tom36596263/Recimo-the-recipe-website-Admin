@@ -19,21 +19,39 @@ const pageSize = ref(8)
 const search = ref('')
 const modalRef = ref(null)
 
+// 主分類中文對照
+const categoryMap = {
+  'fresh-produce': '新鮮食材',
+  'fruits': '水果',
+  'meat-poultry': '肉類/家禽',
+  'seafood': '海鮮',
+  'dairy-eggs-soy': '乳製品/蛋/豆製品',
+  'grains-pasta-bakery': '穀類/麵食/烘焙',
+  'condiments-sauces-oils': '調味/醬料/油',
+  'pantry-spices-nuts': '乾貨/香料/堅果',
+  'others': '其他'
+}
+
+const getCategoryLabel = (key) => {
+  if (!key) return ''
+  return categoryMap[key] || key
+}
+
 //--------編輯-------
 const handleAdd = () => {
   modalRef.value.open('add')
 }
 
 const handleEdit = (data) => {
-  const { INGREDIENT_ID:id,
-    INGREDIENT_NAME:name,
-    MAIN_CATEGORY:category,
-    UNIT_NAME:unit,
-    CARBS_PER_100G:carbs,
-    PROTEIN_PER_100G:protein,
-    FAT_PER_100G:fat,
-    KCAL_PER_100G:calories,
-    INGREDIENT_IMAGE_URL:imageUrl
+  const { ingredient_id:id,
+    ingredient_name:name,
+    main_category:category,
+    unit_name:unit,
+    carbs_per_100g:carbs,
+    protein_per_100g:protein,
+    fat_per_100g:fat,
+    kcal_per_100g:calories,
+    ingredient_image_url:imageUrl
   } = data
   modalRef.value.open('edit', {
     id,
@@ -45,16 +63,6 @@ const handleEdit = (data) => {
     fat,
     calories,
     imageUrl
-  //   id: '087',
-  //   name: '雞蛋',
-  //   category: 'eggs_dairy',
-  //   unit: '顆',
-  //   carbs: '14g',
-  //   protein: '12g',
-  //   fat: '12g',
-  //   calories: '100',
-  //   imageUrl: 'https://example.com/egg.png'
-  // 
   })
 }
 
@@ -77,12 +85,14 @@ const filteredData = computed(() => {
   
   const searchLower = search.value.toLowerCase();
   return tableData.value.filter(item => {
-    const name = item.INGREDIENT_NAME ? item.INGREDIENT_NAME.toLowerCase() : '';
-    const categoryText = item.MAIN_CATEGORY ? item.MAIN_CATEGORY.toLowerCase() : '';
-    const id = item.INGREDIENT_ID ? String(item.INGREDIENT_ID) : '';
-    
+    const name = item.ingredient_name ? item.ingredient_name.toLowerCase() : '';
+    const categoryKey = item.main_category ? item.main_category : '';
+    const categoryText = categoryKey.toLowerCase();
+    const categoryLabel = getCategoryLabel(categoryKey).toLowerCase();
+    const id = item.ingredient_id ? String(item.ingredient_id) : '';
     return name.includes(searchLower) || 
            categoryText.includes(searchLower) || 
+           categoryLabel.includes(searchLower) ||
            id.includes(searchLower);
   });
 });
@@ -95,12 +105,7 @@ const handleSortChange = ({ prop, order }) => {
   tableData.value.sort((a, b) => {
     let valA = a[prop];
     let valB = b[prop];
-
-    // 如果是日期格式，需要轉成 Date 物件才能正確比較
-    if (prop === 'USER_STARTDATE') {
-      valA = new Date(valA);
-      valB = new Date(valB);
-    }
+    // ingredients.json 沒有日期欄位，若未來有可補上
 
     if (order === 'ascending') {
       return valA > valB ? 1 : -1;
@@ -168,14 +173,20 @@ const handleStatusChange = (row) => {
         stripe 
         :header-cell-style="{backgroundColor: '#F1F6EF' , color:'#000', fontWeight: 'normal'}"
       >
-        <el-table-column prop="INGREDIENT_ID" label="食材編號" sortable="custom" align="center" width="180"/>
-        <el-table-column prop="MAIN_CATEGORY" label="食材分類" sortable="custom" align="center"/>
-        <el-table-column prop="INGREDIENT_NAME" label="食材名稱" align="center"/>
+
+        <el-table-column prop="ingredient_id" label="食材編號" sortable="custom" align="center" width="180"/>
+        <el-table-column prop="main_category" label="食材分類" sortable="custom" align="center">
+          <template #default="scope">
+            {{ getCategoryLabel(scope.row.main_category) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="ingredient_name" label="食材名稱" align="center"/>
 
         <el-table-column label="上/下架" align="center" width="120">
           <template #default="scope">
+            <!-- ingredients.json 沒有 is_active 欄位，若有請補上正確欄位 -->
             <el-switch 
-            v-model="scope.row.IS_ACTIVE" 
+            v-model="scope.row.is_active" 
             size="large" 
             class="ml-2" 
             inline-prompt

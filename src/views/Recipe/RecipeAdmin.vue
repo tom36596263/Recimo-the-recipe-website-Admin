@@ -24,19 +24,18 @@ const filteredData = computed(() => {
   
   const searchLower = search.value.toLowerCase();
   return tableData.value.filter(item => {
-    const title = item.RECIPE_TITLE ? item.RECIPE_TITLE.toLowerCase() : '';
-    const categoryText = item.CATEGORY ? item.CATEGORY.toLowerCase() : '';
-    const id = item.RECIPE_ID ? String(item.RECIPE_ID) : '';
-    
-    return title.includes(searchLower) || 
-           categoryText.includes(searchLower) || 
-           id.includes(searchLower);
+    const title = item.recipe_title ? item.recipe_title.toLowerCase() : '';
+    const id = item.recipe_id ? String(item.recipe_id) : '';
+    // recipes.json 沒有 category，這裡可根據實際欄位調整
+    // const categoryText = item.category ? item.category.toLowerCase() : '';
+    return title.includes(searchLower) || id.includes(searchLower);
   });
 });
 
 const loadJsonData = async () => {
   try {
     const response = await publicApi.get('data/recipe/recipes.json')
+    // 直接存入原始資料
     tableData.value = response.data
   } catch (error) {
     console.error('抓取 JSON 失敗:', error.message)
@@ -49,11 +48,12 @@ const handleSortChange = ({ prop, order }) => {
 
   // 直接對原始陣列 tableData 進行排序
   tableData.value.sort((a, b) => {
+    // 這裡要根據 recipes.json 的欄位名稱做對應
+    // 例如 prop 可能是 'recipe_id', 'recipe_title' 等
     let valA = a[prop];
     let valB = b[prop];
-
-    // 如果是日期格式，需要轉成 Date 物件才能正確比較
-    if (prop === 'USER_STARTDATE') {
+    // 若是日期欄位
+    if (prop === 'recipe_created_at' || prop === 'recipe_last_updated') {
       valA = new Date(valA);
       valB = new Date(valB);
     }
@@ -121,14 +121,15 @@ const handleStatusChange = (row) => {
         stripe 
         :header-cell-style="{backgroundColor: '#F1F6EF' , color:'#000', fontWeight: 'normal'}"
       >
-        <el-table-column prop="RECIPE_ID" label="食譜編號" sortable="custom" align="center" width="180"/>
-        <el-table-column prop="CATEGORY" label="食譜分類" sortable="custom" align="center"/>
-        <el-table-column prop="RECIPE_TITLE" label="食譜名稱" align="center"/>
+
+        <el-table-column prop="recipe_id" label="食譜編號" sortable="custom" align="center" width="180"/>
+        <!-- <el-table-column prop="category" label="食譜分類" sortable="custom" align="center"/> -->
+        <el-table-column prop="recipe_title" label="食譜名稱" align="center"/>
 
         <el-table-column label="公開狀態" align="center" width="120">
           <template #default="scope">
             <el-switch 
-            v-model="scope.row.STATUS" 
+            v-model="scope.row.status" 
             :active-value="0" 
             :inactive-value="2"
             size="large" 
@@ -143,7 +144,7 @@ const handleStatusChange = (row) => {
 
         <el-table-column label="詳情" align="center" width="120">
           <template #default="scope">
-            <router-link :to="'/admin/recipes/'+scope.row.RECIPE_ID" style="color: #555;">
+            <router-link :to="'/admin/recipes/'+scope.row.recipe_id" style="color: #555;">
               <el-icon><Edit /></el-icon>
             </router-link>
           </template>
