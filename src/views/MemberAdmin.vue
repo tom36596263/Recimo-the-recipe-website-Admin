@@ -155,7 +155,7 @@ const showDetail = (data) =>{
         :header-cell-style="{backgroundColor: '#F1F6EF' , color:'#000', fontWeight: 'normal'}"
       >
         <el-table-column prop="USER_ID" label="會員編號" sortable="custom" align="center" width="180"/>
-        <el-table-column prop="USER_NAME" label="姓名" sortable="custom" align="center"/>
+        <el-table-column prop="USER_NAME" label="姓名" align="center"/>
         <el-table-column prop="USER_EMAIL" label="電子信箱" align="center"/>
         <el-table-column prop="USER_STARTDATE" label="加入日期" sortable="custom" align="center"/>
 
