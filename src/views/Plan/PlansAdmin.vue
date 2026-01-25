@@ -126,7 +126,7 @@ const handleStatusChange = (row) => {
         :header-cell-style="{backgroundColor: '#F1F6EF' , color:'#000', fontWeight: 'normal'}"
       >
         <el-table-column prop="planId" label="計畫編號" sortable="custom" align="center" width="180"/>
-        <el-table-column prop="title" label="計劃名稱" sortable="custom" align="center"/>
+        <el-table-column prop="title" label="計劃名稱" align="center"/>
         <el-table-column prop="startDate" label="建立時間" align="center"/>
 
         <el-table-column label="上/下架" align="center" width="120">

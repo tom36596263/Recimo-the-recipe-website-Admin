@@ -134,7 +134,7 @@ const handleStatusChange = (row) => {
         :header-cell-style="{backgroundColor: '#F1F6EF' , color:'#000', fontWeight: 'normal'}"
       >
         <el-table-column prop="ADMIN_ID" label="管理員編號" sortable="custom" align="center" width="180"/>
-        <el-table-column prop="ADMIN_NAME" label="名稱" sortable="custom" align="center"/>
+        <el-table-column prop="ADMIN_NAME" label="名稱" align="center"/>
         <el-table-column prop="ADMIN_ACCOUNT" label="帳號" align="center"/>
         <!-- <el-table-column prop="USER_STARTDATE" label="加入日期" sortable="custom" align="center"/> -->
 
