@@ -60,6 +60,11 @@ const routes = [
             component: () => import('@/views/Recipe/RecipeIncrease.vue')
           },
           {
+            path: 'increase',
+            name: 'RecipesIncrease',
+            component: () => import('@/views/Recipe/RecipeIncrease.vue')
+          },
+          {
             path: ':id',
             name: 'RecipesDetail',
             component: () => import('@/views/Recipe/RecipeDetail.vue'),
