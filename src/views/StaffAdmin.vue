@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
-import { Edit ,Search} from '@element-plus/icons-vue'
+import { Edit, Search } from '@element-plus/icons-vue'
 import MyPagination from '@/components/MyPagination.vue';
 import SearchBar from '@/components/SearchBar.vue';
 import StaffAdminModal from '@/components/modal/StaffAdminModal.vue';
@@ -25,8 +25,8 @@ const handleAdd = () => {
 }
 
 //-------------彈窗功能-----------
-const showDetail = (data) =>{
-  modalRef.value.open('edit',data)
+const showDetail = (data) => {
+  modalRef.value.open('edit', data)
 }
 
 // ===== 搜尋邏輯 =====
@@ -34,16 +34,16 @@ const filteredData = computed(() => {
   if (!search.value) {
     return tableData.value;
   }
-  
+
   const searchLower = search.value.toLowerCase();
   return tableData.value.filter(item => {
-    const name = item.ADMIN_NAME ? item.ADMIN_NAME.toLowerCase() : '';
-    const account = item.ADMIN_ACCOUNT ? item.ADMIN_ACCOUNT.toLowerCase() : '';
-    const id = item.ADMIN_ID ? String(item.ADMIN_ID) : '';
-    
-    return name.includes(searchLower) || 
-           account.includes(searchLower) || 
-           id.includes(searchLower);
+    const name = item.admin_name ? item.admin_name.toLowerCase() : '';
+    const account = item.admin_account ? item.admin_account.toLowerCase() : '';
+    const id = item.admin_id ? String(item.admin_id) : '';
+
+    return name.includes(searchLower) ||
+      account.includes(searchLower) ||
+      id.includes(searchLower);
   });
 });
 
@@ -107,108 +107,93 @@ const handleStatusChange = (row) => {
 <template>
   <div>
     <!-- 內容區頂部 -->
-      <div class="content-header">
-        <div class="content-title">
-          <h2 class="zh-h2">{{route.meta.title}}</h2>
-        </div>
-        
-
-        <div class="content-header-function">
-          <div style="width: 160px">
-            <button class="btn h-40 btn-solid" @click="handleAdd">新增人員</button>
-          </div>
-          <SearchBar
-            v-model="search"
-            placeholder="搜尋..."
-            width="300px"
-          />
-        </div>
+    <div class="content-header">
+      <div class="content-title">
+        <h2 class="zh-h2">{{ route.meta.title }}</h2>
       </div>
 
-      <!-- 表格 -->
-      <el-table 
-        :data="displayData" 
-        @sort-change="handleSortChange"
-        style="width: 100%" 
-        stripe 
-        :header-cell-style="{backgroundColor: '#F1F6EF' , color:'#000', fontWeight: 'normal'}"
-      >
-        <el-table-column prop="ADMIN_ID" label="管理員編號" sortable="custom" align="center" width="180"/>
-        <el-table-column prop="ADMIN_NAME" label="名稱" sortable="custom" align="center"/>
-        <el-table-column prop="ADMIN_ACCOUNT" label="帳號" align="center"/>
-        <!-- <el-table-column prop="USER_STARTDATE" label="加入日期" sortable="custom" align="center"/> -->
 
-        <el-table-column label="人員狀態" align="center" width="120">
-          <template #default="scope">
-            <span v-if="scope.row.ADMIN_LEVEL == 2">主要管理員</span>
-            <el-switch 
-            v-else
-            v-model="scope.row.ADMIN_LEVEL" 
-            :active-value="1" 
-            :inactive-value="0"
-            size="large" 
-            class="ml-2" 
-            inline-prompt
-            style="--el-switch-on-color: #3E8D60; --el-switch-off-color: #ABABAB" 
-            active-text="啟用" 
-            inactive-text="停權"
-            @change="handleStatusChange(scope.row.ADMIN_LEVEL)" />
-          </template>
-        </el-table-column>
+      <div class="content-header-function">
+        <div style="width: 160px">
+          <button class="btn h-40 btn-solid" @click="handleAdd">新增人員</button>
+        </div>
+        <SearchBar v-model="search" placeholder="搜尋..." width="300px" />
+      </div>
+    </div>
 
-        <el-table-column label="詳情" align="center" width="120">
-          <template #default="scope">
-            <el-button link @click="showDetail(scope.row)">
-              <el-icon><Edit /></el-icon>
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+    <!-- 表格 -->
+    <el-table :data="displayData" @sort-change="handleSortChange" style="width: 100%" stripe
+      :header-cell-style="{ backgroundColor: '#F1F6EF', color: '#000', fontWeight: 'normal' }">
+      <el-table-column prop="admin_id" label="管理員編號" sortable="custom" align="center" width="180" />
+      <el-table-column prop="admin_name" label="名稱" sortable="custom" align="center" />
+      <el-table-column prop="admin_account" label="帳號" align="center" />
+      <!-- <el-table-column prop="USER_STARTDATE" label="加入日期" sortable="custom" align="center"/> -->
+
+      <el-table-column label="人員狀態" align="center" width="120">
+        <template #default="scope">
+          <span v-if="scope.row.admin_level == 2">主要管理員</span>
+          <el-switch v-else v-model="scope.row.admin_level" :active-value="1" :inactive-value="0" size="large"
+            class="ml-2" inline-prompt style="--el-switch-on-color: #3E8D60; --el-switch-off-color: #ABABAB"
+            active-text="啟用" inactive-text="停權" @change="handleStatusChange(scope.row.admin_level)" />
+        </template>
+      </el-table-column>
+
+      <el-table-column label="詳情" align="center" width="120">
+        <template #default="scope">
+          <el-button link @click="showDetail(scope.row)">
+            <el-icon>
+              <Edit />
+            </el-icon>
+          </el-button>
+        </template>
+      </el-table-column>
+    </el-table>
 
 
-      <!-- 頁籤 -->
-      <MyPagination 
-      v-model:currentPage="currentPage" 
-      :pageSize="pageSize" 
-      :total="filteredData.length"
-      />
+    <!-- 頁籤 -->
+    <MyPagination v-model:currentPage="currentPage" :pageSize="pageSize" :total="filteredData.length" />
 
-      <StaffAdminModal ref="modalRef"/>
+    <StaffAdminModal ref="modalRef" />
   </div>
 </template>
 
 <style lang="scss" scoped>
-  .content-header{
-    display: flex;
-    justify-content: space-between;
-    align-items: end;
-    margin-bottom: 20px;
-    .content-title{
+.content-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  margin-bottom: 20px;
 
-      display: flex;
-      align-items: end;
-      gap: 20px;
-    }
-    .content-header-function{
-      display: flex;
-      gap: 20px;
-    }
+  .content-title {
+
+    display: flex;
+    align-items: end;
+    gap: 20px;
   }
 
-  
-  
+  .content-header-function {
+    display: flex;
+    gap: 20px;
+  }
+}
 
-  /* 容器寬度設定（參考圖片 307px） */
+
+
+
+/* 容器寬度設定（參考圖片 307px） */
 .custom-search-container {
   width: 307px;
 }
 
 :deep(.rounded-search .el-input__wrapper) {
-  border-radius: 20px;          /* 高度 40px 的一半，達成全圓角 */
+  border-radius: 20px;
+  /* 高度 40px 的一半，達成全圓角 */
   background-color: #ffffff;
-  box-shadow: 0 0 0 1px #3E8D60 inset; /* 預設邊框顏色 */
+  box-shadow: 0 0 0 1px #3E8D60 inset;
+  /* 預設邊框顏色 */
   padding: 0 15px;
-  height: 40px;                 /* 參考圖片高度 */
+  height: 40px;
+  /* 參考圖片高度 */
 }
 
 /* 滑鼠移入或選取時的邊框顏色保持一致或稍微加深 */

@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import AdminLayout from '@/layouts/AdminLayout.vue';
+import { ElMessage } from 'element-plus';
 /**
  * 純後台管理系統路由配置
  * 所有的路徑現在直接掛在根目錄下，或者保留 /admin 前綴。
@@ -10,15 +11,14 @@ const routes = [
   {
     path: '/',
     name: 'Root',
-    redirect: '/admin/login'
+    redirect: '/login'
   },
 
   // 2. 登入頁面：必須放在 AdminLayout 的「外面」
   {
-    path: '/admin/login',
+    path: '/login',
     name: 'Login',
-    component: () => import('@/views/LoginView.vue'),
-    meta: { title: '管理員登入' }
+    component: () => import('@/views/LoginView.vue')
   },
 
   // 3. 後台管理主體
@@ -27,6 +27,7 @@ const routes = [
     component: AdminLayout,
     // 注意：這裡的 redirect 只會在你訪問 "http://.../admin" 時觸發
     redirect: '/admin/members',
+    meta: { requiresAuth: true }, //進入 /admin 及其子路由都需要登入
     children: [
       //-----------------------會員管理---------------
       {
@@ -236,12 +237,118 @@ const router = createRouter({
   routes
 });
 
-// 路由守衛：動態切換網頁標題
-router.beforeEach((to, from, next) => {
-  if (to.meta.title) {
-    document.title = `Recimo 後台 - ${to.meta.title}`;
+// // 全域路由守衛：動態切換網頁標題
+// router.beforeEach((to, from, next) => {
+//   // 1. 檢查目標路由是否需要登入驗證
+//   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth);
+
+//   // 2. 從 localStorage 檢查是否有登入資訊
+//   const isLoggedIn = !!localStorage.getItem('admin_user');
+
+//   if (requiresAuth && !isLoggedIn) {
+//     // 情況 A: 需要登入但沒登入 -> 強制導向登入頁
+//     next('/login');
+//   } else if (to.path === '/login' && isLoggedIn) {
+//     // 情況 B: 已經登入了卻還想去登入頁 -> 自動導向後台首頁
+//     next('/admin/members');
+//   } else {
+//     // 情況 C: 正常通行
+//     next();
+//   }
+// });
+
+// // 全域路由守衛
+// router.beforeEach(async ((to, from, next) => {
+//   // 1. 取得原始字串
+//   const userDataStr = localStorage.getItem('admin_user');
+
+//   // 2. 預先定義變數
+//   let user = null;
+//   if (userDataStr) {
+//     try {
+//       user = JSON.parse(userDataStr);
+//     } catch (e) {
+//       console.error('解析登入資料出錯');
+//     }
+//   }
+
+//   // 3. 【最優先檢查】：如果已經登入，但等級是 0
+//   if (user && user.level == 0) {
+//     localStorage.removeItem('admin_user'); // 強制清除
+//     alert('您的帳號已被停權或無權限進入，請聯絡主要管理員');
+//     return next('/login'); // 直接踢回登入頁，並結束這一次守衛
+//   }
+
+//   // 4. 檢查目標路由是否需要登入驗證
+//   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth);
+//   const isLoggedIn = !!user;
+
+//   if (requiresAuth && !isLoggedIn) {
+//     // 情況 A: 需要登入但沒登入 -> 強制導向登入頁
+//     next('/login');
+//   } else if (to.path === '/login' && isLoggedIn) {
+//     // 情況 B: 已經登入了卻還想去登入頁 -> 自動導向後台首頁
+//     next('/admin/members');
+//   } else {
+//     // 情況 C: 正常通行
+//     next();
+//   }
+
+// });
+
+// 全域路由守衛
+router.beforeEach(async (to, from, next) => {
+  // 1. 取得 localStorage 資料
+  const userDataStr = localStorage.getItem('admin_user');
+  let user = null;
+  if (userDataStr) {
+    try {
+      user = JSON.parse(userDataStr);
+    } catch (e) {
+      console.error('解析登入資料出錯');
+    }
   }
-  next();
+
+  const requiresAuth = to.matched.some((record) => record.meta.requiresAuth);
+  const isLoggedIn = !!user;
+
+  // 2. 如果是需要登入的頁面，且目前是登入狀態
+  if (requiresAuth && isLoggedIn) {
+    try {
+      // 即時權限檢查
+      const response = await fetch('/data/others/admins.json?t=' + Date.now());
+      const adminData = await response.json();
+
+      // 在 JSON 裡找出目前登入的這名管理員
+      const latestInfo = adminData.find(
+        (u) => u.admin_account === user.account
+      );
+
+      // 偵錯用：看看現在抓到的 latestInfo 等級到底是多少
+      console.log('當前權限狀態：', latestInfo?.admin_level);
+
+      // 如果找不到這個人，或是他的等級變成了 0
+      if (!latestInfo || latestInfo.admin_level == 0) {
+        localStorage.removeItem('admin_user');
+        ElMessage('您的帳號已被停權或無權限進入，請聯絡主要管理員');
+        return next('/login');
+      }
+      // ---------------------------------
+    } catch (error) {
+      console.error('即時權限檢查失敗', error);
+    }
+  }
+
+  if (requiresAuth && !isLoggedIn) {
+    // 需要登入但沒登入 -> 強制導向登入頁
+    next('/login');
+  } else if (to.path === '/login' && isLoggedIn) {
+    // 已經登入了卻還想去登入頁 -> 自動導向後台首頁
+    next('/admin/members');
+  } else {
+    // 正常通行
+    next();
+  }
 });
 
 export default router;

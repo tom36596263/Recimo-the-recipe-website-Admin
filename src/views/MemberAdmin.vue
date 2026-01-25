@@ -152,7 +152,7 @@ const showDetail = (data) => {
 
       <el-table-column label="狀態" align="center" width="120">
         <template #default="scope">
-          <el-switch v-model="scope.row.IS_ACTIVE" size="large" class="ml-2" inline-prompt
+          <el-switch v-model="scope.row.is_active" size="large" class="ml-2" inline-prompt
             style="--el-switch-on-color: #3E8D60; --el-switch-off-color: #ABABAB" active-text="啟用" inactive-text="停權"
             @change="handleStatusChange(scope.row)" />
         </template>
