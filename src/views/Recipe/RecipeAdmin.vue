@@ -5,11 +5,12 @@ import { Edit ,Search,Delete} from '@element-plus/icons-vue'
 import MyPagination from '@/components/MyPagination.vue';
 import SearchBar from '@/components/SearchBar.vue';
 import DeleteButton from '@/components/DeleteButton.vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 //要引用json的檔案一定要import以下這行
 import { publicApi } from '@/utils/publicApi.js';
 
 const route = useRoute();
+const router = useRouter();
 
 const tableData = ref([])        // 原始總資料
 const currentPage = ref(1)
@@ -86,6 +87,14 @@ const handleStatusChange = (row) => {
   
 };
 
+// 跳轉到食譜編輯頁面
+const goToDetail = (recipeId) => {
+  router.push({
+    path: '/admin/recipes/increase',
+    query: { editId: recipeId }
+  });
+};
+
 // const handleCurrentChange = (val) => {
 //   console.log(val);
   
@@ -144,9 +153,9 @@ const handleStatusChange = (row) => {
 
         <el-table-column label="詳情" align="center" width="120">
           <template #default="scope">
-            <router-link :to="'/admin/recipes/'+scope.row.recipe_id" style="color: #555;">
-              <el-icon><Edit /></el-icon>
-            </router-link>
+            <el-icon @click="goToDetail(scope.row.recipe_id)" style="cursor: pointer; color: #555;">
+              <Edit />
+            </el-icon>
           </template>
         </el-table-column>
         <el-table-column label="刪除" align="center" width="120">

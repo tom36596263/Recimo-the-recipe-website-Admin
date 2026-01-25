@@ -38,11 +38,11 @@ const adminMenuItems = computed(() => {
 /**
  * 判斷是否選中
  */
-const isActive = (fullPath) => {
-  // 使用 startsWith 是因為有些頁面可能有子分頁（如 /admin/orders/1）
-  // 這樣父選單才能保持高亮
-  return route.path.startsWith(fullPath);
-};
+// const isActive = (fullPath) => {
+//   // 使用 startsWith 是因為有些頁面可能有子分頁（如 /admin/orders/1）
+//   // 這樣父選單才能保持高亮
+//   return route.path.startsWith(fullPath);
+// };
 
 
 
@@ -66,7 +66,7 @@ const isActive = (fullPath) => {
             :key="item.path"
             :to="item.fullPath"
             class="admin-sidebar__link p-p1"
-            :class="{ 'admin-sidebar__link--active': isActive(item.fullPath) }"
+            active-class="admin-sidebar__link--active"
         >
             {{ item.meta.title }}
         </router-link>
