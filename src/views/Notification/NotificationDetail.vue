@@ -12,30 +12,7 @@ const route = useRoute(); // 用於獲取路由參數
 
 // ===== 狀態管理 =====
 // 通知詳情數據（包含類別、發布對象、日期、內容、圖片等）
-const notification = ref({
-  category: '系統維護預告',
-  target: '會員',
-  categoryType: '系統維護資訊',
-  date: '2025/10/15',
-  id: '1',
-  content: `親愛的用戶您好：
-為了提供更優質、穩定的服務與用戶，並保化促進商店改完整操作指南，我們將於下時段進行系統升級維護：
-
-• 維護時間：2025年1月1日（三）-（預計4小時）
-• 影響範圍：維護期間網頁所有用戶及App登入，食譜類資費用戶與員工部份。
-• 更新重點：1. 優化食譜步驟排序功能，提升體驗流暢度。2. 提升伺服器穩定性。
-• 更新重點：1. 優化食譜步驟排序功能，提升體驗流暢度。2. 提升伺服器穩定性。
-• 更新重點：1. 優化食譜步驟排序功能，提升體驗流暢度。2. 提升伺服器穩定性。
-• 更新重點：1. 優化食譜步驟排序功能，提升體驗流暢度。2. 提升伺服器穩定性。
-• 更新重點：1. 優化食譜步驟排序功能，提升體驗流暢度。2. 提升伺服器穩定性。
-• 更新重點：1. 優化食譜步驟排序功能，提升體驗流暢度。2. 提升伺服器穩定性。
-• 更新重點：1. 優化食譜步驟排序功能，提升體驗流暢度。2. 提升伺服器穩定性。
-• 更新重點：1. 優化食譜步驟排序功能，提升體驗流暢度。2. 提升伺服器穩定性。
-• 更新重點：1. 優化食譜步驟排序功能，提升體驗流暢度。2. 提升伺服器穩定性。
-
-維護您請上述時段使用服務。若操作發生異常，我們將立即程度幫助，不另行通知。您成的不便，敬請原諒。`,
-  image: '/img/test1.jpg'
-});
+const notification = ref({});
 
 // 控制加載狀態（顯示 skeleton loading）
 const loading = ref(true);
@@ -51,25 +28,30 @@ const loading = ref(true);
  */
 const fetchNotificationDetail = async () => {
   try {
-    loading.value = true; // 開始加載
-    // 根據 route.params.id 獲取具體的通知信息
-    const notificationId = route.params.id || '1';
-    
-    // 如果要串接後端，改為以下代碼：
-    // const response = await publicApi.get(`notifications/${notificationId}`);
-    // if (response.data) {
-    //   notification.value = response.data;
-    // }
-    
-    // 模擬延遲，使用本地數據（生產環境改為實際 API 請求）
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
+    loading.value = true;
+    const notificationId = Number(route.params.id);
+    const response = await publicApi.get('data/others/notifications.json');
+    if (Array.isArray(response.data)) {
+      const found = response.data.find(item => item.notification_id === notificationId);
+      if (found) {
+        notification.value = {
+          id: found.notification_id,
+          category: found.notification_type,
+          target: found.receiver_id,
+          categoryType: found.notification_type,
+          date: found.created_at,
+          content: found.notification_content,
+          image: found.notification_photo_url && found.notification_photo_url.trim() !== '' ? found.notification_photo_url : '/img/test1.jpg'
+        };
+      } else {
+        ElMessage.error('查無此通知');
+      }
+    }
   } catch (error) {
-    // 捕獲錯誤並顯示提示
     console.error('獲取通知詳情失敗:', error);
     ElMessage.error('獲取數據失敗，請重新整理頁面');
   } finally {
-    loading.value = false; // 加載完成
+    loading.value = false;
   }
 };
 

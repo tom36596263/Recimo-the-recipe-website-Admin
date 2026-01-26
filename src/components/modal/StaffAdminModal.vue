@@ -1,31 +1,33 @@
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, shallowReactive } from 'vue'
 const visible = ref(false)
 const staffData = ref({})
 const mode = ref('add')// 'add' 或 'edit'
 const formRef = ref(null)
 
-
-
-// 開啟彈窗的方法，供父組件調用
-const open = (type, data=null) => {
-  mode.value = type
-  if (type === 'edit' && data) {
-    staffData.value = data
-  } else {
-    staffData.value = {}
-  }
-  visible.value = true
-}
-
-defineExpose({ open })
-
-const form = reactive({
-  name: '主要管理員',
-  username: 'admin123',
+let form = shallowReactive({
+  name: '',
+  username: '',
   password: '',
   confirmPassword: ''
 })
+
+const open = (type, data = null) => {
+  mode.value = type;
+  // 預設全部清空
+  form.name = '';
+  form.username = '';
+  form.password = '';
+  form.confirmPassword = '';
+  // 編輯時帶入正確欄位
+  if (type === 'edit' && data) {
+    form.name = data.admin_name || data.name || data.staff_name || data.username || '';
+    form.username = data.admin_account || data.username || data.account || '';
+  }
+  visible.value = true;
+};
+
+defineExpose({ open })
 
 const rules = {
   name: [{ required: true, message: '請輸入名稱', trigger: 'blur' }],

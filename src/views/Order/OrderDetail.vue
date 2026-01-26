@@ -98,7 +98,7 @@ const fetchOrderDetail = async () => {
         shippingNumber: orderData.trackingNo,
         paymentMethod: orderData.payment,
         items: orderData.items.map(item => ({
-          productId: '',
+          productId: item.id || '',
           productName: item.name,
           quantity: item.qty,
           unitPrice: `NT$ ${item.price}`,

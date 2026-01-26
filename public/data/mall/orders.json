@@ -9,8 +9,8 @@
     "payment": "貨到付款",
     "status": 1,
     "items": [
-      { "name": "舒肥雞胸藜麥飯", "qty": 1, "price": 160 },
-      { "name": "豆腐漢堡排佐野菇", "qty": 1, "price": 150 }
+      { "name": "舒肥雞胸藜麥飯", "qty": 1, "price": 160 ,"id": 1},
+      { "name": "豆腐漢堡排佐野菇", "qty": 1, "price": 150,"id": 4 }
     ]
   },
   {
@@ -22,7 +22,7 @@
     "method": "超商取貨",
     "payment": "信用卡付款",
     "status": 3,
-    "items": [{ "name": "鮮蝦義大利麵", "qty": 2, "price": 220 }]
+    "items": [{ "name": "經典奶油培根義大利麵", "qty": 2, "price": 145 ,"id": 14}]
   },
   {
     "id": "111019",
@@ -33,6 +33,6 @@
     "method": "超商取貨",
     "payment": "信用卡付款",
     "status": 3,
-    "items": [{ "name": "鮮蝦義大利麵", "qty": 2, "price": 220 }]
+    "items": [{ "name": "日式壽喜燒牛丼", "qty": 2, "price": 170 ,"id": 6}]
   }
 ]
