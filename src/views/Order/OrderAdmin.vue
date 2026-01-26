@@ -16,6 +16,17 @@ const pageSize = ref(8)
 const search = ref('')
 const status = ref('0')
 
+// 訂單狀態對應中文
+const statusMap = {
+  1: '訂購成功',
+  2: '訂單確認',
+  3: '出貨',
+  4: '送達',
+  0: '取消訂單'
+}
+
+const getStatusText = (status) => statusMap[status] ?? '未知狀態'
+
 // ===== 搜尋邏輯 =====
 const filteredData = computed(() => {
   if (!search.value) {
@@ -24,13 +35,15 @@ const filteredData = computed(() => {
   
   const searchLower = search.value.toLowerCase();
   return tableData.value.filter(item => {
-    const id = item.ORDER_ID ? String(item.ORDER_ID) : '';
-    const userId = item.USER_ID ? String(item.USER_ID) : '';
-    const orderDate = item.ORDER_DATE ? item.ORDER_DATE.toLowerCase() : '';
+    const id = item.id ? String(item.id) : '';
+    const receiver = item.receiver ? item.receiver.toLowerCase() : '';
+    const orderDate = item.date ? item.date.toLowerCase() : '';
+    const trackingNo = item.trackingNo ? String(item.trackingNo) : '';
     
     return id.includes(searchLower) || 
-           userId.includes(searchLower) || 
-           orderDate.includes(searchLower);
+           receiver.includes(searchLower) || 
+           orderDate.includes(searchLower) ||
+           trackingNo.includes(searchLower);
   });
 });
 
@@ -53,7 +66,7 @@ const handleSortChange = ({ prop, order }) => {
     let valB = b[prop];
 
     // 如果是日期格式，需要轉成 Date 物件才能正確比較
-    if (prop === 'USER_STARTDATE') {
+    if (prop === 'date') {
       valA = new Date(valA);
       valB = new Date(valB);
     }
@@ -118,30 +131,29 @@ const handleStatusChange = (row) => {
         stripe 
         :header-cell-style="{backgroundColor: '#F1F6EF' , color:'#000', fontWeight: 'normal'}"
       >
-        <el-table-column prop="ORDER_ID" label="訂單編號" sortable="custom" align="center" width="180"/>
-        <el-table-column prop="USER_ID" label="會員編號" sortable="custom" align="center"/>
-        <el-table-column prop="CREATED" label="訂單日期" align="center"/>
-        <el-table-column prop="TOTAL_AMOUNT" label="金額" align="center"/>
-
-        <el-table-column label="訂單狀態" align="center" >
+        <el-table-column prop="id" label="訂單編號" sortable="custom" align="center" />
+        <el-table-column prop="date" label="訂單日期" sortable="custom" align="center" />
+        <el-table-column prop="trackingNo" label="物流單號" align="center" />
+        <el-table-column prop="receiver" label="收件人" align="center" />
+        <el-table-column prop="phone" label="電話" align="center" />
+        <el-table-column prop="method" label="配送方式" align="center" />
+        <el-table-column prop="payment" label="付款方式" align="center" />
+        <el-table-column label="訂單狀態" align="center" width="130">
           <template #default="scope">
-            <el-select v-model="scope.row.ORDER_STATUS" placeholder="" style="width: 100px">
-                <el-option label="訂購成功" :value="0"/>
-                <el-option label="訂單確認" :value="1" />
-                <el-option label="出貨" :value="2" />
-                <el-option label="送達" :value="3" />
-                <el-option label="取消訂單" :value="-1" />
+            <el-select v-model="scope.row.status" placeholder="" style="width: 115px" size="small">
+                <el-option label="訂購成功" :value="1"/>
+                <el-option label="訂單確認" :value="2" />
+                <el-option label="出貨" :value="3" />
+                <el-option label="送達" :value="4" />
+                <el-option label="取消訂單" :value="0" />
             </el-select>
           </template>
         </el-table-column>
-        <el-table-column label="詳情" align="center" width="120">
+        <el-table-column label="詳情" align="center" width="80">
           <template #default="scope">
-            <router-link :to="'/admin/orders/'+scope.row.ORDER_ID">
+            <router-link :to="'/admin/orders/'+scope.row.id">
               <el-icon><Edit /></el-icon>
             </router-link>
-            <!-- <el-button link>
-              <el-icon><Edit /></el-icon>
-            </el-button> -->
           </template>
         </el-table-column>
       </el-table>

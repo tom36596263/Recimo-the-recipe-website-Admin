@@ -99,13 +99,11 @@ const filteredData3 = computed(() => {
   if (!search3.value) {
     return tableData3.value;
   }
-  
   const searchLower = search3.value.toLowerCase();
   return tableData3.value.filter(item => {
-    const id = item.REPORTED_RECIPE_ID ? String(item.REPORTED_RECIPE_ID) : '';
-    const reporter = item.REPORTER_ID ? String(item.REPORTER_ID) : '';
-    const reason = item.REPORT_REASON ? item.REPORT_REASON.toLowerCase() : '';
-    
+    const id = item.reported_recipe_id ? String(item.reported_recipe_id) : '';
+    const reporter = item.reporter_id ? String(item.reporter_id) : '';
+    const reason = item.report_reason ? item.report_reason.toLowerCase() : '';
     return id.includes(searchLower) || 
            reporter.includes(searchLower) || 
            reason.includes(searchLower);
@@ -215,7 +213,7 @@ const handleStatusChange = (row) => {
             {{ type(scope.row.REPORT_TYPE) }}
           </template>
         </el-table-column>
-        <el-table-column prop="REPORT_REASON" label="文章留言內容" align="center"/>
+        <el-table-column prop="REPORT_REASON" label="檢舉原因" align="center"/>
         <el-table-column prop="REPORTER_ID" label="被檢舉會員編號" align="center"/>
         <el-table-column prop="STATUS" label="審核狀態" align="center">
           <template #default="scope">
@@ -275,7 +273,7 @@ const handleStatusChange = (row) => {
             {{ type(scope.row.REPORT_TYPE) }}
           </template>
         </el-table-column>
-        <el-table-column prop="REPORT_REASON" label="文章留言內容" align="center"/>
+        <el-table-column prop="REPORT_REASON" label="檢舉原因" align="center"/>
         <el-table-column prop="REPORTER_ID" label="被檢舉會員編號" align="center"/>
         <el-table-column prop="STATUS" label="審核狀態" align="center">
           <template #default="scope">
@@ -325,22 +323,22 @@ const handleStatusChange = (row) => {
         stripe 
         :header-cell-style="{backgroundColor: '#F1F6EF' , color:'#000', fontWeight: 'normal'}"
       >
-        <el-table-column prop="REPORTED_RECIPE_ID" label="案件編號" sortable="custom" align="center" width="180"/>
-        <el-table-column prop="REPORT_TYPE" label="檢舉類型" sortable="custom" align="center">
+        <el-table-column prop="reported_recipe_id" label="案件編號" sortable="custom" align="center" width="180"/>
+        <el-table-column prop="report_type" label="檢舉類型" sortable="custom" align="center">
           <template #default="scope">
-            {{ type(scope.row.REPORT_TYPE) }}
+            {{ type(scope.row.report_type) }}
           </template>
         </el-table-column>
-        <el-table-column prop="REPORT_REASON" label="文章留言內容" align="center"/>
-        <el-table-column prop="REPORTER_ID" label="被檢舉會員編號" align="center"/>
-        <el-table-column prop="STATUS" label="審核狀態" align="center">
+        <el-table-column prop="report_reason" label="檢舉原因" align="center"/>
+        <el-table-column prop="reporter_id" label="被檢舉會員編號" align="center"/>
+        <el-table-column prop="status" label="審核狀態" align="center">
           <template #default="scope">
-            {{ status(scope.row.STATUS) }}
+            {{ status(scope.row.status) }}
           </template>
         </el-table-column>
         <el-table-column label="詳情" align="center" width="120">
           <template #default="scope">
-            <router-link :to="`/admin/reports/recipe/${scope.row.REPORTED_RECIPE_ID}`" style="color: #555;">
+            <router-link :to="`/admin/reports/recipe/${scope.row.reported_recipe_id}`" style="color: #555;">
               <el-icon><Edit /></el-icon>
             </router-link>
           </template>

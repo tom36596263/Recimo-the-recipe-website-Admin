@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, getCurrentInstance } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 
 const visible = ref(false)
@@ -17,9 +17,24 @@ const initialForm = {
   imageUrl: ''
 }
 
+
+const categoryMap = {
+  'fresh-produce': '新鮮食材',
+  'fruits': '水果',
+  'meat-poultry': '肉類/家禽',
+  'seafood': '海鮮',
+  'dairy-eggs-soy': '乳製品/蛋/豆製品',
+  'grains-pasta-bakery': '穀類/麵食/烘焙',
+  'condiments-sauces-oils': '調味/醬料/油',
+  'pantry-spices-nuts': '乾貨/香料/堅果',
+  'others': '其他'
+}
+
 const form = reactive({ ...initialForm })
 
-// 開啟彈窗的方法，供父組件調用
+// 取得 $parsePublicFile 全域方法
+const { appContext } = getCurrentInstance()
+const $parsePublicFile = appContext.config.globalProperties.$parsePublicFile
 const open = (type, data = null) => {
   mode.value = type
   if (type === 'edit' && data) {
@@ -68,9 +83,12 @@ defineExpose({ open })
           
           <el-form-item label="食材分類">
             <el-select v-model="form.category" placeholder="請選擇" style="width: 100%">
-              <el-option label="蛋、乳製品" value="eggs_dairy" />
-              <el-option label="肉類" value="meat" />
-              <el-option label="蔬菜" value="vegetables" />
+              <el-option
+                v-for="(label, key) in categoryMap"
+                :key="key"
+                :label="label"
+                :value="key"
+              />
             </el-select>
           </el-form-item>
 
@@ -92,7 +110,7 @@ defineExpose({ open })
               @change="handleImageChange"
             >
               <div v-if="form.imageUrl" class="preview-container">
-                <img :src="form.imageUrl" class="preview-img" />
+                <img :src="form.imageUrl.startsWith('blob:') ? form.imageUrl : $parsePublicFile(form.imageUrl)" class="preview-img" />
               </div>
               <div v-else class="upload-placeholder">
                 <el-icon><Plus /></el-icon>

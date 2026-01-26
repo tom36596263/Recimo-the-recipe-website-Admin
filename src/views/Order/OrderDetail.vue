@@ -1,19 +1,19 @@
 <script setup>
 // ===== 導入 =====
 import { ref, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { publicApi } from '@/utils/publicApi.js'; // 統一的 API 實例
 import { ElMessage } from 'element-plus'; // 消息提示
 
 // ===== 路由相關 =====
 const router = useRouter(); // 用於導航
+const route = useRoute(); // 用於獲取路由參數
 
 // ===== 狀態管理 =====
 // 訂單詳情數據
 const order = ref({
   // 訂單基本信息
   orderNumber: '1',
-  memberId: '11',
   orderDate: '2025-10-15',
   totalAmount: 'NT$ 599',
   
@@ -22,6 +22,7 @@ const order = ref({
   recipientPhone: '0988111222',
   recipientAddress: '桃園市中壢區復興路46號',
   shippingNumber: '0003332123',
+  paymentMethod: '貨到付款', // 新增付款方式欄位
   
   // 訂單商品列表
   items: [
@@ -47,10 +48,11 @@ const order = ref({
 
 // 訂單狀態選項
 const statusOptions = [
-  { label: '待確認', value: 'pending' },
-  { label: '已確認', value: 'confirmed' },
-  { label: '已出貨', value: 'shipped' },
-  { label: '已送達', value: 'delivered' }
+  { label: '訂購成功', value: 1 },
+  { label: '訂單確認', value: 2 },
+  { label: '出貨', value: 3 },
+  { label: '送達', value: 4 },
+  { label: '取消訂單', value: 0 }
 ];
 
 // 加載狀態
@@ -76,17 +78,35 @@ const statusLabel = computed(() => {
 const fetchOrderDetail = async () => {
   try {
     loading.value = true;
+    const orderId = route.params.id;
     
-    // TODO: 生產環境改為實際 API 路徑
-    // const response = await publicApi.get(`orders/${orderId}`);
-    // if (response.data) {
-    //   order.value = response.data;
-    // }
+    const response = await publicApi.get('data/mall/orders.json');
+    const orders = response.data;
+    const orderData = orders.find(o => String(o.id) === String(orderId));
     
-    // 模擬延遲
-    await new Promise(resolve => setTimeout(resolve, 300));
-    console.log('訂單詳情已載入:', order.value);
-    
+    if (orderData) {
+      // 計算總金額
+      const totalAmount = orderData.items.reduce((sum, item) => sum + (item.price * item.qty), 0);
+      
+      order.value = {
+        orderNumber: orderData.id,
+        orderDate: orderData.date,
+        totalAmount: `NT$ ${totalAmount}`,
+        recipientName: orderData.receiver,
+        recipientPhone: orderData.phone,
+        recipientAddress: '桃園市中壢區復興路46號', // orders.json 沒有地址，先寫死
+        shippingNumber: orderData.trackingNo,
+        paymentMethod: orderData.payment,
+        items: orderData.items.map(item => ({
+          productId: '',
+          productName: item.name,
+          quantity: item.qty,
+          unitPrice: `NT$ ${item.price}`,
+          subtotal: `NT$ ${item.price * item.qty}`
+        })),
+        status: orderData.status
+      };
+    }
   } catch (error) {
     console.error('獲取訂單詳情失敗:', error);
     ElMessage.error('獲取訂單資訊失敗，請重新整理頁面');
@@ -173,8 +193,8 @@ onMounted(() => {
         <h3 class="section-title">訂單詳情</h3>
         <el-table :data="[order]" stripe :header-cell-style="{ backgroundColor: '#F1F6EF', color: '#000' }">
           <el-table-column prop="orderNumber" label="訂單編號" align="center" width="150" />
-          <el-table-column prop="memberId" label="會員編號" align="center" width="150" />
-          <el-table-column prop="orderDate" label="訂單日期" align="center" width="150" />
+          <el-table-column prop="orderDate" label="訂單日期" align="center"  />
+          <el-table-column prop="paymentMethod" label="付款方式" align="center" />
           <el-table-column prop="totalAmount" label="金額" align="center" />
         </el-table>
       </div>

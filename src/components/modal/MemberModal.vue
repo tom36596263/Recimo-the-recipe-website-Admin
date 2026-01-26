@@ -24,16 +24,16 @@ defineExpose({ open })
     <div class="modal-body">
         <div class="profile-section">
           <div class="avatar-container">
-            <img src="/img/test1.jpg" alt="avatar" class="avatar-img" />
+            <img :src="$parsePublicFile('img/test1.jpg')" alt="avatar" class="avatar-img" />
           </div>
           <div class="info-grid">
-            <div class="info-item"><strong>會員編號：</strong> {{ memberData.USER_ID }}</div>
-            <div class="info-item"><strong>姓名：</strong> {{ memberData.USER_NAME }}</div>
-            <div class="info-item"><strong>電子信箱：</strong> {{ memberData.USER_EMAIL }}</div>
-            <div class="info-item"><strong>電話：</strong> {{ memberData.USER_PHONE }}</div>
-            <div class="info-item"><strong>加入日期：</strong> {{ memberData.USER_STARTDATE }}</div>
-            <div class="info-item"><strong>地址：</strong> {{ memberData.USER_ADDRESS }}</div>
-            <div class="info-item"><strong>會員狀態：</strong> {{ memberData.IS_ACTIVE?'正常':'停權' }}</div>
+            <div class="info-item"><strong>會員編號：</strong> {{ memberData.user_id }}</div>
+            <div class="info-item"><strong>姓名：</strong> {{ memberData.user_name }}</div>
+            <div class="info-item"><strong>電子信箱：</strong> {{ memberData.user_email }}</div>
+            <div class="info-item"><strong>電話：</strong> {{ memberData.user_phone }}</div>
+            <div class="info-item"><strong>加入日期：</strong> {{ memberData.user_startdate }}</div>
+            <div class="info-item"><strong>地址：</strong> {{ memberData.user_address }}</div>
+            <div class="info-item"><strong>會員狀態：</strong> {{ memberData.is_active ? '正常' : '停權' }}</div>
           </div>
         </div>
         <div class="modal-footer">

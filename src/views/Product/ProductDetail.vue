@@ -1,9 +1,13 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, getCurrentInstance } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { publicApi } from '@/utils/publicApi.js';
 import { ArrowLeft, Delete } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+
+// 取得 $parsePublicFile 全域方法
+const { appContext } = getCurrentInstance()
+const $parsePublicFile = appContext.config.globalProperties.$parsePublicFile
 
 const route = useRoute();
 const router = useRouter();
@@ -40,6 +44,7 @@ const productData = ref({
 });
 
 const loading = ref(false);
+const originalProductData = ref(null); // 保存原始數據用於取消時還原
 
 // ===== 步驟1：載入商品數據 =====
 /**
@@ -67,9 +72,17 @@ const loadProductData = async () => {
     
     // Step 5: 更新商品數據
     if (product) {
+      // 轉換圖片資料結構
+      const recipeImages = product.product_image?.map(img => ({
+        id: img.id,
+        url: img.image_url,
+        alt: product.product_name
+      })) || [];
+      
       productData.value = {
         ...productData.value,
-        ...product
+        ...product,
+        recipe_images: recipeImages
       };
     }
   } catch (error) {
@@ -85,6 +98,16 @@ const loadProductData = async () => {
  * 功能說明：切換編輯模式和查看模式
  */
 const toggleEditMode = () => {
+  if (!isEditMode.value) {
+    // 進入編輯模式時，深拷貝當前數據
+    originalProductData.value = JSON.parse(JSON.stringify(productData.value));
+  } else {
+    // 取消編輯時，還原原始數據
+    if (originalProductData.value) {
+      productData.value = JSON.parse(JSON.stringify(originalProductData.value));
+      originalProductData.value = null;
+    }
+  }
   isEditMode.value = !isEditMode.value;
 };
 
@@ -101,6 +124,7 @@ const saveProductData = async () => {
     
     ElMessage.success('商品資訊保存成功！');
     isEditMode.value = false;
+    originalProductData.value = null; // 清除備份
   } catch (error) {
     ElMessage.error('保存失敗，請重試');
     console.error('保存商品數據失敗:', error);
@@ -461,14 +485,14 @@ onMounted(() => {
       -->
       <el-divider />
       <div class="recipe-image-section">
-        <h3 class="section-title">菜譜圖片</h3>
+        <h3 class="section-title">商品圖片</h3>
         <div class="recipe-images">
           <div
             v-for="image in productData.recipe_images"
             :key="image.id"
             class="recipe-image-item"
           >
-            <img :src="image.url" :alt="image.alt" class="recipe-img" />
+            <img :src="image.url.startsWith('blob:') || image.url.startsWith('data:') ? image.url : $parsePublicFile(image.url)" :alt="image.alt" class="recipe-img" />
             <div v-if="isEditMode" class="image-actions">
               <el-button
                 type="danger"

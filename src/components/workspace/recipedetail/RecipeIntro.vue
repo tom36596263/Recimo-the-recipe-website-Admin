@@ -9,8 +9,15 @@ const props = defineProps({
         type: Object,
         required: true
     },
-    // 新增：接收預覽模式狀態
     isPreview: {
+        type: Boolean,
+        default: false
+    },
+    hideFavorite: {
+        type: Boolean,
+        default: false
+    },
+    hideCook: {
         type: Boolean,
         default: false
     }
@@ -72,9 +79,8 @@ const onModalSubmit = (data) => {
                 </div>
             </div>
 
-            <div v-if="!props.isPreview" class="badge-favorite" :class="{ active: isFavorited }"
+            <div v-if="!props.isPreview && !props.hideFavorite" class="badge-favorite" :class="{ active: isFavorited }"
                 @click="toggleFavorite">
-
                 <i-material-symbols-favorite-outline-rounded v-if="!isFavorited" />
                 <i-material-symbols-favorite-rounded v-else />
                 <div class="favorite-text">
@@ -109,7 +115,7 @@ const onModalSubmit = (data) => {
             </div>
 
             <div class="info-right">
-                <BaseBtn v-if="!props.isPreview" title="開始烹飪" class="cook-btn" @click="handleStartCooking" />
+                <BaseBtn v-if="!props.isPreview && !props.hideCook" title="開始烹飪" class="cook-btn" @click="handleStartCooking" />
             </div>
         </div>
 
@@ -119,7 +125,7 @@ const onModalSubmit = (data) => {
             </div>
         </article>
 
-        <AddToFolderModal v-if="!props.isPreview" v-model="showModal" @submit="onModalSubmit" />
+        <AddToFolderModal v-if="!props.isPreview && !props.hideFavorite" v-model="showModal" @submit="onModalSubmit" />
     </div>
 </template>
 

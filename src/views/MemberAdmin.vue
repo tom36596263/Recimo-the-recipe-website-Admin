@@ -52,8 +52,8 @@ const filteredData = computed(() => {
 
     return name.includes(searchLower) ||
       email.includes(searchLower) ||
-      id.includes(searchLower) ||
-      phone.includes(searchLower);
+      id.includes(searchLower)// ||
+      //phone.includes(searchLower);
   });
 });
 

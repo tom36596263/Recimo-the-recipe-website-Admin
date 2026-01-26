@@ -18,8 +18,9 @@ const route = useRoute();
 const router = useRouter();
 const recipeStore = useRecipeStore();
 
-// --- 核心變數：讀取 Vite 的 Base 路徑 ---
-const baseUrl = import.meta.env.BASE_URL;
+import { getCurrentInstance } from 'vue';
+const { proxy } = getCurrentInstance();
+const $parsePublicFile = proxy.$parsePublicFile;
 
 // --- 1. 響應式資料狀態 ---
 const rawRecipe = ref(null);
@@ -156,13 +157,11 @@ const recipeIntroData = computed(() => {
     if (!rawRecipe.value) return null;
     let rawImg = rawRecipe.value.recipe_image_url || rawRecipe.value.coverImg || rawRecipe.value.recipe_cover_image || '';
     let finalImg = '';
-
     if (rawImg) {
         if (rawImg.startsWith('http') || rawImg.startsWith('data:') || rawImg.startsWith('blob:')) {
             finalImg = rawImg;
         } else {
-            const cleanPath = rawImg.replace(/^\//, '');
-            finalImg = `${baseUrl}/${cleanPath}`.replace(/\/+/g, '/');
+            finalImg = $parsePublicFile(rawImg.replace(/^\//, ''));
         }
     } else {
         finalImg = 'https://placehold.co/800x600?text=No+Image';
@@ -189,12 +188,7 @@ const stepsData = computed(() => {
             if (rawImg.startsWith('data:') || rawImg.startsWith('http') || rawImg.startsWith('blob:')) {
                 finalImg = rawImg;
             } else {
-                let cleanPath = rawImg.replace(/^\//, '');
-                if (cleanPath.includes('img/recipes/')) {
-                    finalImg = `${baseUrl}/${cleanPath}`.replace(/\/+/g, '/');
-                } else {
-                    finalImg = `${baseUrl}/img/recipes/${rId}/steps/${cleanPath}`.replace(/\/+/g, '/');
-                }
+                finalImg = $parsePublicFile(rawImg.replace(/^\//, ''));
             }
         }
         return {
@@ -215,8 +209,7 @@ const snapsData = computed(() => rawGallery.value.map(g => {
     if (rawUrl.startsWith('http') || rawUrl.startsWith('data:') || rawUrl.startsWith('blob:')) {
         finalUrl = rawUrl;
     } else if (rawUrl) {
-        const cleanPath = rawUrl.replace(/^\//, '');
-        finalUrl = `${baseUrl}/${cleanPath}`.replace(/\/+/g, '/');
+        finalUrl = $parsePublicFile(rawUrl.replace(/^\//, ''));
     }
     return {
         url: finalUrl,

@@ -20,7 +20,7 @@
     "receiver": "李大明",
     "phone": "0912345678",
     "method": "超商取貨",
-    "payment": "已付款",
+    "payment": "信用卡付款",
     "status": 3,
     "items": [{ "name": "鮮蝦義大利麵", "qty": 2, "price": 220 }]
   },
@@ -31,7 +31,7 @@
     "receiver": "李大明",
     "phone": "0912345678",
     "method": "超商取貨",
-    "payment": "已付款",
+    "payment": "信用卡付款",
     "status": 3,
     "items": [{ "name": "鮮蝦義大利麵", "qty": 2, "price": 220 }]
   }

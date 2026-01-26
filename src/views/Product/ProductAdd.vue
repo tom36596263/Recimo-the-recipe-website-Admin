@@ -387,7 +387,7 @@ onMounted(() => {
       <!-- ===== 菜譜圖片展示區 ===== -->
       <el-divider />
       <div class="recipe-image-section">
-        <h3 class="section-title">菜譜圖片</h3>
+        <h3 class="section-title">商品圖片</h3>
         <div class="recipe-images">
           <div
             v-for="image in productData.recipe_images"
