@@ -73,7 +73,7 @@ const handleLogin = async (formEl) => {
                     } else {
                         // 登入失敗
                         loading.value = false
-                        ElMessage.error('登入失敗(可用測試用帳號：admin / 密碼：123456)')
+                        ElMessage.error('登入失敗(可用測試用帳號：admin@test.com / 密碼：123456)')
                     }
                 }, 1000)
 

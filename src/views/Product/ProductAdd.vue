@@ -17,15 +17,15 @@ const productData = ref({
   product_image: '',
   nutrition_info: [
     { name: '熱量', value: '' },
-    { name: '碳水化合', value: '' },
+    { name: '總脂肪', value: '' },
     { name: '蛋白質', value: '' },
     { name: '鈉', value: '' }
   ],
   nutrition_info_right: [
-    { name: '醣水化合物', value: '' },
+    { name: '碳水化合物', value: '' },
     { name: '飽和脂肪', value: '' },
     { name: '膳食纖維', value: '' },
-    { name: '鐵', value: '' }
+    { name: '糖', value: '' }
   ],
   ingredient_content: '',
   ingredient_content_right: '',
@@ -68,12 +68,12 @@ const validateForm = () => {
  */
 const addProduct = async () => {
   if (!validateForm()) return;
-  
+
   try {
     loading.value = true;
     // 模擬 API 請求 - 實際應調用後端保存接口
     await new Promise(resolve => setTimeout(resolve, 500));
-    
+
     ElMessage.success('商品新增成功！');
     setTimeout(() => {
       router.push('/admin/products');
@@ -127,15 +127,15 @@ const deleteImage = (imageId) => {
 const handleImageUpload = (uploadFile) => {
   // 獲取實際的 File 對象，兼容不同的參數格式
   const fileObj = uploadFile?.raw || uploadFile?.file?.raw || uploadFile;
-  
+
   if (!fileObj || typeof fileObj.slice !== 'function') {
     ElMessage.error('文件獲取失敗');
     return false;
   }
-  
+
   // 使用 FileReader 讀取文件並轉換為 base64
   const reader = new FileReader();
-  
+
   reader.onload = (e) => {
     const newId = Math.max(...productData.value.recipe_images.map(img => img.id), 0) + 1;
     productData.value.recipe_images.push({
@@ -145,15 +145,15 @@ const handleImageUpload = (uploadFile) => {
     });
     ElMessage.success('圖片上傳成功');
   };
-  
+
   reader.onerror = () => {
     ElMessage.error('圖片讀取失敗，請重試');
     console.error('圖片讀取失敗');
   };
-  
+
   // 讀取文件為 Data URL (base64)
   reader.readAsDataURL(fileObj);
-  
+
   // 返回 false 阻止默認上傳行為
   return false;
 };
@@ -187,23 +187,16 @@ onMounted(() => {
     <!-- ===== 內容區頂部：返回按鈕和操作選項 ===== -->
     <div class="add-header">
       <router-link to="/admin/products" class="back-btn">
-        <el-icon><ArrowLeft /></el-icon>
+        <el-icon>
+          <ArrowLeft />
+        </el-icon>
         <span>返回</span>
       </router-link>
       <div class="header-actions">
-        <el-button 
-          type="primary" 
-          size="large"
-          @click="addProduct"
-          color="#3E8D60"
-          :loading="loading"
-        >
+        <el-button type="primary" size="large" @click="addProduct" color="#3E8D60" :loading="loading">
           新增商品
         </el-button>
-        <el-button 
-          size="large"
-          @click="goBack"
-        >
+        <el-button size="large" @click="goBack">
           取消
         </el-button>
       </div>
@@ -223,109 +216,67 @@ onMounted(() => {
         <el-col :xs="24" :sm="12" :md="8">
           <div class="info-item">
             <span class="info-label">商品分類 <span class="required">*</span></span>
-            <el-select
-              v-model="productData.product_category"
-              class="w-full"
-              placeholder="選擇分類"
-            >
-              <el-option label="蔬菜" value="vegetable" />
-              <el-option label="肉類" value="meat" />
-              <el-option label="水果" value="fruit" />
-              <el-option label="其他" value="other" />
+            <el-select v-model="productData.product_category" class="w-full" placeholder="選擇分類">
+              <el-option label="低卡健身系列" value="fitness" />
+              <el-option label="日韓風味系列" value="asian" />
+              <el-option label="歐美西式系列" value="western" />
+              <el-option label="台式家常系列" value="taiwanese" />
             </el-select>
           </div>
         </el-col>
         <el-col :xs="24" :sm="12" :md="8">
           <div class="info-item">
             <span class="info-label">商品名稱 <span class="required">*</span></span>
-            <el-input
-              v-model="productData.product_name"
-              placeholder="請輸入商品名稱"
-            />
+            <el-input v-model="productData.product_name" placeholder="請輸入商品名稱" />
           </div>
         </el-col>
         <el-col :xs="24" :sm="12" :md="8">
           <div class="info-item">
             <span class="info-label">商品價格 <span class="required">*</span></span>
-            <el-input
-              v-model.number="productData.product_price"
-              placeholder="請輸入價格"
-              type="number"
-            />
+            <el-input v-model.number="productData.product_price" placeholder="請輸入價格" type="number" />
           </div>
         </el-col>
       </el-row>
 
       <!-- ===== 商品描述區 ===== -->
-      <el-divider />
       <div class="description-section">
         <h3 class="section-title">商品描述 <span class="required">*</span></h3>
-        <el-input
-          v-model="productData.product_description"
-          type="textarea"
-          :rows="5"
-          placeholder="請輸入商品詳細描述"
-          class="textarea-field"
-        />
+        <el-input v-model="productData.product_description" type="textarea" :rows="5" placeholder="請輸入商品詳細描述"
+          class="textarea-field" />
       </div>
 
       <!-- ===== 營養資訊區 ===== -->
-      <el-divider />
       <div class="nutrition-section">
         <h3 class="section-title">營養資訊</h3>
         <el-row :gutter="20" class="nutrition-container">
           <!-- 左側營養資訊 -->
           <el-col :xs="24" :md="12">
-            <el-table
-              :data="productData.nutrition_info"
-              stripe
-              class="nutrition-table"
-              :header-cell-style="{ backgroundColor: '#F1F6EF', color: '#000', fontWeight: 'normal' }"
-            >
+            <el-table :data="productData.nutrition_info" stripe class="nutrition-table"
+              :header-cell-style="{ backgroundColor: '#F1F6EF', color: '#000', fontWeight: 'normal' }">
               <el-table-column label="項目" align="center" width="100">
                 <template #default="{ row }">
-                  <el-input
-                    v-model="row.name"
-                    size="small"
-                    border
-                  />
+                  <el-input v-model="row.name" size="small" border />
                 </template>
               </el-table-column>
               <el-table-column label="每份含量" align="center">
                 <template #default="{ row }">
-                  <el-input
-                    v-model="row.value"
-                    size="small"
-                    border
-                  />
+                  <el-input v-model="row.value" size="small" border />
                 </template>
               </el-table-column>
             </el-table>
           </el-col>
           <!-- 右側營養資訊 -->
           <el-col :xs="24" :md="12">
-            <el-table
-              :data="productData.nutrition_info_right"
-              stripe
-              class="nutrition-table"
-              :header-cell-style="{ backgroundColor: '#F1F6EF', color: '#000', fontWeight: 'normal' }"
-            >
+            <el-table :data="productData.nutrition_info_right" stripe class="nutrition-table"
+              :header-cell-style="{ backgroundColor: '#F1F6EF', color: '#000', fontWeight: 'normal' }">
               <el-table-column label="項目" align="center" width="100">
                 <template #default="{ row }">
-                  <el-input
-                    v-model="row.name"
-                    size="small"
-                    border
-                  />
+                  <el-input v-model="row.name" size="small" border />
                 </template>
               </el-table-column>
               <el-table-column label="每份含量" align="center">
                 <template #default="{ row }">
-                  <el-input
-                    v-model="row.value"
-                    size="small"
-                    border
-                  />
+                  <el-input v-model="row.value" size="small" border />
                 </template>
               </el-table-column>
             </el-table>
@@ -334,87 +285,49 @@ onMounted(() => {
       </div>
 
       <!-- ===== 食材內容區 ===== -->
-      <el-divider />
       <div class="ingredient-section">
-        <h3 class="section-title">食材內容</h3>
+        <h3 class="section-title">商品介紹</h3>
         <el-row :gutter="20">
           <el-col :xs="24" :md="12">
-            <el-input
-              v-model="productData.ingredient_content"
-              type="textarea"
-              :rows="5"
-              placeholder="食材內容"
-              class="textarea-field"
-            />
+            <h4 class="subsection-title">食材內容</h4>
+            <el-input v-model="productData.ingredient_content" type="textarea" :rows="5" placeholder="請輸入食材內容"
+              class="textarea-field" />
           </el-col>
           <el-col :xs="24" :md="12">
-            <el-input
-              v-model="productData.ingredient_content_right"
-              type="textarea"
-              :rows="5"
-              placeholder="食材內容"
-              class="textarea-field"
-            />
+            <h4 class="subsection-title">使用方法</h4>
+            <el-input v-model="productData.ingredient_content_right" type="textarea" :rows="5" placeholder="請輸入使用方法"
+              class="textarea-field" />
           </el-col>
         </el-row>
       </div>
 
       <!-- ===== 保存期限和貼心提醒區 ===== -->
-      <el-divider />
       <el-row :gutter="20" class="storage-section">
         <el-col :xs="24" :md="12">
           <h4 class="subsection-title">保存期限</h4>
-          <el-input
-            v-model="productData.storage_period"
-            type="textarea"
-            :rows="3"
-            placeholder="保存期限說明"
-            class="textarea-field"
-          />
+          <el-input v-model="productData.storage_period" type="textarea" :rows="3" placeholder="請輸入保存期限說明"
+            class="textarea-field" />
         </el-col>
         <el-col :xs="24" :md="12">
           <h4 class="subsection-title">貼心提醒</h4>
-          <el-input
-            v-model="productData.product_tips"
-            type="textarea"
-            :rows="3"
-            placeholder="產品提醒資訊"
-            class="textarea-field"
-          />
+          <el-input v-model="productData.product_tips" type="textarea" :rows="3" placeholder="請輸入商品提醒資訊"
+            class="textarea-field" />
         </el-col>
       </el-row>
 
       <!-- ===== 菜譜圖片展示區 ===== -->
-      <el-divider />
       <div class="recipe-image-section">
         <h3 class="section-title">商品圖片</h3>
         <div class="recipe-images">
-          <div
-            v-for="image in productData.recipe_images"
-            :key="image.id"
-            class="recipe-image-item"
-          >
+          <div v-for="image in productData.recipe_images" :key="image.id" class="recipe-image-item">
             <img :src="image.url" :alt="image.alt" class="recipe-img" />
             <div class="image-actions">
-              <el-button
-                type="danger"
-                size="small"
-                :icon="Delete"
-                circle
-                @click="deleteImage(image.id)"
-              />
+              <el-button type="danger" size="small" :icon="Delete" circle @click="deleteImage(image.id)" />
             </div>
           </div>
           <div class="recipe-image-placeholder">
-            <el-upload
-              :auto-upload="false"
-              :on-change="handleImageUpload"
-              :before-upload="beforeImageUpload"
-              :show-file-list="false"
-              drag
-              class="upload-area"
-              accept="image/*"
-            >
+            <el-upload :auto-upload="false" :on-change="handleImageUpload" :before-upload="beforeImageUpload"
+              :show-file-list="false" drag class="upload-area" accept="image/*">
               <template #default>
                 <div class="upload-content">
                   <div class="upload-text">
@@ -517,9 +430,6 @@ onMounted(() => {
       }
     }
 
-    :deep(.el-input__wrapper) {
-      background-color: #f5f7fa;
-    }
   }
 
   // ===== 分割線樣式 =====
@@ -555,8 +465,7 @@ onMounted(() => {
     width: 100%;
 
     :deep(.el-textarea__inner) {
-      background-color: #f5f7fa;
-      border: 1px solid #e8e8e8;
+      // border: 1px solid #e8e8e8;
       border-radius: 4px;
       font-size: 14px;
       line-height: 1.6;
@@ -565,7 +474,7 @@ onMounted(() => {
 
   // ===== 營養資訊表樣式 =====
   .nutrition-section {
-    margin-bottom: 20px;
+    margin: 20px 0;
   }
 
   .nutrition-container {
@@ -574,7 +483,7 @@ onMounted(() => {
 
   .nutrition-table {
     width: 100%;
-    border: 1px solid #e8e8e8;
+    // border: 1px solid #e8e8e8;
     border-radius: 4px;
 
     :deep(.el-table__body-wrapper) {
@@ -582,7 +491,7 @@ onMounted(() => {
     }
 
     :deep(.el-table__row) {
-      &:hover > td {
+      &:hover>td {
         background-color: #f0f8f4 !important;
       }
     }

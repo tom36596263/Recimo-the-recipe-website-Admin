@@ -56,7 +56,7 @@ const handleLogout = () => {
 
 <template>
   <div class="headerbar">
-    <h3 class="zh-h3">{{ adminInfo.name }} ({{ roleName }})</h3>
+    <h3 class="zh-h3">{{ adminInfo.name }} {{ roleName }}</h3>
     <div style="width: 80px">
       <button class="btn h-40 btn-solid" @click="handleLogout">登出</button>
     </div>

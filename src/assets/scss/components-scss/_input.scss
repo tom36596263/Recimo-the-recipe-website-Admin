@@ -97,3 +97,103 @@
     }
   }
 }
+
+:root {
+  --el-border-color-hover: #{$primary-color-700};
+
+  --el-input-focus-border-color: #{$primary-color-700};
+  --el-select-input-focus-border-color: #{$primary-color-700};
+
+  --el-color-primary: #{$primary-color-700};
+  --el-color-primary-light-3: #{$primary-color-400};
+
+  // 下拉選項 Hover 時的背景與文字顏色
+  --el-fill-color-light: #{$secondary-color-success-200}; // 這是選項 Hover 的背景色
+  --el-color-primary-light-9: #{$primary-color-100}; // 部分版本也使用此變數
+}
+
+.el-select.is-disabled {
+  :deep(.el-input__wrapper) {
+    box-shadow: 0 0 0 1px #{$neutral-color-400} inset !important;
+    background-color: #{$neutral-color-100} !important;
+  }
+
+  /* 即使 focus 也要維持灰色 */
+  :deep(.el-input.is-focus .el-input__wrapper) {
+    box-shadow: 0 0 0 1px #{$neutral-color-400} inset !important;
+  }
+}
+
+// =========================================
+// 定義一組通用的禁用樣式
+// =========================================
+%disabled-style {
+  background-color: #{$neutral-color-100} !important;
+  // 使用 inset 陰影模擬邊框，確保寬度一致
+  box-shadow: 0 0 0 1px #{$neutral-color-400} inset !important;
+  cursor: not-allowed !important;
+  color: #{$neutral-color-400} !important;
+}
+
+// 1. 針對 Input, Textarea, 以及舊版 Select 結構
+.el-input.is-disabled .el-input__wrapper,
+.el-textarea.is-disabled .el-textarea__inner {
+  @extend %disabled-style;
+
+  .el-input__inner,
+  .el-textarea__inner {
+    color: #{$neutral-color-400} !important;
+    -webkit-text-fill-color: #{$neutral-color-400} !important; // 修正 iOS/Chrome 預設灰
+  }
+}
+
+// 2. 針對新版 Select (el-select v2)
+.el-select__wrapper.is-disabled {
+  @extend %disabled-style;
+
+  // 修正內部的文字與佔位符顏色
+  .el-select__selected-item,
+  .el-select__placeholder {
+    color: #{$neutral-color-400} !important;
+    -webkit-text-fill-color: #{$neutral-color-400} !important;
+  }
+}
+
+// 3. 處理 Focus 狀態下的殘留邊框 (包含 Select 點擊後的狀態)
+.el-input.is-disabled,
+.el-select.is-disabled,
+.el-textarea.is-disabled {
+  &:hover,
+  &:focus,
+  &.is-focus {
+    .el-input__wrapper,
+    .el-select__wrapper,
+    .el-textarea__inner {
+      box-shadow: 0 0 0 1px #{$neutral-color-400} inset !important;
+    }
+  }
+}
+
+// =========================================
+// 修正分頁組件禁用按鈕的顏色
+// =========================================
+
+.el-pagination {
+  // 針對上一頁與下一頁按鈕
+  button:disabled {
+    background-color: #f4f4f5 !important; // 或者使用 transparent
+    color: #c0c4cc !important; // 保持文字/箭頭為灰色
+    cursor: not-allowed;
+
+    // 如果你之前的全域設定影響到了這裡，強制重置
+    &:hover {
+      background-color: #f4f4f5 !important;
+    }
+  }
+
+  // 如果按鈕是數字形式且被禁用
+  .el-pager li.is-disabled {
+    background-color: #f4f4f5 !important;
+    color: #c0c4cc !important;
+  }
+}

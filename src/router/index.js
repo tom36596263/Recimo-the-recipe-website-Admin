@@ -242,67 +242,19 @@ const router = createRouter({
   routes
 });
 
-// // 全域路由守衛：動態切換網頁標題
-// router.beforeEach((to, from, next) => {
-//   // 1. 檢查目標路由是否需要登入驗證
-//   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth);
-
-//   // 2. 從 localStorage 檢查是否有登入資訊
-//   const isLoggedIn = !!localStorage.getItem('admin_user');
-
-//   if (requiresAuth && !isLoggedIn) {
-//     // 情況 A: 需要登入但沒登入 -> 強制導向登入頁
-//     next('/login');
-//   } else if (to.path === '/login' && isLoggedIn) {
-//     // 情況 B: 已經登入了卻還想去登入頁 -> 自動導向後台首頁
-//     next('/admin/members');
-//   } else {
-//     // 情況 C: 正常通行
-//     next();
-//   }
-// });
-
-// // 全域路由守衛
-// router.beforeEach(async ((to, from, next) => {
-//   // 1. 取得原始字串
-//   const userDataStr = localStorage.getItem('admin_user');
-
-//   // 2. 預先定義變數
-//   let user = null;
-//   if (userDataStr) {
-//     try {
-//       user = JSON.parse(userDataStr);
-//     } catch (e) {
-//       console.error('解析登入資料出錯');
-//     }
-//   }
-
-//   // 3. 【最優先檢查】：如果已經登入，但等級是 0
-//   if (user && user.level == 0) {
-//     localStorage.removeItem('admin_user'); // 強制清除
-//     alert('您的帳號已被停權或無權限進入，請聯絡主要管理員');
-//     return next('/login'); // 直接踢回登入頁，並結束這一次守衛
-//   }
-
-//   // 4. 檢查目標路由是否需要登入驗證
-//   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth);
-//   const isLoggedIn = !!user;
-
-//   if (requiresAuth && !isLoggedIn) {
-//     // 情況 A: 需要登入但沒登入 -> 強制導向登入頁
-//     next('/login');
-//   } else if (to.path === '/login' && isLoggedIn) {
-//     // 情況 B: 已經登入了卻還想去登入頁 -> 自動導向後台首頁
-//     next('/admin/members');
-//   } else {
-//     // 情況 C: 正常通行
-//     next();
-//   }
-
-// });
-
 // 全域路由守衛
 router.beforeEach(async (to, from, next) => {
+  router.afterEach((to) => {
+    const baseTitle = 'Recimo 後台管理系統'; // 你的系統預設名稱
+    const pageTitle = to.meta.title;
+
+    if (pageTitle) {
+      document.title = `${pageTitle} | ${baseTitle}`;
+    } else {
+      document.title = baseTitle;
+    }
+  });
+
   // 1. 取得 localStorage 資料
   const userDataStr = localStorage.getItem('admin_user');
   let user = null;

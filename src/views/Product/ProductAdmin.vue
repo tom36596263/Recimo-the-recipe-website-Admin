@@ -8,6 +8,7 @@ import DeleteButton from '@/components/DeleteButton.vue';
 import { useRoute } from 'vue-router';
 //要引用json的檔案一定要import以下這行
 import { publicApi } from '@/utils/publicApi.js';
+import { ElMessage } from 'element-plus';
 
 const route = useRoute();
 
@@ -37,11 +38,21 @@ const filteredData = computed(() => {
 const loadJsonData = async () => {
   try {
     const response = await publicApi.get('data/mall/products.json')
-    tableData.value = response.data
+
+    // 將 product_release 映射到 STATUS 欄位
+    tableData.value = response.data.map(item => ({
+      ...item,
+      // 假設 JSON 裡 1 是上架，0 是下架
+      STATUS: item.product_release === true || item.product_release === 1
+    }))
+
+    // tableData.value = response.data
     console.log(response.data);
-    
+  
+    console.log('資料載入成功並初始化狀態');
   } catch (error) {
-    console.error('抓取 JSON 失敗:', error.message)
+    console.error('抓取 JSON 失敗:', error.message);
+    ElMessage.error('資料載入失敗');
   }
 }
 
@@ -55,9 +66,15 @@ const handleSortChange = ({ prop, order }) => {
     let valB = b[prop];
 
     // 如果是日期格式，需要轉成 Date 物件才能正確比較
-    if (prop === 'USER_STARTDATE') {
+    if (prop === 'user_startdate') {
       valA = new Date(valA);
       valB = new Date(valB);
+    }
+
+    // 支援針對 STATUS (上下架) 排序
+    if (prop === 'product_release') {
+      valA = a.STATUS ? 1 : 0;
+      valB = b.STATUS ? 1 : 0;
     }
 
     if (order === 'ascending') {
@@ -78,14 +95,28 @@ const displayData = computed(() => {
   return filteredData.value.slice(start, end)
 })
 
+
 onMounted(() => {
   loadJsonData()
 })
 
 const handleStatusChange = (row) => {
   //暫無改動資料狀態功能
-  console.log(row);
+  // console.log(row);
   
+  // 同步更新 product_release 數值（若之後要存回資料庫用）
+  row.product_release = row.STATUS ? 1 : 0;
+  
+  const statusMsg = row.STATUS ? '商品已上架' : '商品已下架';
+  
+  // 顯示操作提示
+  ElMessage({
+    message: `${row.product_name}：${statusMsg}`,
+    type: row.STATUS ? 'success' : 'info',
+    plain: true,
+  });
+
+  console.log('更新後的商品資料：', row);
 };
 
 // const handleCurrentChange = (val) => {
@@ -129,7 +160,7 @@ const handleStatusChange = (row) => {
         <el-table-column prop="product_category" label="商品類型" sortable="custom" align="center"/>
         <el-table-column prop="product_name" label="商品名稱" align="center"/>
 
-        <el-table-column label="上/下架" align="center" width="120">
+        <el-table-column prop="product_release" label="上/下架" align="center" width="120">
           <template #default="scope">
             <el-switch 
             v-model="scope.row.STATUS" 
@@ -137,8 +168,8 @@ const handleStatusChange = (row) => {
             class="ml-2" 
             inline-prompt
             style="--el-switch-on-color: #3E8D60; --el-switch-off-color: #ABABAB" 
-            active-text="公開" 
-            inactive-text="不公開"
+            active-text="上架" 
+            inactive-text="下架"
             @change="handleStatusChange(scope.row)" />
           </template>
         </el-table-column>
