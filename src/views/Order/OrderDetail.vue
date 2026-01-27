@@ -16,14 +16,14 @@ const order = ref({
   orderNumber: '1',
   orderDate: '2025-10-15',
   totalAmount: 'NT$ 599',
-  
+
   // 收件人信息
   recipientName: '王曉明',
   recipientPhone: '0988111222',
   recipientAddress: '桃園市中壢區復興路46號',
   shippingNumber: '0003332123',
   paymentMethod: '貨到付款', // 新增付款方式欄位
-  
+
   // 訂單商品列表
   items: [
     {
@@ -41,7 +41,7 @@ const order = ref({
       subtotal: 'NT$ 400'
     }
   ],
-  
+
   // 訂單狀態
   status: 'pending' // pending(待確認) | confirmed(已確認) | shipped(已出貨) | delivered(已送達)
 });
@@ -63,7 +63,7 @@ const loading = ref(false);
  * 取得當前訂單狀態的中文標籤
  */
 const statusLabel = computed(() => {
-  const option = statusOptions.find(opt => opt.value === order.value.status);
+  const option = statusOptions.find((opt) => opt.value === order.value.status);
   return option ? option.label : '未知';
 });
 
@@ -75,37 +75,67 @@ const statusLabel = computed(() => {
  * 2. 包括訂單基本資訊、收件人資訊、商品清單
  * 3. 加載時顯示 loading 狀態
  */
+// 在 script setup 中找到 fetchOrderDetail 並修改
+
 const fetchOrderDetail = async () => {
   try {
     loading.value = true;
     const orderId = route.params.id;
-    
+
+    console.log('1. 目前網址上的 ID:', orderId); // 檢查這裡是不是 111018
+
+    // 讀取 JSON
     const response = await publicApi.get('data/mall/orders.json');
-    const orders = response.data;
-    const orderData = orders.find(o => String(o.id) === String(orderId));
-    
+    console.log('2. API 回傳的原始資料:', response);
+
+    // 判斷資料層級 (防呆機制：如果 response 本身就是陣列，就直接用；否則取 .data)
+    const orders = Array.isArray(response) ? response : response.data;
+
+    if (!orders) {
+      console.error('抓不到訂單陣列，請檢查 publicApi 回傳結構');
+      return;
+    }
+
+    console.log('3. 取得的訂單列表:', orders);
+
+    // 尋找對應訂單
+    const orderData = orders.find(
+      (o) => String(o.ORDER_ID) === String(orderId)
+    );
+
+    console.log('4. 篩選出的訂單資料:', orderData); // 如果這裡是 undefined，代表 ID 對不上
+
     if (orderData) {
-      // 計算總金額
-      const totalAmount = orderData.items.reduce((sum, item) => sum + (item.price * item.qty), 0);
-      
+      // 重新對應欄位
       order.value = {
-        orderNumber: orderData.id,
-        orderDate: orderData.date,
-        totalAmount: `NT$ ${totalAmount}`,
-        recipientName: orderData.receiver,
-        recipientPhone: orderData.phone,
-        recipientAddress: '桃園市中壢區復興路46號', // orders.json 沒有地址，先寫死
-        shippingNumber: orderData.trackingNo,
-        paymentMethod: orderData.payment,
-        items: orderData.items.map(item => ({
-          productId: item.id || '',
-          productName: item.name,
-          quantity: item.qty,
-          unitPrice: `NT$ ${item.price}`,
-          subtotal: `NT$ ${item.price * item.qty}`
+        orderNumber: orderData.ORDER_ID,
+        orderDate: orderData.CREATED,
+        totalAmount: `NT$ ${orderData.TOTAL_AMOUNT}`, // JSON 是數字，這裡補上 NT$
+
+        recipientName: orderData.RECIPIENT_NAME,
+        recipientPhone: orderData.RECIPIENT_PHONE,
+        recipientAddress: orderData.SHIPPING_ADDRESS,
+        shippingNumber: orderData.LOGISTICS_ID,
+
+        // 處理付款方式 (DB: 1=信用卡)
+        // 你的 JSON PAYMENT_METHOD 是 1，這裡會顯示 "信用卡付款"
+        paymentMethod:
+          orderData.PAYMENT_METHOD === 0 ? '貨到付款' : '信用卡付款',
+
+        // 處理商品列表
+        items: orderData.items.map((item) => ({
+          productId: item.PRODUCT_ID,
+          productName: item.PRODUCT_NAME,
+          quantity: item.QUANTITY,
+          unitPrice: `NT$ ${item.SNAPSHOT_PRICE}`,
+          subtotal: `NT$ ${item.SUBTOTAL}`
         })),
-        status: orderData.status
+
+        status: orderData.ORDER_STATUS
       };
+      console.log('5. 資料更新成功！');
+    } else {
+      console.warn(`找不到 ID 為 ${orderId} 的訂單，請確認 URL 或 JSON 資料`);
     }
   } catch (error) {
     console.error('獲取訂單詳情失敗:', error);
@@ -125,10 +155,9 @@ const handleStatusChange = async () => {
   try {
     // TODO: 生產環境改為實際 API 路徑
     // await publicApi.put(`orders/${orderId}`, { status: order.value.status });
-    
+
     ElMessage.success('訂單狀態已更新');
     console.log('訂單狀態已更新為:', order.value.status);
-    
   } catch (error) {
     console.error('更新狀態失敗:', error);
     ElMessage.error('更新狀態失敗');
@@ -158,7 +187,7 @@ onMounted(() => {
     <!-- 頁面標題、狀態選擇和返回按鈕 -->
     <div class="content-header">
       <h1 class="zh-h2">訂單詳情</h1>
-      
+
       <div class="header-right">
         <!-- 狀態選擇下拉框 -->
         <el-select
@@ -174,7 +203,7 @@ onMounted(() => {
             :value="option.value"
           />
         </el-select>
-        
+
         <!-- 返回按鈕 -->
         <el-button type="default" class="btn-back" @click="handleBack">
           返回
@@ -191,10 +220,23 @@ onMounted(() => {
       <!-- ===== 訂單詳情表格 ===== -->
       <div class="section">
         <h3 class="section-title">訂單詳情</h3>
-        <el-table :data="[order]" stripe :header-cell-style="{ backgroundColor: '#F1F6EF', color: '#000' }">
-          <el-table-column prop="orderNumber" label="訂單編號" align="center" width="150" />
-          <el-table-column prop="orderDate" label="訂單日期" align="center"  />
-          <el-table-column prop="paymentMethod" label="付款方式" align="center" />
+        <el-table
+          :data="[order]"
+          stripe
+          :header-cell-style="{ backgroundColor: '#F1F6EF', color: '#000' }"
+        >
+          <el-table-column
+            prop="orderNumber"
+            label="訂單編號"
+            align="center"
+            width="150"
+          />
+          <el-table-column prop="orderDate" label="訂單日期" align="center" />
+          <el-table-column
+            prop="paymentMethod"
+            label="付款方式"
+            align="center"
+          />
           <el-table-column prop="totalAmount" label="金額" align="center" />
         </el-table>
       </div>
@@ -202,23 +244,68 @@ onMounted(() => {
       <!-- ===== 收件人信息 ===== -->
       <div class="section">
         <h3 class="section-title">收件人信息</h3>
-        <el-table :data="[order]" stripe :header-cell-style="{ backgroundColor: '#F1F6EF', color: '#000' }">
-          <el-table-column prop="recipientName" label="收件人名稱" align="center" />
-          <el-table-column prop="recipientPhone" label="收件人電話" align="center" />
-          <el-table-column prop="recipientAddress" label="收件人地址" align="center" />
-          <el-table-column prop="shippingNumber" label="物流編號" align="center" width="150" />
+        <el-table
+          :data="[order]"
+          stripe
+          :header-cell-style="{ backgroundColor: '#F1F6EF', color: '#000' }"
+        >
+          <el-table-column
+            prop="recipientName"
+            label="收件人名稱"
+            align="center"
+          />
+          <el-table-column
+            prop="recipientPhone"
+            label="收件人電話"
+            align="center"
+          />
+          <el-table-column
+            prop="recipientAddress"
+            label="收件人地址"
+            align="center"
+          />
+          <el-table-column
+            prop="shippingNumber"
+            label="物流編號"
+            align="center"
+            width="150"
+          />
         </el-table>
       </div>
 
       <!-- ===== 訂購商品 ===== -->
       <div class="section">
         <h3 class="section-title">訂購商品</h3>
-        <el-table :data="order.items" stripe :header-cell-style="{ backgroundColor: '#F1F6EF', color: '#000' }">
-          <el-table-column prop="productId" label="商品編碼" align="center" width="120" />
+        <el-table
+          :data="order.items"
+          stripe
+          :header-cell-style="{ backgroundColor: '#F1F6EF', color: '#000' }"
+        >
+          <el-table-column
+            prop="productId"
+            label="商品編碼"
+            align="center"
+            width="120"
+          />
           <el-table-column prop="productName" label="商品名稱" align="center" />
-          <el-table-column prop="quantity" label="數量" align="center" width="100" />
-          <el-table-column prop="unitPrice" label="單價" align="center" width="120" />
-          <el-table-column prop="subtotal" label="小計" align="center" width="120" />
+          <el-table-column
+            prop="quantity"
+            label="數量"
+            align="center"
+            width="100"
+          />
+          <el-table-column
+            prop="unitPrice"
+            label="單價"
+            align="center"
+            width="120"
+          />
+          <el-table-column
+            prop="subtotal"
+            label="小計"
+            align="center"
+            width="120"
+          />
         </el-table>
       </div>
 
@@ -354,7 +441,7 @@ $light-bg: #f9f9f9;
 
     // 表頭樣式
     .el-table__header th {
-      background-color: #F1F6EF !important;
+      background-color: #f1f6ef !important;
       font-weight: 600;
       border-bottom: 2px solid $border-color;
     }
