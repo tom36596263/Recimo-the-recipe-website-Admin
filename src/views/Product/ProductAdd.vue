@@ -465,7 +465,7 @@ onMounted(() => {
     width: 100%;
 
     :deep(.el-textarea__inner) {
-      border: 1px solid #e8e8e8;
+      // border: 1px solid #e8e8e8;
       border-radius: 4px;
       font-size: 14px;
       line-height: 1.6;
@@ -483,7 +483,7 @@ onMounted(() => {
 
   .nutrition-table {
     width: 100%;
-    border: 1px solid #e8e8e8;
+    // border: 1px solid #e8e8e8;
     border-radius: 4px;
 
     :deep(.el-table__body-wrapper) {
