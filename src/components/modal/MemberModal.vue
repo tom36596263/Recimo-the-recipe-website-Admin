@@ -3,6 +3,15 @@ import { ref, onMounted, computed } from 'vue';
 const visible = ref(false)
 const memberData = ref({})
 
+// 判斷頭貼路徑
+const avatarSrc = computed(() => {
+  // 如果有資料且 user_url 不為空
+  if (memberData.value.user_url) {
+    return memberData.value.user_url;
+  }
+  // 否則回傳預設路徑
+  return '/img/site/None_avatar.svg';
+});
 
 // 開啟彈窗的方法，供父組件調用
 const open = (data) => {
@@ -19,8 +28,7 @@ defineExpose({ open })
     <div class="modal-body">
       <div class="profile-section">
         <div class="avatar-container">
-          <img :src="memberData.user_url ? memberData.user_url : $parsePublicFile('img/default-avatar.png')"
-            alt="avatar" class="avatar-img" />
+          <img :src="avatarSrc" alt="avatar" class="avatar-img" />
         </div>
         <div class="info-grid">
           <div class="info-item"><strong>會員編號：</strong> {{ memberData.user_id }}</div>
