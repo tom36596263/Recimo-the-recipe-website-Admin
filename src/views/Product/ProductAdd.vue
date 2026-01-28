@@ -16,16 +16,16 @@ const productData = ref({
   product_price: 0,
   product_image: '',
   nutrition_info: [
-    { name: '熱量', value: '' },
-    { name: '總脂肪', value: '' },
-    { name: '蛋白質', value: '' },
-    { name: '鈉', value: '' }
+    { name: '熱量', value: 0, unit: 'kcal' },
+    { name: '總脂肪', value: 0, unit: 'g' },
+    { name: '蛋白質', value: 0, unit: 'g' },
+    { name: '鈉', value: 0, unit: 'mg' }
   ],
   nutrition_info_right: [
-    { name: '碳水化合物', value: '' },
-    { name: '飽和脂肪', value: '' },
-    { name: '膳食纖維', value: '' },
-    { name: '糖', value: '' }
+    { name: '碳水化合物', value: 0, unit: 'g' },
+    { name: '飽和脂肪', value: 0, unit: 'g' },
+    { name: '膳食纖維', value: 0, unit: 'g' },
+    { name: '糖', value: 0, unit: 'g' }
   ],
   ingredient_content: '',
   ingredient_content_right: '',
@@ -260,7 +260,11 @@ onMounted(() => {
               </el-table-column>
               <el-table-column label="每份含量" align="center">
                 <template #default="{ row }">
-                  <el-input v-model="row.value" size="small" border />
+                  <el-input v-model.number="row.value" type="number" size="small">
+                    <template #suffix>
+                      <span class="unit-text">{{ row.unit }}</span>
+                    </template>
+                  </el-input>
                 </template>
               </el-table-column>
             </el-table>
@@ -276,7 +280,11 @@ onMounted(() => {
               </el-table-column>
               <el-table-column label="每份含量" align="center">
                 <template #default="{ row }">
-                  <el-input v-model="row.value" size="small" border />
+                  <el-input v-model.number="row.value" type="number" size="small">
+                    <template #suffix>
+                      <span class="unit-text">{{ row.unit }}</span>
+                    </template>
+                  </el-input>
                 </template>
               </el-table-column>
             </el-table>
@@ -492,7 +500,7 @@ onMounted(() => {
 
     :deep(.el-table__row) {
       &:hover>td {
-        background-color: #f0f8f4 !important;
+        background-color: transparent !important;
       }
     }
   }

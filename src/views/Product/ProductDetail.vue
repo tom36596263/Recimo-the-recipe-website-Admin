@@ -79,17 +79,17 @@ const loadProductData = async () => {
 
       // 2. 處理營養資訊：將扁平的 JSON 欄位轉為原本 Table 用的陣列格式
       const nutrition_info = [
-        { name: '熱量', value: product.product_kcal || '0kcal' },
-        { name: '總脂肪', value: product.product_fat || '0g' },
-        { name: '蛋白質', value: product.product_protein || '0g' },
-        { name: '鈉', value: product.product_sodium || '0mg' }
+        { name: '熱量', value: parseFloat(product.product_kcal) || 0, unit: 'kcal' },
+        { name: '總脂肪', value: parseFloat(product.product_fat) || 0, unit: 'g' },
+        { name: '蛋白質', value: parseFloat(product.product_protein) || 0, unit: 'g' },
+        { name: '鈉', value: parseFloat(product.product_sodium) || 0, unit: 'mg' }
       ];
 
       const nutrition_info_right = [
-        { name: '碳水化合物', value: product.product_carbs || '0g' },
-        { name: '飽和脂肪', value: product.product_staturated_fat || '0g' },
-        { name: '膳食纖維', value: product.product_fiber || '0g' },
-        { name: '糖', value: product.product_sugar || '0g' }
+        { name: '碳水化合物', value: parseFloat(product.product_carbs) || 0, unit: 'g' },
+        { name: '飽和脂肪', value: parseFloat(product.product_staturated_fat) || 0, unit: 'g' },
+        { name: '膳食纖維', value: parseFloat(product.product_fiber) || 0, unit: 'g' },
+        { name: '糖', value: parseFloat(product.product_sugar) || 0, unit: 'g' }
       ];
 
       // 3. 完整寫入 productData
@@ -359,8 +359,12 @@ onMounted(() => {
                 </template>
               </el-table-column>
               <el-table-column label="每份含量" align="center">
-                <template #default="{ row, $index }">
-                  <el-input v-model="row.value" :disabled="!isEditMode" size="small" border />
+                <template #default="{ row }">
+                  <el-input v-model.number="row.value" :disabled="!isEditMode" type="number" size="small">
+                    <template #suffix>
+                      <span class="unit-text">{{ row.unit }}</span>
+                    </template>
+                  </el-input>
                 </template>
               </el-table-column>
             </el-table>
@@ -375,8 +379,12 @@ onMounted(() => {
                 </template>
               </el-table-column>
               <el-table-column label="每份含量" align="center">
-                <template #default="{ row, $index }">
-                  <el-input v-model="row.value" :disabled="!isEditMode" size="small" border />
+                <template #default="{ row }">
+                  <el-input v-model="row.value" :disabled="!isEditMode" size="small" type="text">
+                    <template #suffix>
+                      <span class="unit-text">{{ row.unit }}</span>
+                    </template>
+                  </el-input>
                 </template>
               </el-table-column>
             </el-table>
@@ -591,7 +599,7 @@ onMounted(() => {
 
     :deep(.el-table__row) {
       &:hover>td {
-        background-color: #f0f8f4 !important;
+        background-color: transparent !important;
       }
     }
   }
