@@ -12,7 +12,7 @@ defineProps({
     <div class="card">
         <div class="card__detail">
 
-            <img v-if="step.step_image_url" :src="$parsePublicFile(step.step_image_url)" :alt="step.step_title"
+            <img v-if="step.step_image_url" :src="$parseFile(step.step_image_url)" :alt="step.step_title"
                 class="card__img">
 
             <div class="card__text">

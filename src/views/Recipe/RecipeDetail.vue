@@ -20,7 +20,7 @@ const recipeStore = useRecipeStore();
 
 import { getCurrentInstance } from 'vue';
 const { proxy } = getCurrentInstance();
-const $parsePublicFile = proxy.$parsePublicFile;
+const $parseFile = proxy.$parseFile;
 
 // --- 1. 響應式資料狀態 ---
 const rawRecipe = ref(null);
@@ -161,7 +161,7 @@ const recipeIntroData = computed(() => {
         if (rawImg.startsWith('http') || rawImg.startsWith('data:') || rawImg.startsWith('blob:')) {
             finalImg = rawImg;
         } else {
-            finalImg = $parsePublicFile(rawImg.replace(/^\//, ''));
+            finalImg = $parseFile(rawImg.replace(/^\//, ''));
         }
     } else {
         finalImg = 'https://placehold.co/800x600?text=No+Image';
@@ -188,7 +188,7 @@ const stepsData = computed(() => {
             if (rawImg.startsWith('data:') || rawImg.startsWith('http') || rawImg.startsWith('blob:')) {
                 finalImg = rawImg;
             } else {
-                finalImg = $parsePublicFile(rawImg.replace(/^\//, ''));
+                finalImg = $parseFile(rawImg.replace(/^\//, ''));
             }
         }
         return {
@@ -209,7 +209,7 @@ const snapsData = computed(() => rawGallery.value.map(g => {
     if (rawUrl.startsWith('http') || rawUrl.startsWith('data:') || rawUrl.startsWith('blob:')) {
         finalUrl = rawUrl;
     } else if (rawUrl) {
-        finalUrl = $parsePublicFile(rawUrl.replace(/^\//, ''));
+        finalUrl = $parseFile(rawUrl.replace(/^\//, ''));
     }
     return {
         url: finalUrl,

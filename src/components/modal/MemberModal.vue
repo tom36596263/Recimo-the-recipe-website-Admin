@@ -28,7 +28,7 @@ defineExpose({ open })
     <div class="modal-body">
       <div class="profile-section">
         <div class="avatar-container">
-          <img :src="avatarSrc" alt="avatar" class="avatar-img" />
+          <img :src="$parseFile(avatarSrc)" alt="avatar" class="avatar-img" />
         </div>
         <div class="info-grid">
           <div class="info-item"><strong>會員編號：</strong> {{ memberData.user_id }}</div>
