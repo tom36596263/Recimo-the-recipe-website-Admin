@@ -1,14 +1,39 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { ArrowLeft } from '@element-plus/icons-vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
+import { publicApi } from '@/utils/publicApi.js';
 
 const router = useRouter();
+const route = useRoute();
 
 const form = ref({
   title: '',
-  category: 'help',
+  category: '',
   content: ''
+});
+
+const loadFaqDetail = async () => {
+  try {
+    const faqId = Number(route.params.id);
+    const response = await publicApi.get('data/others/faqs.json');
+    if (Array.isArray(response.data)) {
+      const found = response.data.find(item => item.faq_id === faqId);
+      if (found) {
+        form.value = {
+          title: found.faq_title,
+          category: found.faq_type,
+          content: found.faq_content
+        };
+      }
+    }
+  } catch (e) {
+    // 可加錯誤提示
+  }
+};
+
+onMounted(() => {
+  loadFaqDetail();
 });
 
 const handlePublish = () => {
@@ -32,12 +57,13 @@ const handleCancel = () => {
         <h1 class="zh-h2">編輯常見問題</h1>
       </div>
       <div class="header-right">
-        <el-button type="primary" class="btn-publish" @click="handlePublish">
+        <button type="button" class="btn btn-solid h-40" style="width: 70px;" @click="handlePublish">
           儲存
-        </el-button>
-        <el-button class="btn-cancel" @click="handleCancel">
+        </button>
+
+        <button type="button" class="btn btn-outline h-40" style="width: 70px;" @click="handleCancel">
           取消
-        </el-button>
+        </button>
       </div>
     </div>
 
@@ -46,20 +72,12 @@ const handleCancel = () => {
       <el-form :model="form" label-position="top" class="faq-form">
         <!-- 標題 -->
         <el-form-item label="標題">
-          <el-input
-            v-model="form.title"
-            placeholder="請輸入標題"
-            class="form-input"
-          />
+          <el-input v-model="form.title" placeholder="請輸入標題" class="form-input" />
         </el-form-item>
 
         <!-- 問題分類 -->
         <el-form-item label="問題分類">
-          <el-select
-            v-model="form.category"
-            placeholder="請選擇分類"
-            class="form-select"
-          >
+          <el-select v-model="form.category" placeholder="請選擇分類" class="form-select">
             <el-option label="請選擇" value="help" />
             <el-option label="帳號相關" value="account" />
             <el-option label="食譜相關" value="recipe" />
@@ -70,13 +88,7 @@ const handleCancel = () => {
 
         <!-- 問題內容 -->
         <el-form-item label="問題內容">
-          <el-input
-            v-model="form.content"
-            type="textarea"
-            :rows="10"
-            placeholder="請輸入問題內容"
-            class="form-textarea"
-          />
+          <el-input v-model="form.content" type="textarea" :rows="10" placeholder="請輸入問題內容" class="form-textarea" />
         </el-form-item>
       </el-form>
     </div>
@@ -178,10 +190,11 @@ $border-color: #e0e0e0;
     }
   }
 
-  .el-input{
+  .el-input {
     border: 0;
     padding: 0;
   }
+
   .form-input {
     width: 100%;
     box-sizing: border-box;

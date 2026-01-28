@@ -82,7 +82,6 @@ const handleRemoveImage = () => {
             >
               <el-option label="全部" value="all" />
               <el-option label="會員" value="member" />
-              <el-option label="商家" value="merchant" />
               <el-option label="特定用戶" value="specific" />
             </el-select>
           </el-form-item>

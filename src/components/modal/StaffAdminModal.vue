@@ -1,31 +1,33 @@
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, shallowReactive } from 'vue'
 const visible = ref(false)
 const staffData = ref({})
 const mode = ref('add')// 'add' 或 'edit'
 const formRef = ref(null)
 
-
-
-// 開啟彈窗的方法，供父組件調用
-const open = (type, data=null) => {
-  mode.value = type
-  if (type === 'edit' && data) {
-    staffData.value = data
-  } else {
-    staffData.value = {}
-  }
-  visible.value = true
-}
-
-defineExpose({ open })
-
-const form = reactive({
-  name: '主要管理員',
-  username: 'admin123',
+let form = shallowReactive({
+  name: '',
+  username: '',
   password: '',
   confirmPassword: ''
 })
+
+const open = (type, data = null) => {
+  mode.value = type;
+  // 預設全部清空
+  form.name = '';
+  form.username = '';
+  form.password = '';
+  form.confirmPassword = '';
+  // 編輯時帶入正確欄位
+  if (type === 'edit' && data) {
+    form.name = data.admin_name || data.name || data.staff_name || data.username || '';
+    form.username = data.admin_account || data.username || data.account || '';
+  }
+  visible.value = true;
+};
+
+defineExpose({ open })
 
 const rules = {
   name: [{ required: true, message: '請輸入名稱', trigger: 'blur' }],
@@ -59,20 +61,9 @@ const handleSubmit = async (formEl) => {
 
 
 <template>
-  <el-dialog
-    v-model="visible"
-    :title="mode==='edit'?'更改管理員帳號':'新增管理員'"
-    width="440px"
-    custom-class="admin-dialog"
-    destroy-on-close
-  >
-    <el-form
-      :model="form"
-      :rules="rules"
-      ref="formRef"
-      label-position="top"
-      class="custom-form"
-    >
+  <el-dialog v-model="visible" :title="mode === 'edit' ? '更改管理員帳號' : '新增管理員'" width="440px" custom-class="admin-dialog"
+    destroy-on-close>
+    <el-form :model="form" :rules="rules" ref="formRef" label-position="top" class="custom-form">
       <el-form-item label="名稱" prop="name">
         <el-input v-model="form.name" />
       </el-form-item>
@@ -92,12 +83,13 @@ const handleSubmit = async (formEl) => {
 
     <template #footer>
       <div class="dialog-footer">
-        <el-button type="primary" class="btn-confirm" @click="handleSubmit(formRef)">
-          {{mode==='edit'?'儲存':'新增'}}
-        </el-button>
-        <el-button class="btn-cancel" @click="visible = false">
+        <button type="button" class="btn btn-solid h-40" style="width: 70px;" @click="handleSubmit(formRef)">
+          {{ mode === 'edit' ? '儲存' : '新增' }}
+        </button>
+
+        <button type="button" class="btn btn-outline h-40" style="width: 70px;" @click="visible = false">
           取消
-        </el-button>
+        </button>
       </div>
     </template>
   </el-dialog>
@@ -105,7 +97,7 @@ const handleSubmit = async (formEl) => {
 
 
 
-<style lang="scss" >
+<style lang="scss">
 // 定義主題色
 $primary-green: #438b69;
 $hover-green: #367054;
@@ -120,7 +112,7 @@ $hover-green: #367054;
       font-weight: bold;
       color: #333;
       padding-bottom: 4px;
-      
+
       &::before {
         display: none; // 隱藏必填紅星（如果想跟圖片一樣簡潔）
       }
@@ -147,6 +139,7 @@ $hover-green: #367054;
     &.btn-confirm {
       background-color: $primary-green;
       border-color: $primary-green;
+
       &:hover {
         background-color: $hover-green;
         border-color: $hover-green;
@@ -157,6 +150,7 @@ $hover-green: #367054;
       background-color: transparent;
       border: 1px solid $primary-green;
       color: $primary-green;
+
       &:hover {
         background-color: rgba($primary-green, 0.1);
       }

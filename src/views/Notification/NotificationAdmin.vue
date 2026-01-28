@@ -17,17 +17,17 @@ const pageSize = ref(8)
 const search = ref('')
 
 // ===== 搜尋邏輯 =====
+// 只顯示 sender_id 為 1 的資料，並支援搜尋
 const filteredData = computed(() => {
+  let filtered = tableData.value.filter(item => item.sender_id === 1);
   if (!search.value) {
-    return tableData.value;
+    return filtered;
   }
-  
   const searchLower = search.value.toLowerCase();
-  return tableData.value.filter(item => {
-    const title = item.NOTIFICATION_TITLE ? item.NOTIFICATION_TITLE.toLowerCase() : '';
-    const type = item.NOTIFICATION_TYPE ? item.NOTIFICATION_TYPE.toLowerCase() : '';
-    const id = item.NOTIFICATION_ID ? String(item.NOTIFICATION_ID) : '';
-    
+  return filtered.filter(item => {
+    const title = item.notification_title ? item.notification_title.toLowerCase() : '';
+    const type = item.notification_type ? item.notification_type.toLowerCase() : '';
+    const id = item.notification_id ? String(item.notification_id) : '';
     return title.includes(searchLower) || 
            type.includes(searchLower) || 
            id.includes(searchLower);
@@ -114,6 +114,7 @@ const handleStatusChange = (row) => {
       </div>
 
       <!-- 表格 -->
+
       <el-table 
         :data="displayData" 
         @sort-change="handleSortChange"
@@ -121,15 +122,15 @@ const handleStatusChange = (row) => {
         stripe 
         :header-cell-style="{backgroundColor: '#F1F6EF' , color:'#000', fontWeight: 'normal'}"
       >
-        <el-table-column prop="NOTIFICATION_ID" label="消息編號" sortable="custom" align="center" width="180"/>
-        <el-table-column prop="NOTIFICATION_TYPE" label="消息類別" sortable="custom" align="center"/>
-        <el-table-column prop="NOTIFICATION_TITLE" label="消息標題" align="center"/>
-        <el-table-column prop="CREATED_AT" label="發布日期" align="center"/>
-        <el-table-column prop="RECEIVER_ID" label="發布對象" align="center"/>
+        <el-table-column prop="notification_id" label="消息編號" sortable="custom" align="center" width="180"/>
+        <el-table-column prop="notification_type" label="消息類別" sortable="custom" align="center"/>
+        <el-table-column prop="notification_title" label="消息標題" align="center"/>
+        <el-table-column prop="created_at" label="發布日期" align="center"/>
+        <el-table-column prop="receiver_id" label="發布對象" align="center"/>
 
         <el-table-column label="詳情" align="center" width="120">
           <template #default="scope">
-            <router-link :to="`/admin/notifications/${scope.row.NOTIFICATION_ID}`" style="color: #555;">
+            <router-link :to="`/admin/notifications/${scope.row.notification_id}`" style="color: #555;">
               <el-icon><Edit /></el-icon>
             </router-link>
           </template>

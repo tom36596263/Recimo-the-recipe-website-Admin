@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, getCurrentInstance } from 'vue';
 import axios from 'axios';
 import { Edit ,Search} from '@element-plus/icons-vue'
 import MyPagination from '@/components/MyPagination.vue';
@@ -10,6 +10,9 @@ import { useRoute } from 'vue-router';
 //要引用json的檔案一定要import以下這行
 import { publicApi } from '@/utils/publicApi.js';
 
+// 取得 $parsePublicFile 全域方法
+const { appContext } = getCurrentInstance()
+const $parsePublicFile = appContext.config.globalProperties.$parsePublicFile
 const route = useRoute();
 
 
@@ -173,15 +176,19 @@ const handleStatusChange = (row) => {
         stripe 
         :header-cell-style="{backgroundColor: '#F1F6EF' , color:'#000', fontWeight: 'normal'}"
       >
-
-        <el-table-column prop="ingredient_id" label="食材編號" sortable="custom" align="center" width="180"/>
+        <el-table-column prop="ingredient_id" label="食材編號" sortable="custom" align="center" width="120"/>
         <el-table-column prop="main_category" label="食材分類" sortable="custom" align="center">
           <template #default="scope">
             {{ getCategoryLabel(scope.row.main_category) }}
           </template>
         </el-table-column>
         <el-table-column prop="ingredient_name" label="食材名稱" align="center"/>
-
+        <!-- 新增圖片欄位 -->
+        <el-table-column label="食材圖片" align="center">
+          <template #default="scope">
+            <img v-if="scope.row.ingredient_image_url" :src="$parsePublicFile ? $parsePublicFile(scope.row.ingredient_image_url) : $parsePublicFile(scope.row.ingredient_image_url)" alt="食材圖片" style="width:48px;height:48px;object-fit:cover;border-radius:8px;" />
+          </template>
+        </el-table-column>
         <el-table-column label="上/下架" align="center" width="120">
           <template #default="scope">
             <!-- ingredients.json 沒有 is_active 欄位，若有請補上正確欄位 -->
@@ -196,7 +203,6 @@ const handleStatusChange = (row) => {
             @change="handleStatusChange(scope.row)" />
           </template>
         </el-table-column>
-
         <el-table-column label="詳情" align="center" width="120">
           <template #default="scope">
             <el-button link @click="handleEdit(scope.row)">

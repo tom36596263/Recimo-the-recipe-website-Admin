@@ -23,13 +23,11 @@ const filteredData = computed(() => {
   if (!search.value) {
     return tableData.value;
   }
-  
   const searchLower = search.value.toLowerCase();
   return tableData.value.filter(item => {
-    const title = item.FAQ_TITLE ? item.FAQ_TITLE.toLowerCase() : '';
-    const type = item.FAQ_TYPE ? item.FAQ_TYPE.toLowerCase() : '';
-    const id = item.FAQ_ID ? String(item.FAQ_ID) : '';
-    
+    const title = item.faq_title ? item.faq_title.toLowerCase() : '';
+    const type = item.faq_type ? item.faq_type.toLowerCase() : '';
+    const id = item.faq_id ? String(item.faq_id) : '';
     return title.includes(searchLower) || 
            type.includes(searchLower) || 
            id.includes(searchLower);
@@ -93,7 +91,7 @@ onMounted(() => {
 
 const handleStatusChange = (row) => {
   //暫無改動資料狀態功能
-  console.log('當前這筆資料的 ID:', row.FAQ_ID);
+  console.log('當前這筆資料的 ID:', row.faq_id);
 };
 </script>
 
@@ -121,6 +119,7 @@ const handleStatusChange = (row) => {
     </div>
 
     <!-- ===== 表格 ===== -->
+
     <el-table 
       :data="displayData" 
       @sort-change="handleSortChange"
@@ -128,14 +127,14 @@ const handleStatusChange = (row) => {
       stripe 
       :header-cell-style="{backgroundColor: '#F1F6EF' , color:'#000', fontWeight: 'normal'}"
     >
-      <el-table-column prop="FAQ_ID" label="編號" sortable="custom" align="center" width="180"/>
-      <el-table-column prop="FAQ_TYPE" label="問題分類" sortable="custom" align="center"/>
-      <el-table-column prop="FAQ_TITLE" label="問題標題" align="center"/>
+      <el-table-column prop="faq_id" label="編號" sortable="custom" align="center" width="180"/>
+      <el-table-column prop="faq_type" label="問題分類" sortable="custom" align="center"/>
+      <el-table-column prop="faq_title" label="問題標題" align="center"/>
 
       <el-table-column label="上/下架" align="center" width="120">
         <template #default="scope">
           <el-switch 
-          v-model="scope.row.FAQ_STATUS" 
+          v-model="scope.row.is_active" 
           size="large" 
           class="ml-2" 
           inline-prompt
@@ -148,7 +147,7 @@ const handleStatusChange = (row) => {
 
       <el-table-column label="編輯" align="center" width="120">
         <template #default="scope">
-          <router-link :to="`/admin/faqs/${scope.row.FAQ_ID}`" style="color: #555;">
+          <router-link :to="`/admin/faqs/${scope.row.faq_id}`" style="color: #555;">
               <el-icon><Edit /></el-icon>
           </router-link>
         </template>

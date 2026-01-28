@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Right } from '@element-plus/icons-vue'
 
+
 // 初始化
 const router = useRouter()
 const loginFormRef = ref(null)
@@ -31,33 +32,57 @@ const rules = reactive({
 const handleLogin = async (formEl) => {
     if (!formEl) return
 
-    await formEl.validate((valid) => {
+    await formEl.validate(async (valid) => {
         if (valid) {
             loading.value = true
 
-            // 模擬 API 請求
-            setTimeout(() => {
-                // --- 設定假帳號密碼 ---
-                const dummyUser = 'admin'
-                const dummyPass = '123456'
+            try {
+                const response = await fetch('/data/others/admins.json')
+                if (!response.ok) throw new Error('無法讀取管理員資料庫')
+                const adminData = await response.json()
+                // 模擬 API 請求
+                setTimeout(() => {
+                    // 比對帳號密碼
+                    const user = adminData.find(u =>
+                        u.admin_account === loginForm.username &&
+                        u.admin_password === loginForm.password
+                    )
+                    if (user) {
+                        if (user.admin_level == 0) {
+                            ElMessage.error('沒有權限，請聯絡主要管理員')
+                            loading.value = false
+                            return // 強制中斷，不執行下面的登入邏輯
+                        }
+                        // 登入成功
+                        // 3. 將使用者資訊存入 localStorage，方便後台顯示姓名
+                        localStorage.setItem('admin_user', JSON.stringify({
+                            name: user.admin_name,
+                            level: user.admin_level,
+                            account: user.admin_account
+                        }))
 
-                if (loginForm.username === dummyUser && loginForm.password === dummyPass) {
-                    // 登入成功
-                    ElMessage({
-                        message: '登入成功，正在導向管理後台...',
-                        type: 'success',
-                        duration: 1500
-                    })
+                        ElMessage({
+                            message: `${user.admin_name}歡迎回來~正在導向管理後台...`,
+                            type: 'success',
+                            duration: 1500
+                        })
+                        setTimeout(() => {
+                            loading.value = false
+                            router.push('/admin/members')
+                        }, 1000)
+                    } else {
+                        // 登入失敗
+                        loading.value = false
+                        ElMessage.error('登入失敗(可用測試用帳號：admin@test.com / 密碼：123456)')
+                    }
+                }, 1000)
 
-                    loading.value = false
-                    router.push('/admin/members')
-                } else {
-                    // 登入失敗
-                    loading.value = false
-                    ElMessage.error('錯誤(測試用帳號：admin / 測試用密碼：123456)')
-                }
-            }, 1000)
-
+            } catch (error) {
+                // 處理 fetch 失敗或 JSON 解析失敗
+                loading.value = false
+                console.error('Login Error:', error)
+                ElMessage.error('系統錯誤：無法載入管理員資料')
+            }
         } else {
             ElMessage.warning('請填寫正確的登入資訊')
         }
@@ -129,7 +154,7 @@ $accent-color-100: #FFF1DE;
     display: flex;
     align-items: center; // 垂直置中
     justify-content: center; // 水平置中
-    min-height: 100vh; // 關鍵：確保容器跟螢幕一樣高
+    min-height: 100vh; // 確保容器跟螢幕一樣高
     width: 100%;
 }
 

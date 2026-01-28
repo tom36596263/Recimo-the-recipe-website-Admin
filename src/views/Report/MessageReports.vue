@@ -10,18 +10,44 @@ const router = useRouter();
 
 // ===== 頁面數據 =====
 const loading = ref(false);
+
+// 檢舉類型對應中文
+const reportTypeMap = {
+  0: '廣告/垃圾訊息',
+  1: '人身攻擊/歧視',
+  2: '不當圖片',
+  3: '詐騙/不實訊息',
+  4: '其他違規'
+}
+
+// 審核狀態對應中文
+const statusMap = {
+  0: '待審核',
+  1: '審核通過',
+  2: '審核不通過'
+}
+
+// 根據 STATUS 獲取狀態文字
+const getStatusText = (status) => statusMap[status] ?? '未知狀態'
+
+// 根據 STATUS 獲取狀態 class
+const getStatusClass = (status) => {
+  if (status === 0) return '待審核'
+  if (status === 1) return '審核通過'
+  if (status === 2) return '審核不通過'
+  return ''
+}
+
 const reportData = ref({
-  report_id: '',
-  comment_id: '',
-  case_id: '',
-  report_type: '',
-  report_reason: '',
-  comment_content: '',
-  reporter_id: '',
-  report_date: '',
-  status: '待審核',
-  reviewer_id: '',
-  review_date: ''
+  REPORTED_COMMENT_ID: '',
+  COMMENT_ID: '',
+  REPORTER_ID: '',
+  REPORT_TYPE: '',
+  REPORT_REASON: '',
+  STATUS: '',
+  HANDLER_ID: '',
+  REPORTERD_AT: '',
+  UPDATE_AT: ''
 });
 
 // ===== 步驟1：載入舉報數據 =====
@@ -33,18 +59,11 @@ const loadReportData = async () => {
   try {
     loading.value = true;
     const reportId = route.params.id;
-    
-    // 實際應調用 API 獲取數據
     const response = await publicApi.get('data/social/reported_comments.json');
     const reports = response.data;
-    
-    const report = reports.find(r => String(r.report_id) === String(reportId));
-    
+    const report = reports.find(r => String(r.REPORTED_COMMENT_ID) === String(reportId));
     if (report) {
-      reportData.value = {
-        ...reportData.value,
-        ...report
-      };
+      reportData.value = { ...report };
     }
   } catch (error) {
     console.error('載入舉報數據失敗:', error.message);
@@ -73,9 +92,9 @@ const approveReport = () => {
       // 模擬 API 請求
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      reportData.value.status = '審核通過';
-      reportData.value.reviewer_id = 'admin_001';
-      reportData.value.review_date = new Date().toLocaleString('zh-TW');
+      reportData.value.STATUS = 1;
+      reportData.value.HANDLER_ID = 10;
+      reportData.value.UPDATE_AT = new Date().toLocaleString('zh-TW');
       ElMessage.success('舉報已審核通過');
     } catch (error) {
       ElMessage.error('操作失敗，請重試');
@@ -108,9 +127,9 @@ const rejectReport = () => {
       // 模擬 API 請求
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      reportData.value.status = '審核不通過';
-      reportData.value.reviewer_id = 'admin_001';
-      reportData.value.review_date = new Date().toLocaleString('zh-TW');
+      reportData.value.STATUS = 2;
+      reportData.value.HANDLER_ID = 10;
+      reportData.value.UPDATE_AT = new Date().toLocaleString('zh-TW');
       ElMessage.success('舉報已審核不通過');
     } catch (error) {
       ElMessage.error('操作失敗，請重試');
@@ -138,9 +157,9 @@ const resetReview = () => {
       type: 'warning'
     }
   ).then(() => {
-    reportData.value.status = '待審核';
-    reportData.value.reviewer_id = '';
-    reportData.value.review_date = '';
+    reportData.value.STATUS = 0;
+    reportData.value.HANDLER_ID = null;
+    reportData.value.UPDATE_AT = null;
     ElMessage.success('已重置為待審核狀態');
   }).catch(() => {
     ElMessage.info('已取消');
@@ -190,25 +209,28 @@ onMounted(() => {
               <el-col :xs="24" :sm="12">
                 <div class="info-item">
                   <span class="info-label">被檢舉留言編號</span>
-                  <div class="info-value">{{ reportData.comment_id }}</div>
+                  <div class="info-value">{{ reportData.COMMENT_ID }}</div>
                 </div>
               </el-col>
               <el-col :xs="24" :sm="12">
                 <div class="info-item">
                   <span class="info-label">案件編號</span>
-                  <div class="info-value">{{ reportData.case_id }}</div>
+                  <div class="info-value">{{ reportData.REPORTED_COMMENT_ID }}</div>
                 </div>
               </el-col>
             </el-row>
           </div>
 
+
           <el-divider />
+
+
 
           <!-- 檢舉類型 -->
           <div class="info-section">
             <div class="info-item">
               <span class="info-label">檢舉類型</span>
-              <div class="info-value">{{ reportData.report_type }}</div>
+              <div class="info-value">{{ reportTypeMap[reportData.REPORT_TYPE] ?? reportData.REPORT_TYPE }}</div>
             </div>
           </div>
 
@@ -218,8 +240,28 @@ onMounted(() => {
           <div class="info-section">
             <div class="info-item">
               <span class="info-label">檢舉原因</span>
-              <div class="info-value">{{ reportData.report_reason }}</div>
+              <div class="info-value">{{ reportData.REPORT_REASON }}</div>
             </div>
+          </div>
+
+          <el-divider />
+
+          <!-- 舉報人ID與檢舉時間 -->
+          <div class="info-section">
+            <el-row :gutter="20">
+              <el-col :xs="24" :sm="12">
+                <div class="info-item">
+                  <span class="info-label">舉報人 ID</span>
+                  <div class="info-value">{{ reportData.REPORTER_ID }}</div>
+                </div>
+              </el-col>
+              <el-col :xs="24" :sm="12">
+                <div class="info-item">
+                  <span class="info-label">檢舉時間</span>
+                  <div class="info-value">{{ reportData.REPORTERD_AT }}</div>
+                </div>
+              </el-col>
+            </el-row>
           </div>
 
           <el-divider />
@@ -240,23 +282,6 @@ onMounted(() => {
 
           <el-divider />
 
-          <!-- 舉報時間 -->
-          <div class="info-section">
-            <el-row :gutter="20">
-              <el-col :xs="24" :sm="12">
-                <div class="info-item">
-                  <span class="info-label">舉報時間</span>
-                  <div class="info-value">{{ reportData.report_date }}</div>
-                </div>
-              </el-col>
-              <el-col :xs="24" :sm="12">
-                <div class="info-item">
-                  <span class="info-label">舉報人 ID</span>
-                  <div class="info-value">{{ reportData.reporter_id }}</div>
-                </div>
-              </el-col>
-            </el-row>
-          </div>
         </el-card>
       </div>
 
@@ -271,15 +296,15 @@ onMounted(() => {
 
           <!-- 審核狀態 -->
           <div class="status-section">
-            <div class="status-badge" :class="reportData.status">
-              {{ reportData.status }}
+            <div class="status-badge" :class="getStatusClass(reportData.STATUS)">
+              {{ getStatusText(reportData.STATUS) }}
             </div>
           </div>
 
           <el-divider />
 
           <!-- 審核按鈕（待審核狀態） -->
-          <div v-if="reportData.status === '待審核'" class="action-buttons">
+          <div v-if="reportData.STATUS === 0" class="action-buttons">
             <el-button
               type="success"
               size="large"
@@ -310,11 +335,11 @@ onMounted(() => {
             <div class="result-info">
               <div class="info-item">
                 <span class="info-label">審核人員</span>
-                <div class="info-value">{{ reportData.reviewer_id }}</div>
+                <div class="info-value">{{ reportData.HANDLER_ID }}</div>
               </div>
               <div class="info-item">
                 <span class="info-label">審核時間</span>
-                <div class="info-value">{{ reportData.review_date }}</div>
+                <div class="info-value">{{ reportData.UPDATE_AT }}</div>
               </div>
             </div>
             <el-divider />

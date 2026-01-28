@@ -1,9 +1,13 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, getCurrentInstance } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { publicApi } from '@/utils/publicApi.js';
 import { ArrowLeft, Delete } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+
+// 取得 $parsePublicFile 全域方法
+const { appContext } = getCurrentInstance()
+const $parsePublicFile = appContext.config.globalProperties.$parsePublicFile
 
 const route = useRoute();
 const router = useRouter();
@@ -18,19 +22,19 @@ const productData = ref({
   product_price: 0,
   product_image: '',
   nutrition_info: [
-    { name: '熱量', value: '250g' },
-    { name: '碳水化合', value: '4.2g' },
-    { name: '蛋白質', value: '28.0g' },
+    { name: '熱量', value: '250kal' },
+    { name: '總脂肪', value: '4.2g' },
+    { name: '蛋白質', value: '28.5g' },
     { name: '鈉', value: '420 mg' }
   ],
   nutrition_info_right: [
-    { name: '醣水化合物', value: '42.0g' },
+    { name: '碳水化合物', value: '42.0g' },
     { name: '飽和脂肪', value: '0.8 g' },
     { name: '膳食纖維', value: '5.5g' },
-    { name: '鐵', value: '0.5g' }
+    { name: '糖', value: '0.5g' }
   ],
-  ingredient_content: '農業港澳珠江糙糙米、又不相關性米米？農的的｜綠脂肪指數症症。導入化能代族人，健身及關鍵管理養份、採用低溫吹膜住宅部份、搬運超級食物人選，攪拌食一口都吃滑膜足展與純淨厭棄。',
-  ingredient_content_right: '農業港澳珠江糙糙米、又不相關性米米？農的的｜綠脂肪指數症症。導入化能代族人，健身及關鍵管理養份、採用低溫吹膜住宅部份、搬運超級食物人選，攪拌食一口都吃滑膜足展與純淨厭棄。',
+  ingredient_content: '1.嚴選低溫舒肥嫩雞胸。\n2.黃金兩色藜麥糙米飯(三色藜麥、優質糙米)。\n3.五彩均衡鮮蔬(青花菜、鮮甜紅蘿蔔 / 黃玉米筍、栗子地瓜 / 烤南瓜、毛豆仁)。',
+  ingredient_content_right: '1.微波加熱：撕開包裝一角以800W 加熱約2-3分鐘。\n2.隔水加熱：整包放入熱水中浸泡5-8分鐘(不建議沸騰加熱以維持肉質嫩度)。\n3.電鍋加熱：解凍後放入內鍋，外鍋加少許水，跳起即可。',
   storage_period: '冷凍保存 12 個月',
   product_tips: '本產品含有動物製品，過敏者請留意。',
   recipe_images: [
@@ -40,6 +44,7 @@ const productData = ref({
 });
 
 const loading = ref(false);
+const originalProductData = ref(null); // 保存原始數據用於取消時還原
 
 // ===== 步驟1：載入商品數據 =====
 /**
@@ -57,23 +62,56 @@ const loadProductData = async () => {
   try {
     const productId = route.params.id;
     loading.value = true;
-    
-    // Step 3: 取得所有商品數據
+
     const response = await publicApi.get('data/mall/products.json');
     const products = response.data;
-    
-    // Step 4: 根據商品 ID 篩選單個商品
+
+    // 找到對應 ID 的商品
     const product = products.find(p => String(p.product_id) === String(productId));
-    
-    // Step 5: 更新商品數據
+
     if (product) {
+      // 1. 處理圖片：將 JSON 的 product_image 轉為畫面用的格式
+      const recipeImages = product.product_image?.map(img => ({
+        id: img.id,
+        url: img.image_url,
+        alt: product.product_name
+      })) || [];
+
+      // 2. 處理營養資訊：將扁平的 JSON 欄位轉為原本 Table 用的陣列格式
+      const nutrition_info = [
+        { name: '熱量', value: product.product_kcal || '0kcal' },
+        { name: '總脂肪', value: product.product_fat || '0g' },
+        { name: '蛋白質', value: product.product_protein || '0g' },
+        { name: '鈉', value: product.product_sodium || '0mg' }
+      ];
+
+      const nutrition_info_right = [
+        { name: '碳水化合物', value: product.product_carbs || '0g' },
+        { name: '飽和脂肪', value: product.product_staturated_fat || '0g' },
+        { name: '膳食纖維', value: product.product_fiber || '0g' },
+        { name: '糖', value: product.product_sugar || '0g' }
+      ];
+
+      // 3. 完整寫入 productData
       productData.value = {
-        ...productData.value,
-        ...product
+        ...product, // 保留原始所有欄位 (包含 ID, Price 等)
+        product_description: product.product_description,
+        ingredient_content: product.product_ingredients,       // 對應食材內容
+        ingredient_content_right: product.product_cooking_method, // 對應使用方法
+        storage_period: product.product_storage_method,        // 對應保存期限
+        product_tips: product.product_reminder,               // 對應貼心提醒
+        nutrition_info,
+        nutrition_info_right,
+        recipe_images: recipeImages
       };
+
+      console.log('商品資料載入成功:', productData.value);
+    } else {
+      ElMessage.error('找不到該商品');
     }
   } catch (error) {
     console.error('載入商品數據失敗:', error.message);
+    ElMessage.error('載入失敗');
   } finally {
     loading.value = false;
   }
@@ -85,6 +123,16 @@ const loadProductData = async () => {
  * 功能說明：切換編輯模式和查看模式
  */
 const toggleEditMode = () => {
+  if (!isEditMode.value) {
+    // 進入編輯模式時，深拷貝當前數據
+    originalProductData.value = JSON.parse(JSON.stringify(productData.value));
+  } else {
+    // 取消編輯時，還原原始數據
+    if (originalProductData.value) {
+      productData.value = JSON.parse(JSON.stringify(originalProductData.value));
+      originalProductData.value = null;
+    }
+  }
   isEditMode.value = !isEditMode.value;
 };
 
@@ -98,9 +146,10 @@ const saveProductData = async () => {
     loading.value = true;
     // 模擬 API 請求 - 實際應調用後端保存接口
     await new Promise(resolve => setTimeout(resolve, 500));
-    
+
     ElMessage.success('商品資訊保存成功！');
     isEditMode.value = false;
+    originalProductData.value = null; // 清除備份
   } catch (error) {
     ElMessage.error('保存失敗，請重試');
     console.error('保存商品數據失敗:', error);
@@ -150,15 +199,15 @@ const deleteImage = (imageId) => {
 const handleImageUpload = (uploadFile) => {
   // 獲取實際的 File 對象，兼容不同的參數格式
   const fileObj = uploadFile?.raw || uploadFile?.file?.raw || uploadFile;
-  
+
   if (!fileObj || typeof fileObj.slice !== 'function') {
     ElMessage.error('文件獲取失敗');
     return false;
   }
-  
+
   // 使用 FileReader 讀取文件並轉換為 base64
   const reader = new FileReader();
-  
+
   reader.onload = (e) => {
     const newId = Math.max(...productData.value.recipe_images.map(img => img.id), 0) + 1;
     productData.value.recipe_images.push({
@@ -168,15 +217,15 @@ const handleImageUpload = (uploadFile) => {
     });
     ElMessage.success('圖片上傳成功');
   };
-  
+
   reader.onerror = () => {
     ElMessage.error('圖片讀取失敗，請重試');
     console.error('圖片讀取失敗');
   };
-  
+
   // 讀取文件為 Data URL (base64)
   reader.readAsDataURL(fileObj);
-  
+
   // 返回 false 阻止默認上傳行為
   return false;
 };
@@ -223,42 +272,27 @@ onMounted(() => {
     <!-- ===== 內容區頂部：返回按鈕和修改選項 ===== -->
     <div class="detail-header">
       <router-link to="/admin/products" class="back-btn">
-        <el-icon><ArrowLeft /></el-icon>
+        <el-icon>
+          <ArrowLeft />
+        </el-icon>
         <span>返回</span>
       </router-link>
       <div class="header-actions">
-        <el-button 
-          v-if="!isEditMode"
-          type="primary" 
-          size="large"
-          @click="toggleEditMode"
-          color="#3E8D60"
-        >
+        <button v-if="!isEditMode" class="btn btn-solid h-40" style="width: 70px;" @click="toggleEditMode">
           修改
-        </el-button>
-        <el-button 
-          v-if="isEditMode"
-          type="primary" 
-          size="large"
-          @click="saveProductData"
-          color="#3E8D60"
-        >
+        </button>
+
+        <button v-if="isEditMode" class="btn btn-solid h-40" style="width: 70px;" @click="saveProductData">
           保存
-        </el-button>
-        <el-button 
-          v-if="isEditMode"
-          size="large"
-          @click="toggleEditMode"
-        >
+        </button>
+
+        <button v-if="isEditMode" class="btn btn-outline h-40" style="width: 70px;" @click="toggleEditMode">
           取消
-        </el-button>
-        <el-button 
-          v-if="!isEditMode"
-          size="large"
-          @click="goBack"
-        >
+        </button>
+
+        <button v-if="!isEditMode" class="btn btn-outline h-40" style="width: 70px;" @click="goBack">
           返回
-        </el-button>
+        </button>
       </div>
     </div>
 
@@ -278,35 +312,24 @@ onMounted(() => {
         <el-col :xs="24" :sm="12" :md="8">
           <div class="info-item">
             <span class="info-label">商品分類</span>
-            <el-select
-              v-model="productData.product_category"
-              :disabled="!isEditMode"
-              class="w-full"
-              placeholder="選擇分類"
-            >
-              <el-option label="蔬菜" value="vegetable" />
-              <el-option label="肉類" value="meat" />
+            <el-select v-model="productData.product_category" :disabled="!isEditMode" class="w-full" placeholder="選擇分類">
+              <el-option label="低卡健身系列" value="fitness" />
+              <el-option label="日韓風味系列" value="asian" />
+              <el-option label="歐美西式系列" value="western" />
+              <el-option label="台式家常系列" value="taiwanese" />
             </el-select>
           </div>
         </el-col>
         <el-col :xs="24" :sm="12" :md="8">
           <div class="info-item">
             <span class="info-label">商品名稱</span>
-            <el-input
-              v-model="productData.product_name"
-              :disabled="!isEditMode"
-              placeholder="請輸入商品名稱"
-            />
+            <el-input v-model="productData.product_name" :disabled="!isEditMode" placeholder="請輸入商品名稱" />
           </div>
         </el-col>
         <el-col :xs="24" :sm="12" :md="8">
           <div class="info-item">
             <span class="info-label">商品價格</span>
-            <el-input
-              v-model="productData.product_price"
-              :disabled="!isEditMode"
-              placeholder="請輸入價格"
-            />
+            <el-input v-model="productData.product_price" :disabled="!isEditMode" placeholder="請輸入價格" />
           </div>
         </el-col>
       </el-row>
@@ -314,82 +337,46 @@ onMounted(() => {
       <!-- ===== 步驟3：商品描述區 =====
            功能：顯示完整的商品描述文本
       -->
-      <el-divider />
       <div class="description-section">
         <h3 class="section-title">商品描述</h3>
-        <el-input
-          v-model="productData.product_description"
-          type="textarea"
-          :rows="5"
-          :disabled="!isEditMode"
-          placeholder="商品詳細描述"
-          class="textarea-field"
-        />
+        <el-input v-model="productData.product_description" type="textarea" :rows="5" :disabled="!isEditMode"
+          placeholder="商品詳細描述" class="textarea-field" />
       </div>
 
       <!-- ===== 步驟4：營養資訊區 =====
            功能：以表格形式展示營養成分（左右兩列設計）
       -->
-      <el-divider />
       <div class="nutrition-section">
         <h3 class="section-title">營養資訊</h3>
         <el-row :gutter="20" class="nutrition-container">
           <!-- 左側營養資訊 -->
           <el-col :xs="24" :md="12">
-            <el-table
-              :data="productData.nutrition_info"
-              stripe
-              class="nutrition-table"
-              :header-cell-style="{ backgroundColor: '#F1F6EF', color: '#000', fontWeight: 'normal' }"
-            >
+            <el-table :data="productData.nutrition_info" stripe class="nutrition-table"
+              :header-cell-style="{ backgroundColor: '#F1F6EF', color: '#000', fontWeight: 'normal' }">
               <el-table-column label="項目" align="center" width="100">
                 <template #default="{ row, $index }">
-                  <el-input
-                    v-model="row.name"
-                    :disabled="!isEditMode"
-                    size="small"
-                    border
-                  />
+                  <el-input v-model="row.name" :disabled="!isEditMode" size="small" border />
                 </template>
               </el-table-column>
               <el-table-column label="每份含量" align="center">
                 <template #default="{ row, $index }">
-                  <el-input
-                    v-model="row.value"
-                    :disabled="!isEditMode"
-                    size="small"
-                    border
-                  />
+                  <el-input v-model="row.value" :disabled="!isEditMode" size="small" border />
                 </template>
               </el-table-column>
             </el-table>
           </el-col>
           <!-- 右側營養資訊 -->
           <el-col :xs="24" :md="12">
-            <el-table
-              :data="productData.nutrition_info_right"
-              stripe
-              class="nutrition-table"
-              :header-cell-style="{ backgroundColor: '#F1F6EF', color: '#000', fontWeight: 'normal' }"
-            >
+            <el-table :data="productData.nutrition_info_right" stripe class="nutrition-table"
+              :header-cell-style="{ backgroundColor: '#F1F6EF', color: '#000', fontWeight: 'normal' }">
               <el-table-column label="項目" align="center" width="100">
                 <template #default="{ row, $index }">
-                  <el-input
-                    v-model="row.name"
-                    :disabled="!isEditMode"
-                    size="small"
-                    border
-                  />
+                  <el-input v-model="row.name" :disabled="!isEditMode" size="small" border />
                 </template>
               </el-table-column>
               <el-table-column label="每份含量" align="center">
                 <template #default="{ row, $index }">
-                  <el-input
-                    v-model="row.value"
-                    :disabled="!isEditMode"
-                    size="small"
-                    border
-                  />
+                  <el-input v-model="row.value" :disabled="!isEditMode" size="small" border />
                 </template>
               </el-table-column>
             </el-table>
@@ -400,29 +387,18 @@ onMounted(() => {
       <!-- ===== 步驟5：食材內容區 =====
            功能：展示食材列表和相關資訊（左右兩欄設計）
       -->
-      <el-divider />
       <div class="ingredient-section">
-        <h3 class="section-title">食材內容</h3>
+        <h3 class="section-title">商品介紹</h3>
         <el-row :gutter="20">
           <el-col :xs="24" :md="12">
-            <el-input
-              v-model="productData.ingredient_content"
-              type="textarea"
-              :rows="5"
-              :disabled="!isEditMode"
-              placeholder="食材內容"
-              class="textarea-field"
-            />
+            <h4 class="subsection-title">食材內容</h4>
+            <el-input v-model="productData.ingredient_content" type="textarea" :rows="5" :disabled="!isEditMode"
+              placeholder="請輸入食材內容" class="textarea-field" />
           </el-col>
           <el-col :xs="24" :md="12">
-            <el-input
-              v-model="productData.ingredient_content_right"
-              type="textarea"
-              :rows="5"
-              :disabled="!isEditMode"
-              placeholder="食材內容"
-              class="textarea-field"
-            />
+            <h4 class="subsection-title">使用方法</h4>
+            <el-input v-model="productData.ingredient_content_right" type="textarea" :rows="5" :disabled="!isEditMode"
+              placeholder="請輸入使用方法" class="textarea-field" />
           </el-col>
         </el-row>
       </div>
@@ -430,66 +406,36 @@ onMounted(() => {
       <!-- ===== 步驟6：保存期限和貼心提醒區 =====
            功能：顯示保存方式和使用注意事項
       -->
-      <el-divider />
       <el-row :gutter="20" class="storage-section">
         <el-col :xs="24" :md="12">
           <h4 class="subsection-title">保存期限</h4>
-          <el-input
-            v-model="productData.storage_period"
-            type="textarea"
-            :rows="3"
-            :disabled="!isEditMode"
-            placeholder="保存期限說明"
-            class="textarea-field"
-          />
+          <el-input v-model="productData.storage_period" type="textarea" :rows="3" :disabled="!isEditMode"
+            placeholder="保存期限說明" class="textarea-field" />
         </el-col>
         <el-col :xs="24" :md="12">
           <h4 class="subsection-title">貼心提醒</h4>
-          <el-input
-            v-model="productData.product_tips"
-            type="textarea"
-            :rows="3"
-            :disabled="!isEditMode"
-            placeholder="產品提醒資訊"
-            class="textarea-field"
-          />
+          <el-input v-model="productData.product_tips" type="textarea" :rows="3" :disabled="!isEditMode"
+            placeholder="產品提醒資訊" class="textarea-field" />
         </el-col>
       </el-row>
 
       <!-- ===== 步驟7：菜譜圖片展示區 =====
            功能：展示與商品相關的菜譜圖片
       -->
-      <el-divider />
       <div class="recipe-image-section">
-        <h3 class="section-title">菜譜圖片</h3>
+        <h3 class="section-title">商品圖片</h3>
         <div class="recipe-images">
-          <div
-            v-for="image in productData.recipe_images"
-            :key="image.id"
-            class="recipe-image-item"
-          >
-            <img :src="image.url" :alt="image.alt" class="recipe-img" />
+          <div v-for="image in productData.recipe_images" :key="image.id" class="recipe-image-item">
+            <img
+              :src="image.url.startsWith('blob:') || image.url.startsWith('data:') ? image.url : $parsePublicFile(image.url)"
+              :alt="image.alt" class="recipe-img" />
             <div v-if="isEditMode" class="image-actions">
-              <el-button
-                type="danger"
-                size="small"
-                :icon="Delete"
-                circle
-                @click="deleteImage(image.id)"
-              />
+              <el-button type="danger" size="small" :icon="Delete" circle @click="deleteImage(image.id)" />
             </div>
           </div>
           <div class="recipe-image-placeholder">
-            <el-upload
-              v-if="isEditMode"
-              :auto-upload="false"
-              :on-change="handleImageUpload"
-              :before-upload="beforeImageUpload"
-              :show-file-list="false"
-              drag
-              class="upload-area"
-              accept="image/*"
-            >
+            <el-upload v-if="isEditMode" :auto-upload="false" :on-change="handleImageUpload"
+              :before-upload="beforeImageUpload" :show-file-list="false" drag class="upload-area" accept="image/*">
               <template #default>
                 <div class="upload-content">
                   <div class="upload-text">
@@ -546,7 +492,7 @@ onMounted(() => {
   .detail-card {
     background: white;
     border: none;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 1px 8px rgba(0, 0, 0, 0.08);
 
     :deep(.el-card__header) {
       padding: 20px;
@@ -588,9 +534,6 @@ onMounted(() => {
       }
     }
 
-    :deep(.el-input__wrapper) {
-      background-color: #f5f7fa;
-    }
   }
 
   // ===== 分割線樣式 =====
@@ -606,7 +549,7 @@ onMounted(() => {
     color: #333;
     margin: 0 0 15px 0;
     padding-bottom: 10px;
-    border-bottom: 2px solid #3e8d60;
+    border-bottom: 1px solid #3e8d60;
   }
 
   .subsection-title {
@@ -621,8 +564,7 @@ onMounted(() => {
     width: 100%;
 
     :deep(.el-textarea__inner) {
-      background-color: #f5f7fa;
-      border: 1px solid #e8e8e8;
+      // border: 1px solid #e8e8e8;
       border-radius: 4px;
       font-size: 14px;
       line-height: 1.6;
@@ -631,7 +573,7 @@ onMounted(() => {
 
   // ===== 營養資訊表樣式 =====
   .nutrition-section {
-    margin-bottom: 20px;
+    margin: 20px 0;
   }
 
   .nutrition-container {
@@ -648,7 +590,7 @@ onMounted(() => {
     }
 
     :deep(.el-table__row) {
-      &:hover > td {
+      &:hover>td {
         background-color: #f0f8f4 !important;
       }
     }
@@ -680,7 +622,7 @@ onMounted(() => {
     aspect-ratio: 1;
     overflow: hidden;
     border-radius: 8px;
-    border: 2px solid #e8e8e8;
+    border: 1px solid #e8e8e8;
     transition: transform 0.3s, box-shadow 0.3s;
     position: relative;
 
@@ -723,7 +665,7 @@ onMounted(() => {
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 2px dashed #3e8d60;
+    border: 1px dashed #3e8d60;
     border-radius: 8px;
     background: #f9fdf7;
     position: relative;
