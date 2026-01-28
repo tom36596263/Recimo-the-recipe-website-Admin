@@ -43,7 +43,7 @@ const goToDetail = () => {
         <footer>
             <div class="personal-info">
                 <div class="personal-img">
-                    <img :src="$parsePublicFile('img/site/Recimo-logo-black.svg')" alt="logo">
+                    <img :src="$parseFile('img/site/Recimo-logo-black.svg')" alt="logo">
                 </div>
                 <p class="p-p1">Recimo</p>
                 <div @click.prevent.stop>

@@ -5,9 +5,9 @@ import { publicApi } from '@/utils/publicApi.js';
 import { ArrowLeft, Delete } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 
-// 取得 $parsePublicFile 全域方法
+// 取得 $parseFile 全域方法
 const { appContext } = getCurrentInstance()
-const $parsePublicFile = appContext.config.globalProperties.$parsePublicFile
+const $parseFile = appContext.config.globalProperties.$parseFile
 
 const route = useRoute();
 const router = useRouter();
@@ -435,7 +435,7 @@ onMounted(() => {
         <div class="recipe-images">
           <div v-for="image in productData.recipe_images" :key="image.id" class="recipe-image-item">
             <img
-              :src="image.url.startsWith('blob:') || image.url.startsWith('data:') ? image.url : $parsePublicFile(image.url)"
+              :src="image.url.startsWith('blob:') || image.url.startsWith('data:') ? image.url : $parseFile(image.url)"
               :alt="image.alt" class="recipe-img" />
             <div v-if="isEditMode" class="image-actions">
               <el-button type="danger" size="small" :icon="Delete" circle @click="deleteImage(image.id)" />

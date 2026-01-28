@@ -85,7 +85,7 @@ const loadData = async () => {
 onMounted(loadData);
 
 const { proxy } = getCurrentInstance();
-const $parsePublicFile = proxy.$parsePublicFile;
+const $parseFile = proxy.$parseFile;
 const recipeIntroData = computed(() => {
   if (!recipe.value) return null;
   let rawImg = recipe.value.recipe_image_url || recipe.value.coverImg || recipe.value.recipe_cover_image || '';
@@ -94,7 +94,7 @@ const recipeIntroData = computed(() => {
     if (rawImg.startsWith('http') || rawImg.startsWith('data:') || rawImg.startsWith('blob:')) {
       finalImg = rawImg;
     } else {
-      finalImg = $parsePublicFile(rawImg.replace(/^\//, ''));
+      finalImg = $parseFile(rawImg.replace(/^\//, ''));
     }
   } else {
     finalImg = 'https://placehold.co/800x600?text=No+Image';
@@ -120,7 +120,7 @@ const stepsData = computed(() => {
       if (rawImg.startsWith('data:') || rawImg.startsWith('http') || rawImg.startsWith('blob:')) {
         finalImg = rawImg;
       } else {
-        finalImg = $parsePublicFile(rawImg.replace(/^\//, ''));
+        finalImg = $parseFile(rawImg.replace(/^\//, ''));
       }
     }
     return {
