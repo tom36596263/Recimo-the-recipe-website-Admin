@@ -7,7 +7,7 @@ import router from './router'; // 引入路由設定
 import '@/assets/scss/base/_reset.scss'; //引入全域css reset
 import '@/assets/scss/main.scss'; // 引入全域樣式
 import '@fortawesome/fontawesome-free/css/all.css'; // 引入fontawesome
-import { parsePublicFile } from '@/utils/parseFile'; // 引入路徑處理工具
+import { parsePublicFile,parseFile } from '@/utils/parseFile'; // 引入路徑處理工具
 
 // 全局組件
 import BaseBtn from '@/components/common/BaseBtn.vue';
@@ -24,5 +24,6 @@ app.use(ElementPlus);
 app.component('BaseBtn', BaseBtn);
 app.component('BaseTag', BaseTag);
 
-app.config.globalProperties.$parsePublicFile = parsePublicFile; //註冊全域屬性，在 Template 裡可以使用 $parsePublicFile
+// app.config.globalProperties.$parsePublicFile = parsePublicFile; // 已改用 $parseFile，不再註冊 $parsePublicFile
+app.config.globalProperties.$parseFile = parseFile; //註冊全域屬性，在 Template 裡可以使用 $parseFile
 app.mount('#app'); // 將應用程式掛載至 index.html 的 #app 容器，正式啟動渲染

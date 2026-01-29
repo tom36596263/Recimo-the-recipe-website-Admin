@@ -104,7 +104,7 @@ const handleLogout = () => {
             <div class="more-menu-panel">
                 <div class="panel-header">
                     <router-link to="/">
-                        <img :src="$parsePublicFile('img/site/Recimo-logo-white.svg')" alt="logo" class="logo">
+                        <img :src="$parseFile('img/site/Recimo-logo-white.svg')" alt="logo" class="logo">
                     </router-link>
                     <BaseBtn v-if="authStore.isLoggedIn" title="登出" height="30" @click="handleLogout" />
                 </div>

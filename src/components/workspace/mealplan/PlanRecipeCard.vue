@@ -25,7 +25,7 @@ const handleAdd = () => {
 <template>
     <div class="recipe-card-lg" @click="handleAdd">
         <header class="card-header">
-            <img :src="$parsePublicFile(recipe.recipe_image_url)" :alt="recipe.recipe_title">
+            <img :src="$parseFile(recipe.recipe_image_url)" :alt="recipe.recipe_title">
         </header>
 
         <div class="card-body">

@@ -10,9 +10,9 @@ import { useRoute } from 'vue-router';
 //要引用json的檔案一定要import以下這行
 import { publicApi } from '@/utils/publicApi.js';
 
-// 取得 $parsePublicFile 全域方法
+// 取得 $parseFile 全域方法
 const { appContext } = getCurrentInstance()
-const $parsePublicFile = appContext.config.globalProperties.$parsePublicFile
+const $parseFile = appContext.config.globalProperties.$parseFile
 const route = useRoute();
 
 
@@ -186,7 +186,7 @@ const handleStatusChange = (row) => {
         <!-- 新增圖片欄位 -->
         <el-table-column label="食材圖片" align="center">
           <template #default="scope">
-            <img v-if="scope.row.ingredient_image_url" :src="$parsePublicFile ? $parsePublicFile(scope.row.ingredient_image_url) : $parsePublicFile(scope.row.ingredient_image_url)" alt="食材圖片" style="width:48px;height:48px;object-fit:cover;border-radius:8px;" />
+            <img v-if="scope.row.ingredient_image_url" :src="$parseFile ? $parseFile(scope.row.ingredient_image_url) : $parseFile(scope.row.ingredient_image_url)" alt="食材圖片" style="width:48px;height:48px;object-fit:cover;border-radius:8px;" />
           </template>
         </el-table-column>
         <el-table-column label="上/下架" align="center" width="120">
