@@ -1,4 +1,6 @@
 <script setup>
+import { defineEmits } from 'vue';
+const emit = defineEmits(['updated']);
 import { ref, shallowReactive } from 'vue'
 const visible = ref(false)
 const staffData = ref({})
@@ -23,6 +25,7 @@ const open = (type, data = null) => {
   if (type === 'edit' && data) {
     form.name = data.admin_name || data.name || data.staff_name || data.username || '';
     form.username = data.admin_account || data.username || data.account || '';
+    staffData.value = data;
   }
   visible.value = true;
 };
@@ -48,14 +51,46 @@ const rules = {
   ]
 }
 
+import { phpApi } from '@/utils/publicApi.js';
+import { ElMessage } from 'element-plus';
+
 const handleSubmit = async (formEl) => {
-  if (!formEl) return
-  await formEl.validate((valid) => {
+  if (!formEl) return;
+  await formEl.validate(async (valid) => {
     if (valid) {
-      console.log('Submit Success!', form)
-      dialogVisible.value = false
+      // 新增模式才送出 API
+      if (mode.value === 'add') {
+        try {
+          const payload = {
+            admin_account: form.username,
+            admin_password: form.password,
+            admin_name: form.name
+          };
+          const res = await phpApi.post('others/admin_add.php', payload);
+          ElMessage.success('新增成功');
+          visible.value = false;
+          emit('updated');
+        } catch (e) {
+          ElMessage.error('新增失敗: ' + (e?.response?.data || e.message));
+        }
+      } else if (mode.value === 'edit') {
+        try {
+          const payload = {
+            admin_id: staffData.value.admin_id,
+            admin_account: form.username,
+            admin_password: form.password,
+            admin_name: form.name,
+          };
+          const res = await phpApi.patch('others/admin_update.php', payload);
+          ElMessage.success('更新成功');
+          visible.value = false;
+          emit('updated');
+        } catch (e) {
+          ElMessage.error('更新失敗: ' + (e?.response?.data || e.message));
+        }
+      }
     }
-  })
+  });
 }
 </script>
 
