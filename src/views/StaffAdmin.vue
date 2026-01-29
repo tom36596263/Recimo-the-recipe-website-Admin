@@ -7,7 +7,8 @@ import SearchBar from '@/components/SearchBar.vue';
 import StaffAdminModal from '@/components/modal/StaffAdminModal.vue';
 import { useRoute } from 'vue-router';
 //要引用json的檔案一定要import以下這行
-import { publicApi } from '@/utils/publicApi.js';
+import { phpApi } from '@/utils/publicApi.js';
+import { ElMessage } from 'element-plus';
 
 const route = useRoute();
 
@@ -50,7 +51,7 @@ const filteredData = computed(() => {
 //--------取資料-------
 const loadJsonData = async () => {
   try {
-    const response = await publicApi.get('data/others/admins.json')
+    const response = await phpApi.get('others/admin_get.php')
     tableData.value = response.data
   } catch (error) {
     console.error('抓取 JSON 失敗:', error.message)
@@ -95,11 +96,22 @@ onMounted(() => {
 })
 
 //-------switch------
-const handleStatusChange = (row) => {
-  //暫無改動資料狀態功能
-  console.log('當前這筆資料的 ID:', row);
+const handleStatusChange = async (row) => {
+  // 主要管理員不可切換
+  if (row.admin_level == 2) return;
+  try {
+    await phpApi.patch('others/admin_status.php', {
+      admin_id: row.admin_id,
+      admin_level: row.admin_level,
+    });
+    ElMessage.success('狀態已更新');
+    loadJsonData();
+  } catch (e) {
+    ElMessage.error('狀態更新失敗: ' + (e?.response?.data || e.message));
+    // 若失敗，還原 UI
+    loadJsonData();
+  }
 };
-
 
 
 </script>
@@ -132,9 +144,19 @@ const handleStatusChange = (row) => {
       <el-table-column label="人員狀態" align="center" width="120">
         <template #default="scope">
           <span v-if="scope.row.admin_level == 2">主要管理員</span>
-          <el-switch v-else v-model="scope.row.admin_level" :active-value="1" :inactive-value="0" size="large"
-            class="ml-2" inline-prompt style="--el-switch-on-color: #3E8D60; --el-switch-off-color: #ABABAB"
-            active-text="啟用" inactive-text="停權" @change="handleStatusChange(scope.row.admin_level)" />
+          <el-switch
+            v-else
+            v-model="scope.row.admin_level"
+            :active-value="1"
+            :inactive-value="0"
+            size="large"
+            class="ml-2"
+            inline-prompt
+            style="--el-switch-on-color: #3E8D60; --el-switch-off-color: #ABABAB"
+            active-text="啟用"
+            inactive-text="停權"
+            @change="handleStatusChange(scope.row)"
+          />
         </template>
       </el-table-column>
 
@@ -153,7 +175,7 @@ const handleStatusChange = (row) => {
     <!-- 頁籤 -->
     <MyPagination v-model:currentPage="currentPage" :pageSize="pageSize" :total="filteredData.length" />
 
-    <StaffAdminModal ref="modalRef" />
+    <StaffAdminModal ref="modalRef" @updated="loadJsonData" />
   </div>
 </template>
 
