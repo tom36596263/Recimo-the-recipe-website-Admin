@@ -1,5 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
+import { parsePublicFile } from '@/utils/parseFile';
+
 const visible = ref(false)
 const memberData = ref({})
 
@@ -28,7 +30,7 @@ defineExpose({ open })
     <div class="modal-body">
       <div class="profile-section">
         <div class="avatar-container">
-          <img :src="$parseFile(avatarSrc)" alt="avatar" class="avatar-img" />
+          <img :src="parsePublicFile(avatarSrc)" alt="avatar" class="avatar-img" />
         </div>
         <div class="info-grid">
           <div class="info-item"><strong>會員編號：</strong> {{ memberData.user_id }}</div>
