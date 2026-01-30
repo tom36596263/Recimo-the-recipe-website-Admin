@@ -1,265 +1,257 @@
 <script setup>
-import { ref, computed, onMounted, getCurrentInstance } from 'vue';
+import { ref, onMounted, getCurrentInstance } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { publicApi } from '@/utils/publicApi.js';
+// import { publicApi } from '@/utils/publicApi.js';
+import { phpApi } from '@/utils/publicApi';
 import { ArrowLeft, Delete } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 
-// 取得 $parseFile 全域方法
-const { appContext } = getCurrentInstance()
-const $parseFile = appContext.config.globalProperties.$parseFile
-
+const { appContext } = getCurrentInstance();
+const $parseFile = appContext.config.globalProperties.$parseFile;
 const route = useRoute();
 const router = useRouter();
 
-// ===== 頁面數據 =====
 const isEditMode = ref(false);
+const loading = ref(false);
+const originalProductData = ref(null);
+
 const productData = ref({
-  product_id: '',
+  id: '',
   product_name: '',
   product_category: '',
   product_description: '',
   product_price: 0,
-  product_image: '',
-  nutrition_info: [
-    { name: '熱量', value: '250kal' },
-    { name: '總脂肪', value: '4.2g' },
-    { name: '蛋白質', value: '28.5g' },
-    { name: '鈉', value: '420 mg' }
-  ],
-  nutrition_info_right: [
-    { name: '碳水化合物', value: '42.0g' },
-    { name: '飽和脂肪', value: '0.8 g' },
-    { name: '膳食纖維', value: '5.5g' },
-    { name: '糖', value: '0.5g' }
-  ],
-  ingredient_content: '1.嚴選低溫舒肥嫩雞胸。\n2.黃金兩色藜麥糙米飯(三色藜麥、優質糙米)。\n3.五彩均衡鮮蔬(青花菜、鮮甜紅蘿蔔 / 黃玉米筍、栗子地瓜 / 烤南瓜、毛豆仁)。',
-  ingredient_content_right: '1.微波加熱：撕開包裝一角以800W 加熱約2-3分鐘。\n2.隔水加熱：整包放入熱水中浸泡5-8分鐘(不建議沸騰加熱以維持肉質嫩度)。\n3.電鍋加熱：解凍後放入內鍋，外鍋加少許水，跳起即可。',
-  storage_period: '冷凍保存 12 個月',
-  product_tips: '本產品含有動物製品，過敏者請留意。',
-  recipe_images: [
-    { id: 1, url: 'https://via.placeholder.com/150', alt: '菜譜圖片1' },
-    { id: 2, url: 'https://via.placeholder.com/150', alt: '菜譜圖片2' }
-  ]
+  product_release: 1,
+  nutrition_info: [],
+  nutrition_info_right: [],
+  ingredient_content: '',
+  ingredient_content_right: '',
+  storage_period: '',
+  product_tips: '',
+  recipe_images: []
 });
 
-const loading = ref(false);
-const originalProductData = ref(null); // 保存原始數據用於取消時還原
-
-// ===== 步驟1：載入商品數據 =====
-/**
- * loadProductData 方法
- * 功能說明：根據路由參數取得商品 ID，並從外部 API 獲取商品詳細資料
- * 
- * 執行步驟：
- * Step 1: 從路由參數中取得商品 ID
- * Step 2: 設定 loading 狀態為 true
- * Step 3: 調用 publicApi 取得 products.json 數據
- * Step 4: 根據商品 ID 篩選對應的商品資料
- * Step 5: 更新 productData 並設定 loading 為 false
- */
 const loadProductData = async () => {
   try {
     const productId = route.params.id;
     loading.value = true;
 
-    const response = await publicApi.get('data/mall/products.json');
-    const products = response.data;
+    // 指向正確的 PHP API
+    const response = await phpApi.get('mall/admin_products_api.php', {
+      params: { action: 'read' }
+    });
 
-    // 找到對應 ID 的商品
-    const product = products.find(p => String(p.product_id) === String(productId));
+    // 💡 關鍵 Debug：檢查整個 response 物件
+    console.log('完整 Response:', response);
+
+    // 某些 API 封裝會多一層 data，例如 response.data.data
+    const products = response.data?.data || response.data || [];
+
+    console.log('解析後的商品陣列:', products);
+
+    if (!Array.isArray(products) || products.length === 0) {
+      console.error('警告：API 回傳的不是陣列，或陣列是空的！');
+      ElMessage.warning('目前資料庫中沒有商品資料');
+      return;
+    }
+
+    // 尋找商品 (強制轉型比對)
+    const product = products.find((p) => {
+      const apiId = p.id || p.product_id || p.PRODUCT_ID;
+      return String(apiId) === String(productId);
+    });
 
     if (product) {
-      // 1. 處理圖片：將 JSON 的 product_image 轉為畫面用的格式
-      const recipeImages = product.product_image?.map(img => ({
-        id: img.id,
-        url: img.image_url,
-        alt: product.product_name
-      })) || [];
+      console.log('成功匹配商品:', product);
+      const t = product.tags || {};
 
-      // 2. 處理營養資訊：將扁平的 JSON 欄位轉為原本 Table 用的陣列格式
-      const nutrition_info = [
-        { name: '熱量', value: parseFloat(product.product_kcal) || 0, unit: 'kcal' },
-        { name: '總脂肪', value: parseFloat(product.product_fat) || 0, unit: 'g' },
-        { name: '蛋白質', value: parseFloat(product.product_protein) || 0, unit: 'g' },
-        { name: '鈉', value: parseFloat(product.product_sodium) || 0, unit: 'mg' }
-      ];
-
-      const nutrition_info_right = [
-        { name: '碳水化合物', value: parseFloat(product.product_carbs) || 0, unit: 'g' },
-        { name: '飽和脂肪', value: parseFloat(product.product_staturated_fat) || 0, unit: 'g' },
-        { name: '膳食纖維', value: parseFloat(product.product_fiber) || 0, unit: 'g' },
-        { name: '糖', value: parseFloat(product.product_sugar) || 0, unit: 'g' }
-      ];
-
-      // 3. 完整寫入 productData
+      // 更新資料
       productData.value = {
-        ...product, // 保留原始所有欄位 (包含 ID, Price 等)
-        product_description: product.product_description,
-        ingredient_content: product.product_ingredients,       // 對應食材內容
-        ingredient_content_right: product.product_cooking_method, // 對應使用方法
-        storage_period: product.product_storage_method,        // 對應保存期限
-        product_tips: product.product_reminder,               // 對應貼心提醒
-        nutrition_info,
-        nutrition_info_right,
-        recipe_images: recipeImages
+        id: product.id,
+        product_name: product.product_name || '',
+        product_category: product.product_category || '',
+        product_description: product.product_description || '',
+        product_price: product.product_price || 0,
+        product_release: t.product_release ?? 1,
+        nutrition_info: [
+          { name: '熱量', value: t.product_kcal || 0, unit: 'kcal' },
+          { name: '總脂肪', value: t.product_fat || 0, unit: 'g' },
+          { name: '蛋白質', value: t.product_protein || 0, unit: 'g' },
+          { name: '鈉', value: t.product_sodium || 0, unit: 'mg' }
+        ],
+        nutrition_info_right: [
+          { name: '碳水化合物', value: t.product_carbs || 0, unit: 'g' },
+          { name: '飽和脂肪', value: t.product_saturated_fat || 0, unit: 'g' },
+          { name: '膳食纖維', value: t.product_fiber || 0, unit: 'g' },
+          { name: '糖', value: t.product_sugar || 0, unit: 'g' }
+        ],
+        ingredient_content: t.product_ingredients || '',
+        ingredient_content_right: t.product_cooking_method || '',
+        storage_period: t.product_storage_method || '',
+        product_tips: t.product_reminder || '',
+        recipe_images: (product.images || []).map((url, index) => ({
+          id: index,
+          url: url,
+          alt: product.product_name
+        }))
       };
-
-      console.log('商品資料載入成功:', productData.value);
     } else {
-      ElMessage.error('找不到該商品');
+      console.error(
+        `比對失敗：網址 ID 為 ${productId}，但 API 的商品 ID 分別為:`,
+        products.map((p) => p.id || p.product_id)
+      );
     }
   } catch (error) {
-    console.error('載入商品數據失敗:', error.message);
-    ElMessage.error('載入失敗');
+    console.error('讀取過程發生異常:', error);
   } finally {
     loading.value = false;
   }
 };
 
-// ===== 步驟2：編輯模式切換 =====
-/**
- * toggleEditMode 方法
- * 功能說明：切換編輯模式和查看模式
- */
+const saveProductData = async () => {
+  try {
+    loading.value = true;
+
+    // 1. 準備 FormData (如果要傳圖片，必須用 FormData)
+    const formData = new FormData();
+
+    // 基本資料 append
+    formData.append('product_id', productData.value.id);
+    formData.append('product_name', productData.value.product_name);
+    formData.append('product_category', productData.value.product_category);
+    formData.append('product_price', productData.value.product_price);
+    formData.append(
+      'product_description',
+      productData.value.product_description
+    );
+    formData.append('product_release', productData.value.product_release);
+
+    // 營養資訊 append
+    formData.append('product_kcal', productData.value.nutrition_info[0].value);
+    formData.append('product_fat', productData.value.nutrition_info[1].value);
+    formData.append(
+      'product_protein',
+      productData.value.nutrition_info[2].value
+    );
+    formData.append(
+      'product_sodium',
+      productData.value.nutrition_info[3].value
+    );
+    formData.append(
+      'product_carbs',
+      productData.value.nutrition_info_right[0].value
+    );
+    formData.append(
+      'product_saturated_fat',
+      productData.value.nutrition_info_right[1].value
+    );
+    formData.append(
+      'product_fiber',
+      productData.value.nutrition_info_right[2].value
+    );
+    formData.append(
+      'product_sugar',
+      productData.value.nutrition_info_right[3].value
+    );
+
+    // 文字內容 append
+    formData.append(
+      'product_ingredients',
+      productData.value.ingredient_content
+    );
+    formData.append('product_storage_method', productData.value.storage_period);
+    formData.append('product_reminder', productData.value.product_tips);
+    formData.append(
+      'product_cooking_method',
+      productData.value.ingredient_content_right
+    );
+
+    // 圖片檔案處理
+    productData.value.recipe_images.forEach((img) => {
+      if (img.raw) {
+        // 新圖片檔案
+        formData.append('product_images[]', img.raw);
+      } else {
+        // 舊圖片路徑 (讓後端知道要保留哪些圖)
+        formData.append('existing_images[]', img.url);
+      }
+    });
+
+    const response = await phpApi.post(
+      'mall/admin_products_api.php?action=update',
+      formData
+    );
+
+    if (response.data.status === 'success') {
+      ElMessage.success('保存成功！');
+      isEditMode.value = false;
+      originalProductData.value = null;
+      loadProductData(); // 保存後建議重新讀取，刷新圖片網址
+    } else {
+      throw new Error(response.data.message || '更新失敗');
+    }
+  } catch (error) {
+    console.error('保存錯誤詳細資訊:', error);
+    ElMessage.error('保存失敗: ' + error.message);
+  } finally {
+    loading.value = false;
+  }
+};
+
+const goBack = () => router.push('/admin/products');
+
 const toggleEditMode = () => {
   if (!isEditMode.value) {
-    // 進入編輯模式時，深拷貝當前數據
     originalProductData.value = JSON.parse(JSON.stringify(productData.value));
   } else {
-    // 取消編輯時，還原原始數據
     if (originalProductData.value) {
       productData.value = JSON.parse(JSON.stringify(originalProductData.value));
-      originalProductData.value = null;
     }
   }
   isEditMode.value = !isEditMode.value;
 };
 
-// ===== 步驟3：保存商品數據 =====
-/**
- * saveProductData 方法
- * 功能說明：保存修改後的商品數據到外部 API
- */
-const saveProductData = async () => {
-  try {
-    loading.value = true;
-    // 模擬 API 請求 - 實際應調用後端保存接口
-    await new Promise(resolve => setTimeout(resolve, 500));
+const beforeImageUpload = (rawFile) => {
+  const isJPGorPNG =
+    rawFile.type === 'image/jpeg' || rawFile.type === 'image/png';
+  const isLt2M = rawFile.size / 1024 / 1024 < 2;
 
-    ElMessage.success('商品資訊保存成功！');
-    isEditMode.value = false;
-    originalProductData.value = null; // 清除備份
-  } catch (error) {
-    ElMessage.error('保存失敗，請重試');
-    console.error('保存商品數據失敗:', error);
-  } finally {
-    loading.value = false;
-  }
-};
-
-// ===== 步驟4：返回列表頁 =====
-/**
- * goBack 方法
- * 功能說明：返回商品列表頁面
- */
-const goBack = () => {
-  router.push('/admin/products');
-};
-
-// ===== 步驟5：刪除圖片 =====
-/**
- * deleteImage 方法
- * 功能說明：刪除菜譜圖片
- */
-const deleteImage = (imageId) => {
-  ElMessageBox.confirm(
-    '確定要刪除此圖片嗎？',
-    '警告',
-    {
-      confirmButtonText: '刪除',
-      cancelButtonText: '取消',
-      type: 'warning'
-    }
-  ).then(() => {
-    productData.value.recipe_images = productData.value.recipe_images.filter(
-      img => img.id !== imageId
-    );
-    ElMessage.success('圖片已刪除');
-  }).catch(() => {
-    ElMessage.info('已取消刪除');
-  });
-};
-
-// ===== 步驟6：圖片上傳和處理 =====
-/**
- * handleImageUpload 方法
- * 功能說明：處理圖片上傳 - 使用 FileReader 轉換為 base64
- */
-const handleImageUpload = (uploadFile) => {
-  // 獲取實際的 File 對象，兼容不同的參數格式
-  const fileObj = uploadFile?.raw || uploadFile?.file?.raw || uploadFile;
-
-  if (!fileObj || typeof fileObj.slice !== 'function') {
-    ElMessage.error('文件獲取失敗');
+  if (!isJPGorPNG) {
+    ElMessage.error('圖片格式必須是 JPG 或 PNG');
     return false;
   }
-
-  // 使用 FileReader 讀取文件並轉換為 base64
-  const reader = new FileReader();
-
-  reader.onload = (e) => {
-    const newId = Math.max(...productData.value.recipe_images.map(img => img.id), 0) + 1;
-    productData.value.recipe_images.push({
-      id: newId,
-      url: e.target.result, // base64 編碼的圖片
-      alt: fileObj.name.replace(/\.[^/.]+$/, '') // 移除副檔名作為 alt 文本
-    });
-    ElMessage.success('圖片上傳成功');
-  };
-
-  reader.onerror = () => {
-    ElMessage.error('圖片讀取失敗，請重試');
-    console.error('圖片讀取失敗');
-  };
-
-  // 讀取文件為 Data URL (base64)
-  reader.readAsDataURL(fileObj);
-
-  // 返回 false 阻止默認上傳行為
-  return false;
-};
-
-/**
- * beforeImageUpload 方法
- * 功能說明：圖片上傳前的驗證
- */
-const beforeImageUpload = (file) => {
-  const isImage = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type);
-  const isLt5M = file.size / 1024 / 1024 < 5;
-
-  if (!isImage) {
-    ElMessage.error('只能上傳圖片格式的文件（JPG、PNG、GIF、WebP）');
-    return false;
-  }
-  if (!isLt5M) {
-    ElMessage.error('圖片大小不能超過 5MB');
+  if (!isLt2M) {
+    ElMessage.error('圖片大小不能超過 2MB');
     return false;
   }
   return true;
 };
 
-// ===== 步驟7：編輯營養資訊 =====
-/**
- * updateNutrition 方法
- * 功能說明：更新營養資訊
- */
-const updateNutrition = (index, field, value) => {
-  productData.value.nutrition_info[index][field] = value;
+// 處理預覽並將 File 物件存入陣列
+const handleImageUpload = (uploadFile) => {
+  if (!uploadFile.raw) return;
+
+  // 建立前端預覽用的 Blob URL
+  const previewUrl = URL.createObjectURL(uploadFile.raw);
+
+  productData.value.recipe_images.push({
+    id: Date.now(), // 臨時 ID
+    url: previewUrl,
+    raw: uploadFile.raw, // 【關鍵】這才是要傳給後端的二進位檔案
+    alt: uploadFile.name
+  });
 };
 
-const updateNutritionRight = (index, field, value) => {
-  productData.value.nutrition_info_right[index][field] = value;
+// 刪除圖片 (包含預覽圖或舊圖)
+const deleteImage = (id) => {
+  productData.value.recipe_images = productData.value.recipe_images.filter(
+    (img) => img.id !== id
+  );
+};
+
+// 處理圖片載入失敗
+const handleImgError = (e) => {
+  e.target.src = 'https://placehold.co/150?text=No+Image';
 };
 
 onMounted(() => {
@@ -278,19 +270,39 @@ onMounted(() => {
         <span>返回</span>
       </router-link>
       <div class="header-actions">
-        <button v-if="!isEditMode" class="btn btn-solid h-40" style="width: 70px;" @click="toggleEditMode">
+        <button
+          v-if="!isEditMode"
+          class="btn btn-solid h-40"
+          style="width: 70px"
+          @click="toggleEditMode"
+        >
           修改
         </button>
 
-        <button v-if="isEditMode" class="btn btn-solid h-40" style="width: 70px;" @click="saveProductData">
+        <button
+          v-if="isEditMode"
+          class="btn btn-solid h-40"
+          style="width: 70px"
+          @click="saveProductData"
+        >
           保存
         </button>
 
-        <button v-if="isEditMode" class="btn btn-outline h-40" style="width: 70px;" @click="toggleEditMode">
+        <button
+          v-if="isEditMode"
+          class="btn btn-outline h-40"
+          style="width: 70px"
+          @click="toggleEditMode"
+        >
           取消
         </button>
 
-        <button v-if="!isEditMode" class="btn btn-outline h-40" style="width: 70px;" @click="goBack">
+        <button
+          v-if="!isEditMode"
+          class="btn btn-outline h-40"
+          style="width: 70px"
+          @click="goBack"
+        >
           返回
         </button>
       </div>
@@ -312,24 +324,37 @@ onMounted(() => {
         <el-col :xs="24" :sm="12" :md="8">
           <div class="info-item">
             <span class="info-label">商品分類</span>
-            <el-select v-model="productData.product_category" :disabled="!isEditMode" class="w-full" placeholder="選擇分類">
-              <el-option label="低卡健身系列" value="fitness" />
-              <el-option label="日韓風味系列" value="asian" />
-              <el-option label="歐美西式系列" value="western" />
-              <el-option label="台式家常系列" value="taiwanese" />
+            <el-select
+              v-model="productData.product_category"
+              :disabled="!isEditMode"
+              class="w-full"
+              placeholder="選擇分類"
+            >
+              <el-option label="低卡健身系列" value="低卡健身系列" />
+              <el-option label="日韓風味系列" value="日韓風味系列" />
+              <el-option label="歐美西式系列" value="歐美西式系列" />
+              <el-option label="台式家常系列" value="台式家常系列" />
             </el-select>
           </div>
         </el-col>
         <el-col :xs="24" :sm="12" :md="8">
           <div class="info-item">
             <span class="info-label">商品名稱</span>
-            <el-input v-model="productData.product_name" :disabled="!isEditMode" placeholder="請輸入商品名稱" />
+            <el-input
+              v-model="productData.product_name"
+              :disabled="!isEditMode"
+              placeholder="請輸入商品名稱"
+            />
           </div>
         </el-col>
         <el-col :xs="24" :sm="12" :md="8">
           <div class="info-item">
             <span class="info-label">商品價格</span>
-            <el-input v-model="productData.product_price" :disabled="!isEditMode" placeholder="請輸入價格" />
+            <el-input
+              v-model="productData.product_price"
+              :disabled="!isEditMode"
+              placeholder="請輸入價格"
+            />
           </div>
         </el-col>
       </el-row>
@@ -339,8 +364,14 @@ onMounted(() => {
       -->
       <div class="description-section">
         <h3 class="section-title">商品描述</h3>
-        <el-input v-model="productData.product_description" type="textarea" :rows="5" :disabled="!isEditMode"
-          placeholder="商品詳細描述" class="textarea-field" />
+        <el-input
+          v-model="productData.product_description"
+          type="textarea"
+          :rows="5"
+          :disabled="!isEditMode"
+          placeholder="商品詳細描述"
+          class="textarea-field"
+        />
       </div>
 
       <!-- ===== 步驟4：營養資訊區 =====
@@ -351,16 +382,34 @@ onMounted(() => {
         <el-row :gutter="20" class="nutrition-container">
           <!-- 左側營養資訊 -->
           <el-col :xs="24" :md="12">
-            <el-table :data="productData.nutrition_info" stripe class="nutrition-table"
-              :header-cell-style="{ backgroundColor: '#F1F6EF', color: '#000', fontWeight: 'normal' }">
+            <el-table
+              :data="productData.nutrition_info"
+              stripe
+              class="nutrition-table"
+              :header-cell-style="{
+                backgroundColor: '#F1F6EF',
+                color: '#000',
+                fontWeight: 'normal'
+              }"
+            >
               <el-table-column label="項目" align="center" width="100">
                 <template #default="{ row, $index }">
-                  <el-input v-model="row.name" :disabled="!isEditMode" size="small" border />
+                  <el-input
+                    v-model="row.name"
+                    :disabled="!isEditMode"
+                    size="small"
+                    border
+                  />
                 </template>
               </el-table-column>
               <el-table-column label="每份含量" align="center">
                 <template #default="{ row }">
-                  <el-input v-model.number="row.value" :disabled="!isEditMode" type="number" size="small">
+                  <el-input
+                    v-model.number="row.value"
+                    :disabled="!isEditMode"
+                    type="number"
+                    size="small"
+                  >
                     <template #suffix>
                       <span class="unit-text">{{ row.unit }}</span>
                     </template>
@@ -371,16 +420,34 @@ onMounted(() => {
           </el-col>
           <!-- 右側營養資訊 -->
           <el-col :xs="24" :md="12">
-            <el-table :data="productData.nutrition_info_right" stripe class="nutrition-table"
-              :header-cell-style="{ backgroundColor: '#F1F6EF', color: '#000', fontWeight: 'normal' }">
+            <el-table
+              :data="productData.nutrition_info_right"
+              stripe
+              class="nutrition-table"
+              :header-cell-style="{
+                backgroundColor: '#F1F6EF',
+                color: '#000',
+                fontWeight: 'normal'
+              }"
+            >
               <el-table-column label="項目" align="center" width="100">
                 <template #default="{ row, $index }">
-                  <el-input v-model="row.name" :disabled="!isEditMode" size="small" border />
+                  <el-input
+                    v-model="row.name"
+                    :disabled="!isEditMode"
+                    size="small"
+                    border
+                  />
                 </template>
               </el-table-column>
               <el-table-column label="每份含量" align="center">
                 <template #default="{ row }">
-                  <el-input v-model="row.value" :disabled="!isEditMode" size="small" type="text">
+                  <el-input
+                    v-model="row.value"
+                    :disabled="!isEditMode"
+                    size="small"
+                    type="text"
+                  >
                     <template #suffix>
                       <span class="unit-text">{{ row.unit }}</span>
                     </template>
@@ -400,13 +467,25 @@ onMounted(() => {
         <el-row :gutter="20">
           <el-col :xs="24" :md="12">
             <h4 class="subsection-title">食材內容</h4>
-            <el-input v-model="productData.ingredient_content" type="textarea" :rows="5" :disabled="!isEditMode"
-              placeholder="請輸入食材內容" class="textarea-field" />
+            <el-input
+              v-model="productData.ingredient_content"
+              type="textarea"
+              :rows="5"
+              :disabled="!isEditMode"
+              placeholder="請輸入食材內容"
+              class="textarea-field"
+            />
           </el-col>
           <el-col :xs="24" :md="12">
             <h4 class="subsection-title">使用方法</h4>
-            <el-input v-model="productData.ingredient_content_right" type="textarea" :rows="5" :disabled="!isEditMode"
-              placeholder="請輸入使用方法" class="textarea-field" />
+            <el-input
+              v-model="productData.ingredient_content_right"
+              type="textarea"
+              :rows="5"
+              :disabled="!isEditMode"
+              placeholder="請輸入使用方法"
+              class="textarea-field"
+            />
           </el-col>
         </el-row>
       </div>
@@ -417,13 +496,25 @@ onMounted(() => {
       <el-row :gutter="20" class="storage-section">
         <el-col :xs="24" :md="12">
           <h4 class="subsection-title">保存期限</h4>
-          <el-input v-model="productData.storage_period" type="textarea" :rows="3" :disabled="!isEditMode"
-            placeholder="保存期限說明" class="textarea-field" />
+          <el-input
+            v-model="productData.storage_period"
+            type="textarea"
+            :rows="3"
+            :disabled="!isEditMode"
+            placeholder="保存期限說明"
+            class="textarea-field"
+          />
         </el-col>
         <el-col :xs="24" :md="12">
           <h4 class="subsection-title">貼心提醒</h4>
-          <el-input v-model="productData.product_tips" type="textarea" :rows="3" :disabled="!isEditMode"
-            placeholder="產品提醒資訊" class="textarea-field" />
+          <el-input
+            v-model="productData.product_tips"
+            type="textarea"
+            :rows="3"
+            :disabled="!isEditMode"
+            placeholder="產品提醒資訊"
+            class="textarea-field"
+          />
         </el-col>
       </el-row>
 
@@ -433,17 +524,42 @@ onMounted(() => {
       <div class="recipe-image-section">
         <h3 class="section-title">商品圖片</h3>
         <div class="recipe-images">
-          <div v-for="image in productData.recipe_images" :key="image.id" class="recipe-image-item">
+          <div
+            v-for="image in productData.recipe_images"
+            :key="image.id"
+            class="recipe-image-item"
+          >
             <img
-              :src="image.url.startsWith('blob:') || image.url.startsWith('data:') ? image.url : $parseFile(image.url)"
-              :alt="image.alt" class="recipe-img" />
+              :src="
+                image.url.startsWith('blob:') || image.url.startsWith('data:')
+                  ? image.url
+                  : image.url
+              "
+              :alt="image.alt"
+              class="recipe-img"
+              @error="handleImgError"
+            />
             <div v-if="isEditMode" class="image-actions">
-              <el-button type="danger" size="small" :icon="Delete" circle @click="deleteImage(image.id)" />
+              <el-button
+                type="danger"
+                size="small"
+                :icon="Delete"
+                circle
+                @click="deleteImage(image.id)"
+              />
             </div>
           </div>
           <div class="recipe-image-placeholder">
-            <el-upload v-if="isEditMode" :auto-upload="false" :on-change="handleImageUpload"
-              :before-upload="beforeImageUpload" :show-file-list="false" drag class="upload-area" accept="image/*">
+            <el-upload
+              v-if="isEditMode"
+              :auto-upload="false"
+              :on-change="handleImageUpload"
+              :before-upload="beforeImageUpload"
+              :show-file-list="false"
+              drag
+              class="upload-area"
+              accept="image/*"
+            >
               <template #default>
                 <div class="upload-content">
                   <div class="upload-text">
@@ -541,7 +657,6 @@ onMounted(() => {
         font-size: 14px;
       }
     }
-
   }
 
   // ===== 分割線樣式 =====
@@ -598,7 +713,7 @@ onMounted(() => {
     }
 
     :deep(.el-table__row) {
-      &:hover>td {
+      &:hover > td {
         background-color: transparent !important;
       }
     }
@@ -631,7 +746,9 @@ onMounted(() => {
     overflow: hidden;
     border-radius: 8px;
     border: 1px solid #e8e8e8;
-    transition: transform 0.3s, box-shadow 0.3s;
+    transition:
+      transform 0.3s,
+      box-shadow 0.3s;
     position: relative;
 
     &:hover {
