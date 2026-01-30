@@ -111,11 +111,9 @@ const loadProductData = async () => {
 const saveProductData = async () => {
   try {
     loading.value = true;
-
-    // 1. 準備 FormData (如果要傳圖片，必須用 FormData)
     const formData = new FormData();
 
-    // 基本資料 append
+    // 1. 基本資料
     formData.append('product_id', productData.value.id);
     formData.append('product_name', productData.value.product_name);
     formData.append('product_category', productData.value.product_category);
@@ -126,7 +124,7 @@ const saveProductData = async () => {
     );
     formData.append('product_release', productData.value.product_release);
 
-    // 營養資訊 append
+    // 2. 營養資訊 (對應 PHP 的變數名)
     formData.append('product_kcal', productData.value.nutrition_info[0].value);
     formData.append('product_fat', productData.value.nutrition_info[1].value);
     formData.append(
@@ -154,7 +152,7 @@ const saveProductData = async () => {
       productData.value.nutrition_info_right[3].value
     );
 
-    // 文字內容 append
+    // 3. 詳細文字
     formData.append(
       'product_ingredients',
       productData.value.ingredient_content
@@ -166,38 +164,37 @@ const saveProductData = async () => {
       productData.value.ingredient_content_right
     );
 
-    // 圖片檔案處理
+    // 4. 圖片處理 (重點！)
     productData.value.recipe_images.forEach((img) => {
       if (img.raw) {
-        // 新圖片檔案
+        // 如果有 raw，代表是新選擇的檔案
         formData.append('product_images[]', img.raw);
       } else {
-        // 舊圖片路徑 (讓後端知道要保留哪些圖)
+        // 如果沒有 raw，代表是原本就有的舊圖片網址
         formData.append('existing_images[]', img.url);
       }
     });
 
     const response = await phpApi.post(
       'mall/admin_products_api.php?action=update',
-      formData
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
     );
 
     if (response.data.status === 'success') {
       ElMessage.success('保存成功！');
       isEditMode.value = false;
-      originalProductData.value = null;
-      loadProductData(); // 保存後建議重新讀取，刷新圖片網址
+      loadProductData(); // 重新讀取，獲取新的 JSON 結構
     } else {
       throw new Error(response.data.message || '更新失敗');
     }
   } catch (error) {
-    console.error('保存錯誤詳細資訊:', error);
+    console.error('保存錯誤:', error);
     ElMessage.error('保存失敗: ' + error.message);
   } finally {
     loading.value = false;
   }
 };
-
 const goBack = () => router.push('/admin/products');
 
 const toggleEditMode = () => {
@@ -231,13 +228,18 @@ const beforeImageUpload = (rawFile) => {
 const handleImageUpload = (uploadFile) => {
   if (!uploadFile.raw) return;
 
-  // 建立前端預覽用的 Blob URL
   const previewUrl = URL.createObjectURL(uploadFile.raw);
 
+  // 取得目前陣列中最大的 ID 並 +1，確保在目前編輯狀態下不重複
+  const maxId =
+    productData.value.recipe_images.length > 0
+      ? Math.max(...productData.value.recipe_images.map((img) => img.id))
+      : 0;
+
   productData.value.recipe_images.push({
-    id: Date.now(), // 臨時 ID
+    id: maxId + 1, // 這裡確保在前端目前的 list 裡是唯一的
     url: previewUrl,
-    raw: uploadFile.raw, // 【關鍵】這才是要傳給後端的二進位檔案
+    raw: uploadFile.raw,
     alt: uploadFile.name
   });
 };
