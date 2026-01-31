@@ -88,29 +88,27 @@ const handleSortChange = ({ prop, order }) => {
 
 // --- 5. 上下架切換 ---
 const handleStatusChange = async (row) => {
-  const formData = new FormData();
-  formData.append('product_id', row.product_id);
-  formData.append('product_release', row.STATUS ? 1 : 0);
-  // 補齊 PHP update 邏輯需要的欄位，防止後端報錯
-  formData.append('product_name', row.product_name);
-
   try {
-    // 請確認此處路徑是否與 load 一致，或是獨立的 products.php
+    // 💡 改成直接傳物件，不要用 FormData
     const response = await phpApi.post(
       'mall/admin_products_api.php?action=update',
-      formData
+      {
+        product_id: row.product_id,
+        product_release: row.STATUS ? 1 : 0
+      }
     );
 
     if (response.data.status === 'success') {
-      ElMessage.success(
-        `${row.product_name}：${row.STATUS ? '已上架' : '已下架'}`
-      );
+      ElMessage.success(`${row.product_name} 狀態更新成功`);
     } else {
-      throw new Error(response.data.message || '更新失敗');
+      throw new Error(response.data.message);
     }
   } catch (error) {
-    row.STATUS = !row.STATUS; // 失敗時回滾狀態
-    ElMessage.error('更新狀態失敗: ' + error.message);
+    row.STATUS = !row.STATUS; // 失敗時回滾
+    console.error('更新失敗:', error);
+    ElMessage.error(
+      '更新失敗: ' + (error.response?.data?.message || error.message)
+    );
   }
 };
 
