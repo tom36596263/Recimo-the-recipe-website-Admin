@@ -3,6 +3,7 @@ import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Right } from '@element-plus/icons-vue'
+import { publicApi,phpApi } from '@/utils/publicApi.js';
 
 
 // 初始化
@@ -35,50 +36,51 @@ const handleLogin = async (formEl) => {
     await formEl.validate(async (valid) => {
         if (valid) {
             loading.value = true
-
             try {
-                const response = await fetch('/data/others/admins.json')
-                if (!response.ok) throw new Error('無法讀取管理員資料庫')
-                const adminData = await response.json()
-                // 模擬 API 請求
-                setTimeout(() => {
-                    // 比對帳號密碼
-                    const user = adminData.find(u =>
-                        u.admin_account === loginForm.username &&
-                        u.admin_password === loginForm.password
-                    )
-                    if (user) {
-                        if (user.admin_level == 0) {
-                            ElMessage.error('沒有權限，請聯絡主要管理員')
-                            loading.value = false
-                            return // 強制中斷，不執行下面的登入邏輯
-                        }
-                        // 登入成功
-                        // 3. 將使用者資訊存入 localStorage，方便後台顯示姓名
-                        localStorage.setItem('admin_user', JSON.stringify({
-                            name: user.admin_name,
-                            level: user.admin_level,
-                            account: user.admin_account
-                        }))
+                // 串接 PHP API 取得管理員資料
+                const { data } = await phpApi.get('others/admin_get.php');
+                // data 應為陣列
+                const adminData = Array.isArray(data) ? data : (data?.data || []);
 
-                        ElMessage({
-                            message: `${user.admin_name}歡迎回來~正在導向管理後台...`,
-                            type: 'success',
-                            duration: 1500
-                        })
-                        setTimeout(() => {
-                            loading.value = false
-                            router.push('/admin/members')
-                        }, 1000)
-                    } else {
-                        // 登入失敗
-                        loading.value = false
-                        ElMessage.error('登入失敗(可用測試用帳號：admin@test.com / 密碼：123456)')
+                const user = adminData.find(u => {
+                    const accMatch = String(u.admin_account) === String(loginForm.username);
+                    const pwdMatch = String(u.admin_password) === String(loginForm.password);
+                    if (!accMatch) {
+                        //console.log('帳號不符:', u.admin_account, loginForm.username)
                     }
-                }, 1000)
-
+                    if (!pwdMatch) {
+                        //console.log('密碼不符:', u.admin_password, loginForm.password)
+                    }
+                    return accMatch && pwdMatch;
+                });
+                if (user) {
+                    console.log('比對到的 user:', user);
+                    const level = Number(user.admin_level);
+                    console.log('user.admin_level 型別與值:', typeof user.admin_level, user.admin_level, '轉數字:', level);
+                    if (isNaN(level) || level === 0) {
+                        ElMessage.error('您的帳號已被停權或無權限進入，請聯絡主要管理員')
+                        loading.value = false
+                        return
+                    }
+                    localStorage.setItem('admin_user', JSON.stringify({
+                        name: user.admin_name,
+                        level: user.admin_level,
+                        account: user.admin_account
+                    }))
+                    ElMessage({
+                        message: `${user.admin_name}歡迎回來~正在導向管理後台...`,
+                        type: 'success',
+                        duration: 1500
+                    })
+                    setTimeout(() => {
+                        loading.value = false
+                        router.push('/admin/members')
+                    }, 1000)
+                } else {
+                    loading.value = false
+                    ElMessage.error('登入失敗(可用測試用帳號：admin@test.com / 密碼：123456)')
+                }
             } catch (error) {
-                // 處理 fetch 失敗或 JSON 解析失敗
                 loading.value = false
                 console.error('Login Error:', error)
                 ElMessage.error('系統錯誤：無法載入管理員資料')

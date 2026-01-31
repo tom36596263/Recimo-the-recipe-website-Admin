@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import AdminLayout from '@/layouts/AdminLayout.vue';
 import { ElMessage } from 'element-plus';
+import { phpApi } from '@/utils/publicApi.js';
 /**
  * 純後台管理系統路由配置
  * 所有的路徑現在直接掛在根目錄下，或者保留 /admin 前綴。
@@ -272,25 +273,24 @@ router.beforeEach(async (to, from, next) => {
   // 2. 如果是需要登入的頁面，且目前是登入狀態
   if (requiresAuth && isLoggedIn) {
     try {
-      // 即時權限檢查
-      const response = await fetch('/data/others/admins.json?t=' + Date.now());
-      const adminData = await response.json();
-
-      // 在 JSON 裡找出目前登入的這名管理員
+      // 改用 phpApi 取得管理員資料
+      const { data } = await phpApi.get('others/admin_get.php?t=' + Date.now());
+      const adminData = Array.isArray(data) ? data : (data?.data || []);
       const latestInfo = adminData.find(
-        (u) => u.admin_account === user.account
+        (u) => String(u.admin_account) === String(user.account)
       );
-
-      // 偵錯用：看看現在抓到的 latestInfo 等級到底是多少
-      console.log('當前權限狀態：', latestInfo?.admin_level);
-
-      // 如果找不到這個人，或是他的等級變成了 0
-      if (!latestInfo || latestInfo.admin_level == 0) {
+      const level = latestInfo ? Number(latestInfo.admin_level) : undefined;
+      console.log('當前權限狀態：', level);
+      // 主要管理員頁面權限判斷
+      if (to.name === 'AdminStaff' && level !== 2) {
+        ElMessage('只有主要管理員可進入後台人員管理');
+        return next('/admin/members');
+      }
+      if (!latestInfo || isNaN(level) || level === 0) {
         localStorage.removeItem('admin_user');
         ElMessage('您的帳號已被停權或無權限進入，請聯絡主要管理員');
         return next('/login');
       }
-      // ---------------------------------
     } catch (error) {
       console.error('即時權限檢查失敗', error);
     }

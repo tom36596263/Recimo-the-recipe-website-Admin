@@ -32,10 +32,39 @@ const open = (type, data = null) => {
 
 defineExpose({ open })
 
+const usernameError = ref('');
+const usernamePasswordPattern = /^[A-Za-z0-9@_.-]{6,}$/;
 const rules = {
   name: [{ required: true, message: '請輸入名稱', trigger: 'blur' }],
-  username: [{ required: true, message: '請輸入帳號', trigger: 'blur' }],
-  password: [{ required: true, message: '請輸入新密碼', trigger: 'blur' }],
+  username: [
+    { required: true, message: '請輸入帳號', trigger: 'blur' },
+    {
+      validator: (rule, value, callback) => {
+        if (usernameError.value) {
+          callback(new Error(usernameError.value));
+          usernameError.value = '';
+        } else if (!usernamePasswordPattern.test(value)) {
+          callback(new Error('帳號需至少6字，僅限英文、數字、@、_、-、.'));
+        } else {
+          callback();
+        }
+      },
+      trigger: 'change'
+    }
+  ],
+  password: [
+    { required: true, message: '請輸入新密碼', trigger: 'blur' },
+    {
+      validator: (rule, value, callback) => {
+        if (!usernamePasswordPattern.test(value)) {
+          callback(new Error('密碼需至少6字，僅限英文、數字、@、_、-、.'));
+        } else {
+          callback();
+        }
+      },
+      trigger: 'blur'
+    }
+  ],
   confirmPassword: [
     { required: true, message: '請確認密碼', trigger: 'blur' },
     {
@@ -71,7 +100,13 @@ const handleSubmit = async (formEl) => {
           visible.value = false;
           emit('updated');
         } catch (e) {
-          ElMessage.error('新增失敗: ' + (e?.response?.data || e.message));
+          // 檢查是否帳號已存在
+          const msg = e?.response?.data || e.message;
+          if (msg && msg.includes('帳號已存在')) {
+            usernameError.value = '帳號已存在，請更換帳號';
+            if (formEl && formEl.validateField) formEl.validateField('username');
+          }
+          ElMessage.error('新增失敗: ' + msg);
         }
       } else if (mode.value === 'edit') {
         try {
@@ -86,7 +121,13 @@ const handleSubmit = async (formEl) => {
           visible.value = false;
           emit('updated');
         } catch (e) {
-          ElMessage.error('更新失敗: ' + (e?.response?.data || e.message));
+          // 檢查是否帳號已存在
+          const msg = e?.response?.data || e.message;
+          if (msg && msg.includes('帳號已存在')) {
+            usernameError.value = '帳號已存在，請更換帳號';
+            if (formEl && formEl.validateField) formEl.validateField('username');
+          }
+          ElMessage.error('更新失敗: ' + msg);
         }
       }
     }

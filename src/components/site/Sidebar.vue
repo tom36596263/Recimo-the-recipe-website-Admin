@@ -14,18 +14,25 @@ const route = useRoute();
 const ADMIN_BASE = '/admin';
 
 const adminMenuItems = computed(() => {
-  // 取得父層路由物件（假設是陣列中的第 2 個）
-  const adminRoute = router.options.routes.find(r => r.path === '/admin');
-  
-  if (!adminRoute || !adminRoute.children) return [];
-
-  return adminRoute.children
-    .filter((r) => r.meta && r.meta.title)
-    .map(r => ({
-      ...r,
-      // 關鍵點：拼接出完整的路徑
-      fullPath: `${ADMIN_BASE}/${r.path}`.replace(/\/+/g, '/') // 避免出現 // 的情況
-    }));
+    const adminRoute = router.options.routes.find(r => r.path === '/admin');
+    if (!adminRoute || !adminRoute.children) return [];
+    // 取得 localStorage 權限
+    let level = 0;
+    try {
+        const user = JSON.parse(localStorage.getItem('admin_user'));
+        level = Number(user?.level || 0);
+    } catch {}
+    return adminRoute.children
+        .filter((r) => {
+            if (!(r.meta && r.meta.title)) return false;
+            // 只有 level==2 才能看到後台人員管理
+            if (r.name === 'AdminStaff' && level !== 2) return false;
+            return true;
+        })
+        .map(r => ({
+            ...r,
+            fullPath: `${ADMIN_BASE}/${r.path}`.replace(/\/+/, '/')
+        }));
 });
 
 
