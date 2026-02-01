@@ -63,6 +63,7 @@ const handleLogin = async (formEl) => {
                         return
                     }
                     localStorage.setItem('admin_user', JSON.stringify({
+                        id: user.admin_id,
                         name: user.admin_name,
                         level: user.admin_level,
                         account: user.admin_account
