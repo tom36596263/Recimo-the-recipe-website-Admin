@@ -4,7 +4,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { publicApi } from '@/utils/publicApi.js'; // 統一的 API 實例
 import { ElMessage } from 'element-plus'; // 消息提示
-
+import { phpApi } from '@/utils/publicApi.js';
 // ===== 路由相關 =====
 const router = useRouter(); // 用於導航
 const route = useRoute(); // 用於獲取路由參數
@@ -48,134 +48,102 @@ const order = ref({
 
 // 訂單狀態選項
 const statusOptions = [
-  { label: '訂購成功', value: 1 },
-  { label: '訂單確認', value: 2 },
-  { label: '出貨', value: 3 },
-  { label: '送達', value: 4 },
-  { label: '取消訂單', value: 0 }
+  { label: '訂購成功', value: 0 },
+  { label: '訂單確認', value: 1 },
+  { label: '出貨', value: 2 },
+  { label: '送達', value: 3 },
+  { label: '取消訂單', value: -1 }
 ];
 
 // 加載狀態
 const loading = ref(false);
 
 // ===== 計算屬性 =====
-/**
- * 取得當前訂單狀態的中文標籤
- */
+//取得當前訂單狀態的中文標籤
 const statusLabel = computed(() => {
   const option = statusOptions.find((opt) => opt.value === order.value.status);
   return option ? option.label : '未知';
 });
 
-// ===== 方法 =====
-/**
- * 獲取訂單詳情
- * 功能說明：
- * 1. 根據訂單 ID 從後端獲取詳細信息
- * 2. 包括訂單基本資訊、收件人資訊、商品清單
- * 3. 加載時顯示 loading 狀態
- */
-// 在 script setup 中找到 fetchOrderDetail 並修改
-
+// ===== 連接資料庫 =====
 const fetchOrderDetail = async () => {
   try {
     loading.value = true;
     const orderId = route.params.id;
+    const adminId = localStorage.getItem('userId') || '1'; // 取得管理員 ID
 
-    console.log('1. 目前網址上的 ID:', orderId); // 檢查這裡是不是 111018
+    // 呼叫 order.php 並帶入參數
+    const response = await phpApi.get('mall/admin_order.php', {
+      params: {
+        id: orderId,
+        admin_id: adminId
+      }
+    });
 
-    // 讀取 JSON
-    const response = await publicApi.get('data/mall/orders.json');
-    console.log('2. API 回傳的原始資料:', response);
+    const res = response.data;
 
-    // 判斷資料層級 (防呆機制：如果 response 本身就是陣列，就直接用；否則取 .data)
-    const orders = Array.isArray(response) ? response : response.data;
+    if (res.success) {
+      const master = res.order_master;
+      const details = res.order_details;
 
-    if (!orders) {
-      console.error('抓不到訂單陣列，請檢查 publicApi 回傳結構');
-      return;
-    }
-
-    console.log('3. 取得的訂單列表:', orders);
-
-    // 尋找對應訂單
-    const orderData = orders.find(
-      (o) => String(o.ORDER_ID) === String(orderId)
-    );
-
-    console.log('4. 篩選出的訂單資料:', orderData); // 如果這裡是 undefined，代表 ID 對不上
-
-    if (orderData) {
-      // 重新對應欄位
+      // 重新對應後端資料庫欄位
       order.value = {
-        orderNumber: orderData.ORDER_ID,
-        orderDate: orderData.CREATED,
-        totalAmount: `NT$ ${orderData.TOTAL_AMOUNT}`, // JSON 是數字，這裡補上 NT$
+        orderNumber: master.order_id,
+        orderDate: master.created,
+        totalAmount: `NT$ ${master.total_amount}`,
+        recipientName: master.recipient_name,
+        recipientPhone: master.recipient_phone,
+        recipientAddress: master.shipping_address,
+        shippingNumber: master.logistics_id || '無',
+        paymentMethod: master.payment_method === 0 ? '貨到付款' : '信用卡付款',
 
-        recipientName: orderData.RECIPIENT_NAME,
-        recipientPhone: orderData.RECIPIENT_PHONE,
-        recipientAddress: orderData.SHIPPING_ADDRESS,
-        shippingNumber: orderData.LOGISTICS_ID,
-
-        // 處理付款方式 (DB: 1=信用卡)
-        // 你的 JSON PAYMENT_METHOD 是 1，這裡會顯示 "信用卡付款"
-        paymentMethod:
-          orderData.PAYMENT_METHOD === 0 ? '貨到付款' : '信用卡付款',
-
-        // 處理商品列表
-        items: orderData.items.map((item) => ({
-          productId: item.PRODUCT_ID,
-          productName: item.PRODUCT_NAME,
-          quantity: item.QUANTITY,
-          unitPrice: `NT$ ${item.SNAPSHOT_PRICE}`,
-          subtotal: `NT$ ${item.SUBTOTAL}`
+        // 映射商品清單
+        items: details.map((item) => ({
+          productId: item.product_id,
+          productName: item.product_name,
+          quantity: item.quantity,
+          unitPrice: `NT$ ${item.snapshot_price}`,
+          subtotal: `NT$ ${item.subtotal}`
         })),
 
-        status: orderData.ORDER_STATUS
+        status: master.order_status
       };
-      console.log('5. 資料更新成功！');
-    } else {
-      console.warn(`找不到 ID 為 ${orderId} 的訂單，請確認 URL 或 JSON 資料`);
     }
   } catch (error) {
     console.error('獲取訂單詳情失敗:', error);
-    ElMessage.error('獲取訂單資訊失敗，請重新整理頁面');
+    ElMessage.error('無法讀取訂單資訊');
   } finally {
     loading.value = false;
   }
 };
 
-/**
- * 更新訂單狀態
- * 功能說明：
- * 1. 將訂單狀態變更發送至後端
- * 2. 成功時顯示提示信息
- */
+//更新狀態
 const handleStatusChange = async () => {
   try {
-    // TODO: 生產環境改為實際 API 路徑
-    // await publicApi.put(`orders/${orderId}`, { status: order.value.status });
+    const adminId = localStorage.getItem('userId') || '1';
 
-    ElMessage.success('訂單狀態已更新');
-    console.log('訂單狀態已更新為:', order.value.status);
+    // 這裡同樣呼叫 admin_order.php，但改用 POST
+    const response = await phpApi.post('mall/admin_order.php', {
+      admin_id: adminId,
+      order_id: order.value.orderNumber,
+      order_status: order.value.status // 確保傳過去的是數字 0, 1, 2, 3,-1
+    });
+
+    if (response.data.success) {
+      ElMessage.success(response.data.message || '狀態更新成功');
+    }
   } catch (error) {
-    console.error('更新狀態失敗:', error);
+    console.error('更新失敗:', error);
     ElMessage.error('更新狀態失敗');
   }
 };
 
-/**
- * 返回訂單列表
- */
+//返回訂單
 const handleBack = () => {
   router.back();
 };
 
 // ===== 生命週期 =====
-/**
- * 組件掛載完成時執行
- * 功能說明：頁面加載時自動獲取訂單詳情
- */
 onMounted(() => {
   fetchOrderDetail();
 });

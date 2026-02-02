@@ -6,7 +6,9 @@ import MyPagination from '@/components/MyPagination.vue';
 import SearchBar from '@/components/SearchBar.vue';
 import { useRoute } from 'vue-router';
 //要引用json的檔案一定要import以下這行
-import { publicApi } from '@/utils/publicApi.js';
+// import { publicApi } from '@/utils/publicApi.js';
+import { phpApi } from '@/utils/publicApi.js';
+import { ElMessage } from 'element-plus';
 
 const route = useRoute();
 
@@ -52,26 +54,36 @@ const filteredData = computed(() => {
 
 const loadJsonData = async () => {
   try {
-    const response = await publicApi.get('data/mall/orders.json');
-    tableData.value = response.data.map((item) => {
-      return {
-        // 左邊是你原本程式碼用的變數 : 右邊是新 JSON (DB) 的欄位
-        id: item.ORDER_ID,
-        date: item.CREATED ? item.CREATED.split(' ')[0] : '', // 只取日期部分，去掉時間
-        trackingNo: item.LOGISTICS_ID,
-        receiver: item.RECIPIENT_NAME,
-        phone: item.RECIPIENT_PHONE,
-        // 處理付款方式：DB 是數字，轉成中文顯示
-        payment: item.PAYMENT_METHOD === 0 ? '貨到付款' : '信用卡付款',
-        method: '宅配', // 假設 DB 沒這欄位，先寫死或根據邏輯判斷
-        status: item.ORDER_STATUS,
+    //嘗試抓取各種可能的 Key，如果都沒有，就暫時給 1 (方便開發測試)
+    const adminId =
+      localStorage.getItem('adminId') ||
+      localStorage.getItem('userId') ||
+      localStorage.getItem('admin_id') ||
+      '1';
 
-        // 保留完整 item 以備不時之需
-        originalData: item
-      };
+    console.log('當前使用的 Admin ID:', adminId);
+
+    const response = await phpApi.get('mall/get_all_orders.php', {
+      params: { admin_id: adminId }
     });
+
+    if (response.data.success) {
+      tableData.value = response.data.data.map((item) => ({
+        // 這裡要對應你資料庫看到的欄位名稱
+        id: item.order_id,
+        date: item.created ? item.created.split(' ')[0] : '',
+        trackingNo: item.logistics_id || '尚未出貨',
+        receiver: item.recipient_name,
+        phone: item.recipient_phone,
+        payment: item.payment_method === 0 ? '貨到付款' : '信用卡付款',
+        method: '宅配',
+        status: item.order_status
+      }));
+      ElMessage.success('訂單讀取成功');
+    }
   } catch (error) {
-    console.error('抓取 JSON 失敗:', error.message);
+    console.error('API 錯誤:', error);
+    ElMessage.error('連線失敗，請檢查 API 路徑');
   }
 };
 
@@ -112,9 +124,27 @@ onMounted(() => {
   loadJsonData();
 });
 
-const handleStatusChange = (row) => {
-  //暫無改動資料狀態功能
-  console.log(row);
+const handleStatusChange = async (row) => {
+  try {
+    const adminId =
+      localStorage.getItem('adminId') || localStorage.getItem('userId') || '1';
+
+    // 呼叫你提供的 admin_order.php
+    const response = await phpApi.post('mall/admin_order.php', {
+      admin_id: adminId, // 管理員 ID
+      order_id: row.id, // 訂單編號
+      order_status: row.status // 新的狀態值 (0~4)
+    });
+
+    if (response.data.success) {
+      ElMessage.success(`訂單 #${row.id} 狀態更新成功！`);
+    } else {
+      ElMessage.error(response.data.error || '更新失敗');
+    }
+  } catch (error) {
+    console.error('更新請求失敗:', error);
+    ElMessage.error('系統錯誤，無法更新狀態');
+  }
 };
 
 // const handleCurrentChange = (val) => {
@@ -170,15 +200,16 @@ const handleStatusChange = (row) => {
         <template #default="scope">
           <el-select
             v-model="scope.row.status"
+            @change="handleStatusChange(scope.row)"
             placeholder=""
             style="width: 115px"
             size="small"
           >
-            <el-option label="訂購成功" :value="1" />
-            <el-option label="訂單確認" :value="2" />
-            <el-option label="出貨" :value="3" />
-            <el-option label="送達" :value="4" />
-            <el-option label="取消訂單" :value="0" />
+            <el-option label="訂購成功" :value="0" />
+            <el-option label="訂單確認" :value="1" />
+            <el-option label="出貨" :value="2" />
+            <el-option label="送達" :value="3" />
+            <el-option label="取消訂單" :value="-1" />
           </el-select>
         </template>
       </el-table-column>
