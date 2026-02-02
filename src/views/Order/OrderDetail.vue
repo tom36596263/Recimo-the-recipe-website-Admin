@@ -85,14 +85,15 @@ const fetchOrderDetail = async () => {
 
       const payMethod = Number(master.payment_method);
       const payStatus = Number(master.payment_status);
-
+      const orderStatus = Number(master.order_status);
       let payLabel = payMethod === 1 ? '信用卡付款' : '貨到付款';
 
       // 判斷顯示文字：包含已退款 (2) 的邏輯
-      if (payStatus === 1) {
-        payLabel += ' (已付)';
-      } else if (payStatus === 2) {
+      if (orderStatus === -1 || payStatus === 2) {
+        // 只要訂單狀態是 -1 (取消) 或者 支付狀態是 2 (已退款)
         payLabel += ' (已退款)';
+      } else if (payStatus === 1) {
+        payLabel += ' (已付)';
       } else {
         payLabel += ' (待付款)';
       }
@@ -106,6 +107,7 @@ const fetchOrderDetail = async () => {
         recipientAddress: master.shipping_address,
         shippingNumber: master.logistics_id || '無',
         paymentMethod: payLabel, // 使用組合後的文字
+        status: orderStatus,
         items: details.map((item) => ({
           productId: item.product_id,
           productName: item.product_name,
@@ -201,7 +203,11 @@ onMounted(() => {
             :key="option.value"
             :label="option.label"
             :value="option.value"
-            :disabled="order.status === 2 && option.value < 2"
+            :disabled="
+              order.status !== -1 &&
+              option.value !== -1 &&
+              option.value < order.status
+            "
           />
         </el-select>
 

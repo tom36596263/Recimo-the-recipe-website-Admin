@@ -210,10 +210,23 @@ const handleStatusChange = async (row) => {
             placeholder=""
             style="width: 115px"
             size="small"
+            :disabled="scope.row.status === 3 || scope.row.status === -1"
           >
-            <el-option label="訂購成功" :value="0" />
-            <el-option label="訂單確認" :value="1" />
-            <el-option label="出貨" :value="2" />
+            <el-option
+              label="訂購成功"
+              :value="0"
+              :disabled="scope.row.status > 0"
+            />
+            <el-option
+              label="訂單確認"
+              :value="1"
+              :disabled="scope.row.status > 1"
+            />
+            <el-option
+              label="出貨"
+              :value="2"
+              :disabled="scope.row.status > 2"
+            />
             <el-option label="送達" :value="3" />
             <el-option label="取消訂單" :value="-1" />
           </el-select>
