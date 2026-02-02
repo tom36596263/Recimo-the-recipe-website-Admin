@@ -263,7 +263,7 @@ router.beforeEach(async (to, from, next) => {
     try {
       user = JSON.parse(userDataStr);
     } catch (e) {
-      console.error('解析登入資料出錯');
+      // console.error('解析登入資料出錯');
     }
   }
 
@@ -281,6 +281,10 @@ router.beforeEach(async (to, from, next) => {
       );
       const level = latestInfo ? Number(latestInfo.admin_level) : undefined;
       // console.log('當前權限狀態：', level);
+      // 將抓到的最新等級存起來，方便全站組件（如彈窗）使用
+      if (level !== undefined) {
+        localStorage.setItem('admin_level', level);
+      }
       // 主要管理員頁面權限判斷
       if (to.name === 'AdminStaff' && level !== 2) {
         ElMessage('只有主要管理員可進入後台人員管理');
@@ -292,7 +296,7 @@ router.beforeEach(async (to, from, next) => {
         return next('/login');
       }
     } catch (error) {
-      console.error('即時權限檢查失敗', error);
+      // console.error('即時權限檢查失敗', error);
     }
   }
 

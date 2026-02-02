@@ -1,55 +1,46 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import axios from 'axios';
 import { Edit, Search } from '@element-plus/icons-vue'
 import MyPagination from '@/components/MyPagination.vue';
 import SearchBar from '@/components/SearchBar.vue';
 import MemberModal from '@/components/modal/MemberModal.vue'
+import { ElMessage } from 'element-plus';
 import { useRoute } from 'vue-router';
+const route = useRoute();
 // 呼叫Api
 import { phpApi } from '@/utils/publicApi.js';
 
-const route = useRoute();
 
 const tableData = ref([])        // 原始總資料
 const currentPage = ref(1)
 const pageSize = ref(8)
 const modalRef = ref(null)
-// ===== 步驟1：定義搜尋關鍵詞ref =====
+
+// ==========================================
+// 定義搜尋關鍵詞ref
+// ==========================================
 // 儲存使用者輸入的搜尋文字，透過 v-model 與 SearchBar 組件雙向綁定
 const search = ref('')
 
-// ===== 步驟2：搜尋邏輯 - 過濾表格數據 =====
-/**
- * filteredData 計算屬性
- * 功能說明：根據搜尋關鍵詞過濾會員資料
- * 
- * 執行步驟：
- * Step 1: 檢查是否有搜尋關鍵詞，若無則直接返回原始資料
- * Step 2: 將搜尋關鍵詞轉為小寫，便於不區分大小寫的比對
- * Step 3: 遍歷所有會員資料，檢查以下欄位是否包含搜尋關鍵詞：
- *        - user_name（會員名稱）
- *        - user_email（電子郵件）
- *        - user_id（會員編號）
- *        - user_phone（電話號碼）
- * Step 4: 只返回符合條件的會員資料
- */
+// ==========================================
+// 搜尋邏輯 - 過濾表格數據
+// ==========================================
 const filteredData = computed(() => {
-  // Step 1: 若無搜尋關鍵詞，返回全部資料
+  // 若無搜尋關鍵詞，返回全部資料
   if (!search.value) {
     return tableData.value;
   }
 
-  // Step 2: 搜尋關鍵詞轉小寫（不區分大小寫）
+  // 搜尋關鍵詞轉小寫（不區分大小寫）
   const searchLower = search.value.toLowerCase();
 
-  // Step 3 & 4: 過濾符合條件的資料
+  // 過濾符合條件的資料
   return tableData.value.filter(item => {
     const name = item.user_name ? item.user_name.toLowerCase() : '';
     const email = item.user_email ? item.user_email.toLowerCase() : '';
     const id = item.user_id ? String(item.user_id) : '';
     const phone = item.user_phone ? item.user_phone.toLowerCase() : '';
-
+    // 只返回符合條件的會員資料
     return name.includes(searchLower) ||
       email.includes(searchLower) ||
       id.includes(searchLower)// ||
@@ -59,16 +50,19 @@ const filteredData = computed(() => {
 
 const loadJsonData = async () => {
   try {
-    const response = await phpApi.get('auth/get_members.php');
+    const response = await phpApi.get(`auth/get_members.php?t=${new Date().getTime()}`);
     tableData.value = response.data
   } catch (error) {
-    console.error('抓取 JSON 失敗:', error.message)
+    // console.error('抓取 JSON 失敗:', error.message)
   }
 }
 
-// --- 排序邏輯 ---
+// ==========================================
+// 排序邏輯
+// ==========================================
 const handleSortChange = ({ prop, order }) => {
-  if (!order) return; // 如果沒有排序順序（取消排序），不做動作
+  // 如果沒有排序順序（取消排序），不做動作
+  if (!order) return;
 
   // 直接對原始陣列 tableData 進行排序
   tableData.value.sort((a, b) => {
@@ -92,17 +86,10 @@ const handleSortChange = ({ prop, order }) => {
   currentPage.value = 1;
 };
 
-// ===== 步驟3：分頁邏輯 - 計算當前頁顯示的數據 =====
-/**
- * displayData 計算屬性
- * 功能說明：根據當前頁碼和每頁筆數，從過濾後的資料中提取應顯示的資料
- * 
- * 執行步驟：
- * Step 1: 根據當前頁碼 (currentPage) 和每頁筆數 (pageSize) 計算起始索引
- * Step 2: 計算結束索引 (起始索引 + 每頁筆數)
- * Step 3: 使用 slice() 方法從 filteredData 中提取該頁的資料
- * Step 4: 將提取的資料傳給表格 el-table 進行展示
- */
+// ==========================================
+// 分頁邏輯 - 計算當前頁顯示的數據
+// ==========================================
+
 const displayData = computed(() => {
   // Step 1 & 2: 計算分頁的起始和結束位置
   const start = (currentPage.value - 1) * pageSize.value
@@ -118,29 +105,100 @@ onMounted(() => {
 
 const handleStatusChange = async (row) => {
   try {
-    // 呼叫更新 API
     const response = await phpApi.post('auth/update_status.php', {
       user_id: row.user_id,
-      is_active: row.is_active // 這裡傳的是布林值，PHP 那邊會處理
+      is_active: row.is_active
     });
 
     if (response.data.status === 'success') {
-      // 可以加個簡單的提示，例如 Element Plus 的 ElMessage
-      // ElMessage.success('狀態更新成功');
-      // console.log('更新成功');
+      // 根據 row.is_active 決定提醒顏色
+      if (row.is_active) {
+        // 啟用時：顯示綠色 (success)
+        ElMessage.success(response.data.message);
+      } else {
+        // 停權時：顯示灰色 (info)
+        ElMessage({
+          message: response.data.message,
+          type: 'info', // 'info' 在 Element Plus 預設是灰色
+        });
+      }
+    } else {
+      throw new Error(response.data.message || '更新失敗');
     }
   } catch (error) {
-    // 如果失敗了，把開關撥回去
+    // 失敗時撥回開關狀態
     row.is_active = !row.is_active;
     // console.error('更新失敗:', error);
+
+    // 失敗時顯示紅色 (error)
+    ElMessage.error(error.message || '系統連線異常');
   }
 };
 
-//-------------彈窗功能-----------
+// ==========================================
+// 彈窗功能
+// ==========================================
 const showDetail = (data) => {
-  modalRef.value.open(data)
-}
+  // 檢查這裡拿到的 level 是不是正確的 (例如從 localStorage 拿)
+  // 如果登入時有存 admin_level，這裡才拿得到
+  const currentLevel = localStorage.getItem('admin_level') || 0;
 
+  // 必須傳入第二個參數 level
+  modalRef.value.open(data, parseInt(currentLevel));
+};
+
+// 處理修改資料後的 API 提交
+// 修改 handleUpdate 函式
+const handleUpdate = async (formData) => {
+  // 強制從 localStorage 抓取，不依賴傳進來的參數
+  const currentLevel = localStorage.getItem('admin_level') || '0';
+  // console.log('--- 修改啟動 ---');
+  // console.log('目前檢查等級:', currentLevel);
+
+  // 建立新的 FormData
+  const fd = new FormData();
+
+  // 手動塞入所有必填欄位 (確保名稱與 PHP 接收的一模一樣)
+  fd.append('user_id', String(formData.user_id).trim());
+  fd.append('current_admin_level', '2'); // 先測試直接寫死 '2' 看看 PHP 是否收得到
+  fd.append('user_name', formData.user_name || '');
+  fd.append('user_phone', formData.user_phone || '');
+  fd.append('user_address', formData.user_address || '');
+  fd.append('user_url', formData.user_url || '');
+
+  // 強制轉為字串送出
+  fd.append('current_admin_level', String(currentLevel));
+
+  // 處理圖片檔案
+  if (formData.rawFile) {
+    fd.append('image', formData.rawFile); // 檔案 key 必須與 PHP 的 $_FILES['image'] 對應
+  }
+
+  try {
+    // 確保這裡的 phpApi 是您 utils/publicApi.js 匯出的那個
+    // 在這裡單獨設定 headers，覆蓋掉 publicApi.js 的預設值
+    const response = await phpApi.post('auth/update_member.php', fd, {
+      headers: {
+        'Content-Type': undefined // 強制讓瀏覽器自己決定格式
+      }
+    });
+
+    // console.log('PHP 回應資料:', response.data);
+
+    if (response.data.status === 'success') {
+      ElMessage.success(response.data.message);
+      await loadJsonData(); // 重新整理列表
+      modalRef.value.visible = false;
+    } else {
+      // 這裡會顯示 PHP 回傳的 "權限不足，您的等級是：0"
+      throw new Error(response.data.message);
+    }
+  } catch (error) {
+    // console.error('修改失敗:', error);
+    // 增加詳細提示
+    ElMessage.success(response.data.message);
+  }
+}
 </script>
 
 <template>
@@ -188,7 +246,7 @@ const showDetail = (data) => {
     <!-- 頁籤 -->
     <MyPagination v-model:currentPage="currentPage" :pageSize="pageSize" :total="filteredData.length" />
     <!-- 彈窗 -->
-    <MemberModal ref="modalRef" />
+    <MemberModal ref="modalRef" @update="handleUpdate" />
   </div>
 </template>
 
