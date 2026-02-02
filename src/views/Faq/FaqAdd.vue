@@ -1,19 +1,68 @@
 <script setup>
+
 import { ref } from 'vue';
+import { ElMessage } from 'element-plus';
 import { ArrowLeft } from '@element-plus/icons-vue';
 import { useRouter } from 'vue-router';
+import { phpApi } from '@/utils/publicApi.js';
 
 const router = useRouter();
 
+
 const form = ref({
   title: '',
-  category: 'help',
+  category: 0,
   content: ''
 });
 
-const handlePublish = () => {
-  console.log('發布表單:', form.value);
-  // 這裡添加發布邏輯
+const rules = {
+  title: [
+    { required: true, message: '請輸入標題', trigger: 'blur' }
+  ],
+  category: [
+    { required: true, validator: (rule, value, callback) => {
+      if (!value || value === 0) {
+        callback(new Error('請選擇分類'));
+      } else {
+        callback();
+      }
+    }, trigger: 'change' }
+  ],
+  content: [
+    { required: true, message: '請輸入問題內容', trigger: 'blur' }
+  ]
+};
+
+const formRef = ref();
+
+
+const categoryOptions = ['Recimo功能', '食譜與社群', 'Recimo商城', '其他'];
+
+const handlePublish = async () => {
+  formRef.value.validate(async (valid) => {
+    if (!valid) {
+      ElMessage.error('請完整填寫表單');
+      return;
+    }
+    try {
+      const payload = new URLSearchParams();
+      payload.append('faq_type', form.value.category);
+      payload.append('faq_title', form.value.title);
+      payload.append('faq_answer', form.value.content);
+
+      const response = await phpApi.post('/system/faqs.php', payload);
+      if (response.data.success) {
+        ElMessage.success('FAQ 已新增');
+        router.back();
+      } else {
+        ElMessage.error(response.data.message || '新增失敗');
+        console.error(response.data.message || '新增失敗');
+      }
+    } catch (e) {
+      ElMessage.error('新增失敗');
+      console.error(e);
+    }
+  });
 };
 
 const handleCancel = () => {
@@ -43,40 +92,23 @@ const handleCancel = () => {
 
     <!-- 表單區域 -->
     <div class="form-wrapper">
-      <el-form :model="form" label-position="top" class="faq-form">
+      <el-form :model="form" :rules="rules" ref="formRef" label-position="top" class="faq-form">
         <!-- 標題 -->
-        <el-form-item label="標題">
-          <el-input
-            v-model="form.title"
-            placeholder="請輸入標題"
-            class="form-input"
-          />
+        <el-form-item label="標題" prop="title" required>
+          <el-input v-model="form.title" placeholder="請輸入標題" class="form-input" />
         </el-form-item>
 
         <!-- 問題分類 -->
-        <el-form-item label="問題分類">
-          <el-select
-            v-model="form.category"
-            placeholder="請選擇分類"
-            class="form-select"
-          >
-            <el-option label="請選擇" value="help" />
-            <el-option label="帳號相關" value="account" />
-            <el-option label="食譜相關" value="recipe" />
-            <el-option label="購物相關" value="shopping" />
-            <el-option label="其他" value="other" />
+        <el-form-item label="問題分類" prop="category" required>
+          <el-select v-model="form.category" placeholder="請選擇分類" class="form-select" filterable>
+            <el-option label="請選擇" :value="0" />
+            <el-option v-for="value in categoryOptions" :key="value" :label="value" :value="value" />
           </el-select>
         </el-form-item>
 
         <!-- 問題內容 -->
-        <el-form-item label="問題內容">
-          <el-input
-            v-model="form.content"
-            type="textarea"
-            :rows="10"
-            placeholder="請輸入問題內容"
-            class="form-textarea"
-          />
+        <el-form-item label="問題內容" prop="content" required>
+          <el-input v-model="form.content" type="textarea" :rows="10" placeholder="請輸入問題內容" class="form-textarea" />
         </el-form-item>
       </el-form>
     </div>

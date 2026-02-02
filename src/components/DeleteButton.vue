@@ -1,9 +1,12 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Delete} from '@element-plus/icons-vue'
+import { Delete } from '@element-plus/icons-vue'
 
-//刪除彈窗
+const props = defineProps({
+  onDelete: Function
+});
+
 const open = () => {
   ElMessageBox.confirm(
     '確定要刪除嗎?',
@@ -15,11 +18,12 @@ const open = () => {
       confirmButtonClass: 'my-custom-confirm',
     }
   )
-    .then(() => {
-      ElMessage({
-        type: 'success',
-        message: '刪除成功',
-      })
+    .then(async () => {
+      if (props.onDelete) {
+        await props.onDelete();
+      } else {
+        ElMessage({ type: 'success', message: '刪除成功' });
+      }
     })
     .catch(() => {
       ElMessage({
@@ -33,13 +37,15 @@ const open = () => {
 
 <template>
   <el-button link @click="open">
-        <el-icon><Delete /></el-icon>
-    </el-button>
+    <el-icon>
+      <Delete />
+    </el-icon>
+  </el-button>
 </template>
 
 <style lang="scss">
-    .my-custom-confirm{
-        background-color: #3E8D60 !important; 
+.my-custom-confirm {
+  background-color: #3E8D60 !important;
 
-    }
+}
 </style>
