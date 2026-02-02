@@ -3,8 +3,8 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { publicApi } from '@/utils/publicApi.js'; // 統一的 API 實例
-import { ElMessage } from 'element-plus'; // 消息提示
-
+import { ElMessage, ElMessageBox } from 'element-plus';
+import { phpApi } from '@/utils/publicApi.js';
 // ===== 路由相關 =====
 const router = useRouter(); // 用於導航
 const route = useRoute(); // 用於獲取路由參數
@@ -48,134 +48,135 @@ const order = ref({
 
 // 訂單狀態選項
 const statusOptions = [
-  { label: '訂購成功', value: 1 },
-  { label: '訂單確認', value: 2 },
-  { label: '出貨', value: 3 },
-  { label: '送達', value: 4 },
-  { label: '取消訂單', value: 0 }
+  { label: '訂購成功', value: 0 },
+  { label: '訂單確認', value: 1 },
+  { label: '出貨', value: 2 },
+  { label: '送達', value: 3 },
+  { label: '取消訂單', value: -1 }
 ];
 
 // 加載狀態
 const loading = ref(false);
 
 // ===== 計算屬性 =====
-/**
- * 取得當前訂單狀態的中文標籤
- */
+//取得當前訂單狀態的中文標籤
 const statusLabel = computed(() => {
   const option = statusOptions.find((opt) => opt.value === order.value.status);
   return option ? option.label : '未知';
 });
 
-// ===== 方法 =====
-/**
- * 獲取訂單詳情
- * 功能說明：
- * 1. 根據訂單 ID 從後端獲取詳細信息
- * 2. 包括訂單基本資訊、收件人資訊、商品清單
- * 3. 加載時顯示 loading 狀態
- */
-// 在 script setup 中找到 fetchOrderDetail 並修改
-
+// ===== 連接資料庫 =====
 const fetchOrderDetail = async () => {
   try {
     loading.value = true;
     const orderId = route.params.id;
+    const adminId = localStorage.getItem('userId') || '1';
 
-    console.log('1. 目前網址上的 ID:', orderId); // 檢查這裡是不是 111018
+    const response = await phpApi.get('mall/admin_order.php', {
+      params: { id: orderId, admin_id: adminId }
+    });
 
-    // 讀取 JSON
-    const response = await publicApi.get('data/mall/orders.json');
-    console.log('2. API 回傳的原始資料:', response);
+    const res = response.data;
 
-    // 判斷資料層級 (防呆機制：如果 response 本身就是陣列，就直接用；否則取 .data)
-    const orders = Array.isArray(response) ? response : response.data;
+    if (res.success) {
+      // --- 修正重點：確保變數都有定義 ---
+      const master = res.order_master;
+      const details = res.order_details; // 這裡定義 details，解決報錯
 
-    if (!orders) {
-      console.error('抓不到訂單陣列，請檢查 publicApi 回傳結構');
-      return;
-    }
+      const payMethod = Number(master.payment_method);
+      const payStatus = Number(master.payment_status);
+      const orderStatus = Number(master.order_status);
+      let payLabel = payMethod === 1 ? '信用卡付款' : '貨到付款';
 
-    console.log('3. 取得的訂單列表:', orders);
+      // 判斷顯示文字：包含已退款 (2) 的邏輯
+      if (orderStatus === -1 || payStatus === 2) {
+        // 只要訂單狀態是 -1 (取消) 或者 支付狀態是 2 (已退款)
+        payLabel += ' (已退款)';
+      } else if (payStatus === 1) {
+        payLabel += ' (已付)';
+      } else {
+        payLabel += ' (待付款)';
+      }
 
-    // 尋找對應訂單
-    const orderData = orders.find(
-      (o) => String(o.ORDER_ID) === String(orderId)
-    );
-
-    console.log('4. 篩選出的訂單資料:', orderData); // 如果這裡是 undefined，代表 ID 對不上
-
-    if (orderData) {
-      // 重新對應欄位
       order.value = {
-        orderNumber: orderData.ORDER_ID,
-        orderDate: orderData.CREATED,
-        totalAmount: `NT$ ${orderData.TOTAL_AMOUNT}`, // JSON 是數字，這裡補上 NT$
-
-        recipientName: orderData.RECIPIENT_NAME,
-        recipientPhone: orderData.RECIPIENT_PHONE,
-        recipientAddress: orderData.SHIPPING_ADDRESS,
-        shippingNumber: orderData.LOGISTICS_ID,
-
-        // 處理付款方式 (DB: 1=信用卡)
-        // 你的 JSON PAYMENT_METHOD 是 1，這裡會顯示 "信用卡付款"
-        paymentMethod:
-          orderData.PAYMENT_METHOD === 0 ? '貨到付款' : '信用卡付款',
-
-        // 處理商品列表
-        items: orderData.items.map((item) => ({
-          productId: item.PRODUCT_ID,
-          productName: item.PRODUCT_NAME,
-          quantity: item.QUANTITY,
-          unitPrice: `NT$ ${item.SNAPSHOT_PRICE}`,
-          subtotal: `NT$ ${item.SUBTOTAL}`
+        orderNumber: master.order_id,
+        orderDate: master.created,
+        totalAmount: `NT$ ${master.total_amount}`,
+        recipientName: master.recipient_name,
+        recipientPhone: master.recipient_phone,
+        recipientAddress: master.shipping_address,
+        shippingNumber: master.logistics_id || '無',
+        paymentMethod: payLabel, // 使用組合後的文字
+        status: orderStatus,
+        items: details.map((item) => ({
+          productId: item.product_id,
+          productName: item.product_name,
+          quantity: item.quantity,
+          unitPrice: `NT$ ${item.snapshot_price}`,
+          subtotal: `NT$ ${item.subtotal}`
         })),
-
-        status: orderData.ORDER_STATUS
+        status: Number(master.order_status)
       };
-      console.log('5. 資料更新成功！');
-    } else {
-      console.warn(`找不到 ID 為 ${orderId} 的訂單，請確認 URL 或 JSON 資料`);
     }
   } catch (error) {
     console.error('獲取訂單詳情失敗:', error);
-    ElMessage.error('獲取訂單資訊失敗，請重新整理頁面');
+    ElMessage.error('無法讀取訂單資訊');
   } finally {
     loading.value = false;
   }
 };
 
-/**
- * 更新訂單狀態
- * 功能說明：
- * 1. 將訂單狀態變更發送至後端
- * 2. 成功時顯示提示信息
- */
+//更新狀態
 const handleStatusChange = async () => {
   try {
-    // TODO: 生產環境改為實際 API 路徑
-    // await publicApi.put(`orders/${orderId}`, { status: order.value.status });
+    const adminId = localStorage.getItem('userId') || '1';
 
-    ElMessage.success('訂單狀態已更新');
-    console.log('訂單狀態已更新為:', order.value.status);
+    if (order.value.status === -1) {
+      try {
+        await ElMessageBox.confirm(
+          '確定要取消此訂單嗎？若為信用卡已付款訂單，系統將自動更新為「已退款」。',
+          '警告',
+          {
+            confirmButtonText: '確定取消',
+            cancelButtonText: '放棄操作',
+            type: 'warning'
+          }
+        );
+      } catch (e) {
+        await fetchOrderDetail(); // 使用者取消，還原狀態
+        return;
+      }
+    }
+
+    loading.value = true;
+    // 發送請求
+    const response = await phpApi.post('mall/admin_order.php', {
+      admin_id: adminId,
+      order_id: order.value.orderNumber, // 確保這是資料庫的 order_id
+      order_status: order.value.status // 傳送 -1
+    });
+
+    if (response.data.success) {
+      ElMessage.success(response.data.message || '狀態更新成功');
+      await fetchOrderDetail(); // 重點：更新完立刻重新讀取，刷新「付款方式(已退款)」文字
+    } else {
+      ElMessage.error(response.data.error || '更新失敗');
+      await fetchOrderDetail(); // 失敗也要還原畫面狀態
+    }
   } catch (error) {
-    console.error('更新狀態失敗:', error);
-    ElMessage.error('更新狀態失敗');
+    console.error('更新失敗:', error);
+    ElMessage.error('伺服器連線失敗');
+  } finally {
+    loading.value = false;
   }
 };
 
-/**
- * 返回訂單列表
- */
+//返回訂單
 const handleBack = () => {
   router.back();
 };
 
 // ===== 生命週期 =====
-/**
- * 組件掛載完成時執行
- * 功能說明：頁面加載時自動獲取訂單詳情
- */
 onMounted(() => {
   fetchOrderDetail();
 });
@@ -192,6 +193,7 @@ onMounted(() => {
         <!-- 狀態選擇下拉框 -->
         <el-select
           v-model="order.status"
+          :disabled="order.status === -1 || order.status === 3"
           @change="handleStatusChange"
           placeholder="請選擇狀態"
           class="status-select"
@@ -201,8 +203,26 @@ onMounted(() => {
             :key="option.value"
             :label="option.label"
             :value="option.value"
+            :disabled="
+              order.status !== -1 &&
+              option.value !== -1 &&
+              option.value < order.status
+            "
           />
         </el-select>
+
+        <p
+          v-if="order.status === -1"
+          style="color: #f56c6c; font-size: 12px; margin-top: 5px"
+        >
+          * 此訂單已取消並退款，狀態不可變更
+        </p>
+        <p
+          v-else-if="order.status === 3"
+          style="color: #67c23a; font-size: 12px; margin-top: 5px"
+        >
+          * 訂單已完成送達，狀態已結案
+        </p>
 
         <!-- 返回按鈕 -->
         <el-button type="default" class="btn-back" @click="handleBack">

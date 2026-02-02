@@ -1,6 +1,7 @@
 <script setup>
-import { ref, reactive, getCurrentInstance } from 'vue'
+import { ref, reactive } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
+import { parsePublicFile } from '@/utils/parseFile';
 
 const visible = ref(false)
 const mode = ref('add') // 'add' 或 'edit'
@@ -32,9 +33,6 @@ const categoryMap = {
 
 const form = reactive({ ...initialForm })
 
-// 取得 $parseFile 全域方法
-const { appContext } = getCurrentInstance()
-const $parseFile = appContext.config.globalProperties.$parseFile
 const open = (type, data = null) => {
   mode.value = type
   if (type === 'edit' && data) {
@@ -95,7 +93,7 @@ defineExpose({ open })
             <el-upload class="ingredient-uploader" action="#" :auto-upload="false" :show-file-list="false"
               @change="handleImageChange">
               <div v-if="form.imageUrl" class="preview-container">
-                <img :src="form.imageUrl.startsWith('blob:') ? form.imageUrl : $parseFile(form.imageUrl)"
+                <img :src="form.imageUrl.startsWith('blob:') ? form.imageUrl : parsePublicFile(form.imageUrl)"
                   class="preview-img" />
               </div>
               <div v-else class="upload-placeholder">
