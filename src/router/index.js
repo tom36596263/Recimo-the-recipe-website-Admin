@@ -275,12 +275,12 @@ router.beforeEach(async (to, from, next) => {
     try {
       // 改用 phpApi 取得管理員資料
       const { data } = await phpApi.get('others/admin_get.php?t=' + Date.now());
-      const adminData = Array.isArray(data) ? data : (data?.data || []);
+      const adminData = Array.isArray(data) ? data : data?.data || [];
       const latestInfo = adminData.find(
         (u) => String(u.admin_account) === String(user.account)
       );
       const level = latestInfo ? Number(latestInfo.admin_level) : undefined;
-      console.log('當前權限狀態：', level);
+      // console.log('當前權限狀態：', level);
       // 主要管理員頁面權限判斷
       if (to.name === 'AdminStaff' && level !== 2) {
         ElMessage('只有主要管理員可進入後台人員管理');

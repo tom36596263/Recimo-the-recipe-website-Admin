@@ -6,8 +6,8 @@ import MyPagination from '@/components/MyPagination.vue';
 import SearchBar from '@/components/SearchBar.vue';
 import MemberModal from '@/components/modal/MemberModal.vue'
 import { useRoute } from 'vue-router';
-//要引用json的檔案一定要import以下這行
-import { publicApi } from '@/utils/publicApi.js';
+// 呼叫Api
+import { phpApi } from '@/utils/publicApi.js';
 
 const route = useRoute();
 
@@ -53,13 +53,13 @@ const filteredData = computed(() => {
     return name.includes(searchLower) ||
       email.includes(searchLower) ||
       id.includes(searchLower)// ||
-      //phone.includes(searchLower);
+    //phone.includes(searchLower);
   });
 });
 
 const loadJsonData = async () => {
   try {
-    const response = await publicApi.get('data/user/users.json')
+    const response = await phpApi.get('auth/get_members.php');
     tableData.value = response.data
   } catch (error) {
     console.error('抓取 JSON 失敗:', error.message)
@@ -116,9 +116,24 @@ onMounted(() => {
   loadJsonData()
 })
 
-const handleStatusChange = (row) => {
-  //暫無改動資料狀態功能
-  console.log('當前這筆資料的 ID:', row.user_id);
+const handleStatusChange = async (row) => {
+  try {
+    // 呼叫更新 API
+    const response = await phpApi.post('auth/update_status.php', {
+      user_id: row.user_id,
+      is_active: row.is_active // 這裡傳的是布林值，PHP 那邊會處理
+    });
+
+    if (response.data.status === 'success') {
+      // 可以加個簡單的提示，例如 Element Plus 的 ElMessage
+      // ElMessage.success('狀態更新成功');
+      // console.log('更新成功');
+    }
+  } catch (error) {
+    // 如果失敗了，把開關撥回去
+    row.is_active = !row.is_active;
+    // console.error('更新失敗:', error);
+  }
 };
 
 //-------------彈窗功能-----------
