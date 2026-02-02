@@ -3,7 +3,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { publicApi } from '@/utils/publicApi.js'; // 統一的 API 實例
-import { ElMessage } from 'element-plus'; // 消息提示
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { phpApi } from '@/utils/publicApi.js';
 // ===== 路由相關 =====
 const router = useRouter(); // 用於導航
@@ -70,23 +70,33 @@ const fetchOrderDetail = async () => {
   try {
     loading.value = true;
     const orderId = route.params.id;
-    const adminId = localStorage.getItem('userId') || '1'; // 取得管理員 ID
+    const adminId = localStorage.getItem('userId') || '1';
 
-    // 呼叫 order.php 並帶入參數
     const response = await phpApi.get('mall/admin_order.php', {
-      params: {
-        id: orderId,
-        admin_id: adminId
-      }
+      params: { id: orderId, admin_id: adminId }
     });
 
     const res = response.data;
 
     if (res.success) {
+      // --- 修正重點：確保變數都有定義 ---
       const master = res.order_master;
-      const details = res.order_details;
+      const details = res.order_details; // 這裡定義 details，解決報錯
 
-      // 重新對應後端資料庫欄位
+      const payMethod = Number(master.payment_method);
+      const payStatus = Number(master.payment_status);
+
+      let payLabel = payMethod === 1 ? '信用卡付款' : '貨到付款';
+
+      // 判斷顯示文字：包含已退款 (2) 的邏輯
+      if (payStatus === 1) {
+        payLabel += ' (已付)';
+      } else if (payStatus === 2) {
+        payLabel += ' (已退款)';
+      } else {
+        payLabel += ' (待付款)';
+      }
+
       order.value = {
         orderNumber: master.order_id,
         orderDate: master.created,
@@ -95,9 +105,7 @@ const fetchOrderDetail = async () => {
         recipientPhone: master.recipient_phone,
         recipientAddress: master.shipping_address,
         shippingNumber: master.logistics_id || '無',
-        paymentMethod: master.payment_method === 0 ? '貨到付款' : '信用卡付款',
-
-        // 映射商品清單
+        paymentMethod: payLabel, // 使用組合後的文字
         items: details.map((item) => ({
           productId: item.product_id,
           productName: item.product_name,
@@ -105,8 +113,7 @@ const fetchOrderDetail = async () => {
           unitPrice: `NT$ ${item.snapshot_price}`,
           subtotal: `NT$ ${item.subtotal}`
         })),
-
-        status: master.order_status
+        status: Number(master.order_status)
       };
     }
   } catch (error) {
@@ -122,19 +129,43 @@ const handleStatusChange = async () => {
   try {
     const adminId = localStorage.getItem('userId') || '1';
 
-    // 這裡同樣呼叫 admin_order.php，但改用 POST
+    if (order.value.status === -1) {
+      try {
+        await ElMessageBox.confirm(
+          '確定要取消此訂單嗎？若為信用卡已付款訂單，系統將自動更新為「已退款」。',
+          '警告',
+          {
+            confirmButtonText: '確定取消',
+            cancelButtonText: '放棄操作',
+            type: 'warning'
+          }
+        );
+      } catch (e) {
+        await fetchOrderDetail(); // 使用者取消，還原狀態
+        return;
+      }
+    }
+
+    loading.value = true;
+    // 發送請求
     const response = await phpApi.post('mall/admin_order.php', {
       admin_id: adminId,
-      order_id: order.value.orderNumber,
-      order_status: order.value.status // 確保傳過去的是數字 0, 1, 2, 3,-1
+      order_id: order.value.orderNumber, // 確保這是資料庫的 order_id
+      order_status: order.value.status // 傳送 -1
     });
 
     if (response.data.success) {
       ElMessage.success(response.data.message || '狀態更新成功');
+      await fetchOrderDetail(); // 重點：更新完立刻重新讀取，刷新「付款方式(已退款)」文字
+    } else {
+      ElMessage.error(response.data.error || '更新失敗');
+      await fetchOrderDetail(); // 失敗也要還原畫面狀態
     }
   } catch (error) {
     console.error('更新失敗:', error);
-    ElMessage.error('更新狀態失敗');
+    ElMessage.error('伺服器連線失敗');
+  } finally {
+    loading.value = false;
   }
 };
 
@@ -160,6 +191,7 @@ onMounted(() => {
         <!-- 狀態選擇下拉框 -->
         <el-select
           v-model="order.status"
+          :disabled="order.status === -1 || order.status === 3"
           @change="handleStatusChange"
           placeholder="請選擇狀態"
           class="status-select"
@@ -169,8 +201,22 @@ onMounted(() => {
             :key="option.value"
             :label="option.label"
             :value="option.value"
+            :disabled="order.status === 2 && option.value < 2"
           />
         </el-select>
+
+        <p
+          v-if="order.status === -1"
+          style="color: #f56c6c; font-size: 12px; margin-top: 5px"
+        >
+          * 此訂單已取消並退款，狀態不可變更
+        </p>
+        <p
+          v-else-if="order.status === 3"
+          style="color: #67c23a; font-size: 12px; margin-top: 5px"
+        >
+          * 訂單已完成送達，狀態已結案
+        </p>
 
         <!-- 返回按鈕 -->
         <el-button type="default" class="btn-back" @click="handleBack">

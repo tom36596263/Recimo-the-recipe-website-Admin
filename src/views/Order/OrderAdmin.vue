@@ -54,31 +54,37 @@ const filteredData = computed(() => {
 
 const loadJsonData = async () => {
   try {
-    //嘗試抓取各種可能的 Key，如果都沒有，就暫時給 1 (方便開發測試)
     const adminId =
-      localStorage.getItem('adminId') ||
-      localStorage.getItem('userId') ||
-      localStorage.getItem('admin_id') ||
-      '1';
-
-    console.log('當前使用的 Admin ID:', adminId);
+      localStorage.getItem('adminId') || localStorage.getItem('userId') || '1';
 
     const response = await phpApi.get('mall/get_all_orders.php', {
       params: { admin_id: adminId }
     });
 
     if (response.data.success) {
-      tableData.value = response.data.data.map((item) => ({
-        // 這裡要對應你資料庫看到的欄位名稱
-        id: item.order_id,
-        date: item.created ? item.created.split(' ')[0] : '',
-        trackingNo: item.logistics_id || '尚未出貨',
-        receiver: item.recipient_name,
-        phone: item.recipient_phone,
-        payment: item.payment_method === 0 ? '貨到付款' : '信用卡付款',
-        method: '宅配',
-        status: item.order_status
-      }));
+      tableData.value = response.data.data.map((item) => {
+        //先定義變數：將資料庫原始欄位轉為數字
+        const payMethod = Number(item.payment_method);
+
+        // 再進行 return 映射
+        return {
+          id: item.order_id,
+          date: item.created ? item.created.split(' ')[0] : '',
+          trackingNo: item.logistics_id || '尚未出貨',
+          receiver: item.recipient_name,
+          phone: item.recipient_phone,
+
+          payment:
+            payMethod === 1
+              ? '信用卡付款'
+              : payMethod === 2
+                ? '貨到付款'
+                : '未知方式',
+
+          method: '宅配',
+          status: item.order_status
+        };
+      });
       ElMessage.success('訂單讀取成功');
     }
   } catch (error) {
