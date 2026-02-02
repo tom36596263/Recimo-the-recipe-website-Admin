@@ -20,13 +20,15 @@ const rules = {
     { required: true, message: '請輸入標題', trigger: 'blur' }
   ],
   category: [
-    { required: true, validator: (rule, value, callback) => {
-      if (!value || value === 0) {
-        callback(new Error('請選擇分類'));
-      } else {
-        callback();
-      }
-    }, trigger: 'change' }
+    {
+      required: true, validator: (rule, value, callback) => {
+        if (!value || value === 0) {
+          callback(new Error('請選擇分類'));
+        } else {
+          callback();
+        }
+      }, trigger: 'change'
+    }
   ],
   content: [
     { required: true, message: '請輸入問題內容', trigger: 'blur' }
@@ -50,7 +52,10 @@ const handlePublish = async () => {
       payload.append('faq_title', form.value.title);
       payload.append('faq_answer', form.value.content);
 
-      const response = await phpApi.post('/system/faqs.php', payload);
+      const response = await phpApi.post('/system/faqs.php', payload, {headers: {// 覆蓋掉全域的 application/json
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+      });
       if (response.data.success) {
         ElMessage.success('FAQ 已新增');
         router.back();
@@ -210,10 +215,11 @@ $border-color: #e0e0e0;
     }
   }
 
-  .el-input{
+  .el-input {
     border: 0;
     padding: 0;
   }
+
   .form-input {
     width: 100%;
     box-sizing: border-box;

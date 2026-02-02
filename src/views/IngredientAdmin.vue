@@ -7,8 +7,7 @@ import SearchBar from '@/components/SearchBar.vue';
 import DeleteButton from '@/components/DeleteButton.vue';
 import IngredientModal from '@/components/modal/IngredientModal.vue';
 import { useRoute } from 'vue-router';
-//要引用json的檔案一定要import以下這行
-import { publicApi } from '@/utils/publicApi.js';
+import { publicApi ,phpApi } from '@/utils/publicApi.js';
 import { parsePublicFile } from '@/utils/parseFile';
 
 // 取得 $parseFile 全域方法

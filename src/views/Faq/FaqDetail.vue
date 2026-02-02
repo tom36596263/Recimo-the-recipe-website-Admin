@@ -20,13 +20,15 @@ const rules = {
     { required: true, message: '請輸入標題', trigger: 'blur' }
   ],
   category: [
-    { required: true, validator: (rule, value, callback) => {
-      if (!value || value === 0) {
-        callback(new Error('請選擇分類'));
-      } else {
-        callback();
-      }
-    }, trigger: 'change' }
+    {
+      required: true, validator: (rule, value, callback) => {
+        if (!value || value === 0) {
+          callback(new Error('請選擇分類'));
+        } else {
+          callback();
+        }
+      }, trigger: 'change'
+    }
   ],
   content: [
     { required: true, message: '請輸入問題內容', trigger: 'blur' }
@@ -48,12 +50,12 @@ const loadFaqDetail = async () => {
         category: faqs.faq_type,
         content: faqs.faq_answer,
       };
-      
+
     }
   } catch (e) {
     // 可加錯誤提示
     console.log(e);
-    
+
   }
 };
 
