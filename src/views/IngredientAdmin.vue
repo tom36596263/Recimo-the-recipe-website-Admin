@@ -284,11 +284,11 @@ const handleStatusChange = async (row) => {
           </el-button>
         </template>
       </el-table-column>
-      <el-table-column label="刪除" align="center" width="120">
+      <!-- <el-table-column label="刪除" align="center" width="120">
         <template #default>
           <DeleteButton />
         </template>
-      </el-table-column>
+      </el-table-column> -->
     </el-table>
 
     <!-- 頁籤 -->
