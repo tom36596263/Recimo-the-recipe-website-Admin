@@ -85,6 +85,7 @@ const loadProductData = async () => {
           { name: '膳食纖維', value: t.product_fiber || 0, unit: 'g' },
           { name: '糖', value: t.product_sugar || 0, unit: 'g' }
         ],
+        product_net_weight: t.product_net_weight || 0,
         ingredient_content: t.product_ingredients || '',
         ingredient_content_right: t.product_cooking_method || '',
         storage_period: t.product_storage_method || '',
@@ -151,7 +152,7 @@ const saveProductData = async () => {
       'product_sugar',
       productData.value.nutrition_info_right[3].value
     );
-
+    formData.append('product_net_weight', productData.value.product_net_weight);
     // 3. 詳細文字
     formData.append(
       'product_ingredients',
@@ -263,7 +264,6 @@ onMounted(() => {
 
 <template>
   <div class="product-detail-wrapper">
-    <!-- ===== 內容區頂部：返回按鈕和修改選項 ===== -->
     <div class="detail-header">
       <router-link to="/admin/products" class="back-btn">
         <el-icon>
@@ -280,7 +280,6 @@ onMounted(() => {
         >
           修改
         </button>
-
         <button
           v-if="isEditMode"
           class="btn btn-solid h-40"
@@ -289,7 +288,6 @@ onMounted(() => {
         >
           保存
         </button>
-
         <button
           v-if="isEditMode"
           class="btn btn-outline h-40"
@@ -298,7 +296,6 @@ onMounted(() => {
         >
           取消
         </button>
-
         <button
           v-if="!isEditMode"
           class="btn btn-outline h-40"
@@ -310,22 +307,19 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- ===== 主要內容區：使用 el-card 包裝 ===== -->
     <el-card class="detail-card" v-loading="loading">
-      <!-- ===== 步驟2：商品基本資訊區 =====
-           功能：顯示商品標題、分類、價格等基本資訊
-      -->
       <template #header>
         <div class="card-header">
           <h2 class="product-title">{{ productData.product_name }}</h2>
         </div>
       </template>
 
-      <!-- 商品信息行 -->
       <el-row :gutter="20" class="product-info-row">
         <el-col :xs="24" :sm="12" :md="8">
           <div class="info-item">
-            <span class="info-label">商品分類</span>
+            <span class="info-label"
+              >商品分類 <span class="required">*</span></span
+            >
             <el-select
               v-model="productData.product_category"
               :disabled="!isEditMode"
@@ -341,7 +335,9 @@ onMounted(() => {
         </el-col>
         <el-col :xs="24" :sm="12" :md="8">
           <div class="info-item">
-            <span class="info-label">商品名稱</span>
+            <span class="info-label"
+              >商品名稱 <span class="required">*</span></span
+            >
             <el-input
               v-model="productData.product_name"
               :disabled="!isEditMode"
@@ -351,7 +347,9 @@ onMounted(() => {
         </el-col>
         <el-col :xs="24" :sm="12" :md="8">
           <div class="info-item">
-            <span class="info-label">商品價格</span>
+            <span class="info-label"
+              >商品價格 <span class="required">*</span></span
+            >
             <el-input
               v-model="productData.product_price"
               :disabled="!isEditMode"
@@ -361,11 +359,8 @@ onMounted(() => {
         </el-col>
       </el-row>
 
-      <!-- ===== 步驟3：商品描述區 =====
-           功能：顯示完整的商品描述文本
-      -->
       <div class="description-section">
-        <h3 class="section-title">商品描述</h3>
+        <h3 class="section-title">商品描述 <span class="required">*</span></h3>
         <el-input
           v-model="productData.product_description"
           type="textarea"
@@ -376,13 +371,9 @@ onMounted(() => {
         />
       </div>
 
-      <!-- ===== 步驟4：營養資訊區 =====
-           功能：以表格形式展示營養成分（左右兩列設計）
-      -->
       <div class="nutrition-section">
         <h3 class="section-title">營養資訊</h3>
         <el-row :gutter="20" class="nutrition-container">
-          <!-- 左側營養資訊 -->
           <el-col :xs="24" :md="12">
             <el-table
               :data="productData.nutrition_info"
@@ -395,7 +386,7 @@ onMounted(() => {
               }"
             >
               <el-table-column label="項目" align="center" width="100">
-                <template #default="{ row, $index }">
+                <template #default="{ row }">
                   <el-input
                     v-model="row.name"
                     :disabled="!isEditMode"
@@ -412,15 +403,14 @@ onMounted(() => {
                     type="number"
                     size="small"
                   >
-                    <template #suffix>
-                      <span class="unit-text">{{ row.unit }}</span>
-                    </template>
+                    <template #suffix
+                      ><span class="unit-text">{{ row.unit }}</span></template
+                    >
                   </el-input>
                 </template>
               </el-table-column>
             </el-table>
           </el-col>
-          <!-- 右側營養資訊 -->
           <el-col :xs="24" :md="12">
             <el-table
               :data="productData.nutrition_info_right"
@@ -433,7 +423,7 @@ onMounted(() => {
               }"
             >
               <el-table-column label="項目" align="center" width="100">
-                <template #default="{ row, $index }">
+                <template #default="{ row }">
                   <el-input
                     v-model="row.name"
                     :disabled="!isEditMode"
@@ -448,11 +438,10 @@ onMounted(() => {
                     v-model="row.value"
                     :disabled="!isEditMode"
                     size="small"
-                    type="text"
                   >
-                    <template #suffix>
-                      <span class="unit-text">{{ row.unit }}</span>
-                    </template>
+                    <template #suffix
+                      ><span class="unit-text">{{ row.unit }}</span></template
+                    >
                   </el-input>
                 </template>
               </el-table-column>
@@ -461,11 +450,24 @@ onMounted(() => {
         </el-row>
       </div>
 
-      <!-- ===== 步驟5：食材內容區 =====
-           功能：展示食材列表和相關資訊（左右兩欄設計）
-      -->
+      <div class="weight-section" style="margin-top: 20px">
+        <h3 class="section-title">商品重量 <span class="required">*</span></h3>
+        <el-row>
+          <el-col :xs="24" :sm="12" :md="8">
+            <el-input
+              v-model="productData.product_net_weight"
+              :disabled="!isEditMode"
+              placeholder="請輸入商品重量"
+              type="number"
+            >
+              <template #suffix><span class="unit-text">g</span></template>
+            </el-input>
+          </el-col>
+        </el-row>
+      </div>
+
       <div class="ingredient-section">
-        <h3 class="section-title">商品介紹</h3>
+        <h3 class="section-title">商品介紹 <span class="required">*</span></h3>
         <el-row :gutter="20">
           <el-col :xs="24" :md="12">
             <h4 class="subsection-title">食材內容</h4>
@@ -492,9 +494,6 @@ onMounted(() => {
         </el-row>
       </div>
 
-      <!-- ===== 步驟6：保存期限和貼心提醒區 =====
-           功能：顯示保存方式和使用注意事項
-      -->
       <el-row :gutter="20" class="storage-section">
         <el-col :xs="24" :md="12">
           <h4 class="subsection-title">保存期限</h4>
@@ -520,11 +519,8 @@ onMounted(() => {
         </el-col>
       </el-row>
 
-      <!-- ===== 步驟7：菜譜圖片展示區 =====
-           功能：展示與商品相關的菜譜圖片
-      -->
       <div class="recipe-image-section">
-        <h3 class="section-title">商品圖片</h3>
+        <h3 class="section-title">商品圖片 <span class="required">*</span></h3>
         <div class="recipe-images">
           <div
             v-for="image in productData.recipe_images"
@@ -532,11 +528,7 @@ onMounted(() => {
             class="recipe-image-item"
           >
             <img
-              :src="
-                image.url.startsWith('blob:') || image.url.startsWith('data:')
-                  ? image.url
-                  : image.url
-              "
+              :src="image.url"
               :alt="image.alt"
               class="recipe-img"
               @error="handleImgError"
@@ -869,5 +861,21 @@ onMounted(() => {
       grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
     }
   }
+}
+
+.weight-section {
+  margin: 20px 0;
+
+  .section-title {
+    margin-bottom: 15px;
+  }
+  :deep(.el-input) {
+    margin-left: -10px;
+  }
+}
+
+.required {
+  color: #f56c6c;
+  margin-left: 4px;
 }
 </style>
