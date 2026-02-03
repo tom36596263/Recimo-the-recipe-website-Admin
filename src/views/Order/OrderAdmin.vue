@@ -126,8 +126,26 @@ const displayData = computed(() => {
   return filteredData.value.slice(start, end);
 });
 
+const handleVisibilityChange = () => {
+  if (document.visibilityState === 'visible') {
+    console.log('偵測到回到訂單管理頁面，自動刷新資料...');
+    loadJsonData(); // 呼叫您原本抓取所有訂單的函數
+  }
+};
+
 onMounted(() => {
   loadJsonData();
+  // 2. 註冊監聽事件：當瀏覽器標籤切換回來時觸發
+  window.addEventListener('visibilitychange', handleVisibilityChange);
+  // 3. 註冊監聽事件：當視窗重新獲得焦點時觸發（可選，增加保險）
+  window.addEventListener('focus', loadJsonData);
+});
+
+// 4. 重要：在組件卸載時移除監聽，避免消耗資源
+import { onUnmounted } from 'vue';
+onUnmounted(() => {
+  window.removeEventListener('visibilitychange', handleVisibilityChange);
+  window.removeEventListener('focus', loadJsonData);
 });
 
 const handleStatusChange = async (row) => {

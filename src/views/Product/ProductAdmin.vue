@@ -57,7 +57,8 @@ const loadPhpData = async () => {
     tableData.value = rawData.map((item) => ({
       ...item,
       // 根據你 PHP 結構：release 狀態在 tags 內
-      STATUS: item.tags?.product_release === 1
+      STATUS: Number(item.tags?.product_release) === 1,
+      IS_HOT: Number(item.tags?.product_is_hot) === 1
     }));
 
     console.log('資料載入成功:', tableData.value);
@@ -112,6 +113,19 @@ const handleStatusChange = async (row) => {
   }
 };
 
+// // --- 6. 熱銷商品切換 (新增) ---
+const handleHotChange = async (row) => {
+  try {
+    await phpApi.post('mall/admin_products_api.php?action=update', {
+      product_id: row.product_id,
+      // 💡 這裡一定要叫 product_is_hot，因為你的 PHP 是寫 isset($data['product_is_hot'])
+      product_is_hot: row.IS_HOT
+    });
+    ElMessage.success('更新成功');
+  } catch (error) {
+    row.IS_HOT = !row.IS_HOT; // 失敗才恢復原狀
+  }
+};
 onMounted(() => {
   loadPhpData();
 });
@@ -166,6 +180,24 @@ onMounted(() => {
         align="center"
       />
       <el-table-column prop="product_name" label="商品名稱" align="center" />
+
+      <el-table-column label="熱銷設定" align="center" width="120">
+        <template #default="scope">
+          <el-switch
+            v-model="scope.row.IS_HOT"
+            size="large"
+            class="ml-2"
+            inline-prompt
+            style="
+              --el-switch-on-color: #ff4949;
+              --el-switch-off-color: #ababab;
+            "
+            active-text="熱銷"
+            inactive-text="一般"
+            @change="handleHotChange(scope.row)"
+          />
+        </template>
+      </el-table-column>
 
       <el-table-column
         prop="product_release"
