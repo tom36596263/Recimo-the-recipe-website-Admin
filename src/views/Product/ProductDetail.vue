@@ -73,6 +73,7 @@ const loadProductData = async () => {
         product_description: product.product_description || '',
         product_price: product.product_price || 0,
         product_release: t.product_release ?? 1,
+        product_is_hot: t.product_is_hot ?? 0,
         nutrition_info: [
           { name: '熱量', value: t.product_kcal || 0, unit: 'kcal' },
           { name: '總脂肪', value: t.product_fat || 0, unit: 'g' },
@@ -124,7 +125,7 @@ const saveProductData = async () => {
       productData.value.product_description
     );
     formData.append('product_release', productData.value.product_release);
-
+    formData.append('product_is_hot', productData.value.product_is_hot ? 1 : 0);
     // 2. 營養資訊 (對應 PHP 的變數名)
     formData.append('product_kcal', productData.value.nutrition_info[0].value);
     formData.append('product_fat', productData.value.nutrition_info[1].value);
