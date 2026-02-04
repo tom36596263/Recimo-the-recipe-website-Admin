@@ -1,23 +1,53 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import draggable from 'vuedraggable';
 
 const props = defineProps(['steps', 'ingredients', 'isEditing']);
+const emit = defineEmits(['update:steps']);
 const activeStepId = ref(null);
 
 const showTimerPop = ref(false);
 const showIngPop = ref(false);
 const popStyle = ref({ top: '0px', left: '0px', position: 'fixed' });
 
+// --- ✨ 核心修正：雙向綁定中轉站 ---
+const internalSteps = computed({
+  get: () => props.steps,
+  set: (val) => emit('update:steps', val)
+});
+
+// --- 修改資料的方法，都改用複製陣列後 emit ---
+const updateStepField = (index, field, value) => {
+  const newSteps = [...props.steps];
+  newSteps[index] = { ...newSteps[index], [field]: value };
+  emit('update:steps', newSteps);
+};
+
 // --- ✨ 圖片解析 ---
+// const getStepImage = (step) => {
+//   if (!step) return null;
+//   const imgSource = step.image;
+//   if (imgSource && typeof imgSource === 'string' && imgSource.trim().length > 0) {
+//     if (imgSource.startsWith('data:') || imgSource.startsWith('http')) return imgSource;
+//     let path = imgSource.trim();
+//     if (!path.startsWith('/') && !path.startsWith('.')) path = `/${path}`;
+//     return path;
+//   }
+//   return null;
+// };
 const getStepImage = (step) => {
-  if (!step) return null;
+  if (!step || !step.image) return null;
+  
+  // 如果是 File 物件 (剛上傳)，產生臨時預覽圖
+  if (step.image instanceof File) {
+    return URL.createObjectURL(step.image);
+  }
+  
+  // 如果是 Base64 或 URL 字串
   const imgSource = step.image;
-  if (imgSource && typeof imgSource === 'string' && imgSource.trim().length > 0) {
+  if (typeof imgSource === 'string' && imgSource.trim().length > 0) {
     if (imgSource.startsWith('data:') || imgSource.startsWith('http')) return imgSource;
-    let path = imgSource.trim();
-    if (!path.startsWith('/') && !path.startsWith('.')) path = `/${path}`;
-    return path;
+    return imgSource.startsWith('/') ? imgSource : `/${imgSource}`;
   }
   return null;
 };
@@ -45,32 +75,70 @@ const toggleBodyScroll = (isLock) => {
     document.body.style.paddingRight = '';
   }
 };
-
 const addStep = () => {
-  props.steps.push({
+  const newSteps = [...props.steps, {
     id: 's' + Date.now(),
     title: '',
     content: '',
     image: null,
     time: null,
     tags: []
-  });
+  }];
+  emit('update:steps', newSteps);
 };
+// const addStep = () => {
+//   props.steps.push({
+//     id: 's' + Date.now(),
+//     title: '',
+//     content: '',
+//     image: null,
+//     time: null,
+//     tags: []
+//   });
+// };
 
 const removeStep = (id) => {
-  const index = props.steps.findIndex(s => (s.id || s.step_id) === id);
-  if (index !== -1) props.steps.splice(index, 1);
+  const newSteps = props.steps.filter(s => (s.id || s.step_id) !== id);
+  // if (index !== -1) props.steps.splice(index, 1);
+  emit('update:steps', newSteps);
 };
 
+// const toggleTag = (step, ingId) => {
+//   if (!step) return;
+//   if (!step.tags) step.tags = [];
+//   const index = step.tags.indexOf(ingId);
+//   if (index === -1) step.tags.push(ingId);
+//   else step.tags.splice(index, 1);
+// };
+// const toggleTag = (step, ingId) => {
+//   if (!step) return;
+//   const index = props.steps.findIndex(s => s.id === step.id);
+//   const newTags = [...(step.tags || [])];
+  
+//   const tagIdx = newTags.indexOf(ingId);
+//   if (tagIdx === -1) newTags.push(ingId);
+//   else newTags.splice(tagIdx, 1);
+  
+//   updateStepField(index, 'tags', newTags);
+// };
 const toggleTag = (step, ingId) => {
   if (!step) return;
-  if (!step.tags) step.tags = [];
-  const index = step.tags.indexOf(ingId);
-  if (index === -1) step.tags.push(ingId);
-  else step.tags.splice(index, 1);
-};
+  // 找到當前步驟在原始陣列中的索引
+  const index = props.steps.findIndex(s => s.id === step.id);
+  if (index === -1) return;
 
-const uploadStepImg = (step) => {
+  const newTags = [...(step.tags || [])];
+  const tagIdx = newTags.indexOf(ingId);
+
+  if (tagIdx === -1) {
+    newTags.push(ingId); // 確保存入的是數字，如 332
+  } else {
+    newTags.splice(tagIdx, 1);
+  }
+  
+  updateStepField(index, 'tags', newTags);
+};
+const uploadStepImg = (index) => {
   if (!props.isEditing) return;
   const input = document.createElement('input');
   input.type = 'file';
@@ -78,14 +146,27 @@ const uploadStepImg = (step) => {
   input.onchange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (f) => {
-      step.image = f.target.result;
-    };
-    reader.readAsDataURL(file); // ✨ 這裡已修復
+    // 直接將 File 物件傳回給父組件，handleSave 會處理 Base64
+    updateStepField(index, 'image', file); 
   };
   input.click();
 };
+// const uploadStepImg = (step) => {
+//   if (!props.isEditing) return;
+//   const input = document.createElement('input');
+//   input.type = 'file';
+//   input.accept = 'image/*';
+//   input.onchange = (e) => {
+//     const file = e.target.files[0];
+//     if (!file) return;
+//     const reader = new FileReader();
+//     reader.onload = (f) => {
+//       step.image = f.target.result;
+//     };
+//     reader.readAsDataURL(file); // ✨ 這裡已修復
+//   };
+//   input.click();
+// };
 
 const openPop = (e, stepId, type) => {
   if (!props.isEditing) return;
@@ -110,6 +191,15 @@ onUnmounted(() => {
   window.removeEventListener('click', closePops);
   toggleBodyScroll(false);
 });
+
+const updateActiveStepTime = (val) => {
+  const step = getActiveStep();
+  if (!step) return;
+  const index = props.steps.findIndex(s => (s.id || s.step_id) === step.id);
+  if (index !== -1) {
+    updateStepField(index, 'time', Number(val));
+  }
+};
 </script>
 
 <template>
@@ -118,7 +208,7 @@ onUnmounted(() => {
       <h2 class="header-title zh-h4-bold">烹飪步驟</h2>
     </div>
 
-    <draggable :list="steps" class="step-list" handle=".drag-dots" item-key="id" :disabled="!isEditing"
+    <draggable v-model="internalSteps" class="step-list" handle=".drag-dots" item-key="id" :disabled="!isEditing"
       ghost-class="ghost-step" animation="300">
       <template #item="{ element: step, index: idx }">
         <div class="step-item-outer">
@@ -130,7 +220,8 @@ onUnmounted(() => {
               </div>
 
               <input v-if="isEditing" v-model="step.title" class="step-title-input zh-h4" placeholder="步驟標題"
-                maxlength="30" />
+                maxlength="30"
+                @input="updateStepField(idx, 'title', $event.target.value)" />
               <span v-else class="step-title-display zh-h4">
                 {{ step.title || ('步驟 ' + (idx + 1)) }}
               </span>
@@ -139,7 +230,7 @@ onUnmounted(() => {
 
             <div class="card-content">
               <div class="image-uploader-area">
-                <div class="image-box" :class="{ 'has-image': getStepImage(step) }" @click="uploadStepImg(step)">
+                <div class="image-box" :class="{ 'has-image': getStepImage(step) }" @click="uploadStepImg(idx)">
                   <img v-if="getStepImage(step)" :src="getStepImage(step)" class="step-img" @error="handleImgError" />
                   <div v-else class="image-placeholder">
                     <span class="plus">+</span>
@@ -162,7 +253,7 @@ onUnmounted(() => {
                     <BaseTag variant="label" width="auto">
                       <div class="ing-tag-content">
                         <img src="@/assets/images/recipe/Vector.svg" class="ing-icon-img" alt="icon" />
-                        <span class="ing-name p-p3">{{ingredients?.find(i => i.id === tid)?.name || '食材'}}</span>
+                        <span class="ing-name p-p3">{{ingredients?.find(i => Number(i.id) === Number(tid))?.name || '找不到食材'}}</span>
                         <span v-if="isEditing" class="tag-close-icon" @click.stop="toggleTag(step, tid)">✕</span>
                       </div>
                     </BaseTag>
@@ -170,7 +261,8 @@ onUnmounted(() => {
                 </div>
 
                 <div v-if="isEditing" class="textarea-wrapper">
-                  <textarea v-model="step.content" class="step-textarea p-p2" placeholder="詳細說明步驟內容..."
+                  <textarea :value="step.content" class="step-textarea p-p2" placeholder="詳細說明步驟內容..."
+                    @input="updateStepField(idx, 'content', $event.target.value)"
                     maxlength="100"></textarea>
                   <span class="char-counter">{{ step.content?.length || 0 }}/100</span>
                 </div>
@@ -203,8 +295,8 @@ onUnmounted(() => {
     <div class="popover-title p-p2">設定烹飪時間</div>
     <div class="popover-content" style="display: flex; flex-direction: column; gap: 12px; padding: 10px 0;">
       <div style="display: flex; align-items: center; gap: 8px;">
-        <input type="number" v-model.number="getActiveStep().time" step="1" min="0" max="1440"
-          style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 6px; outline: none;" placeholder="輸入分鐘"
+        <input type="number" :value="getActiveStep()?.time" step="1" min="0" max="1440"
+          style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 6px; outline: none;" placeholder="輸入分鐘" @input="updateActiveStepTime($event.target.value)"
           @keyup.enter="closePops" />
         <span class="p-p3">分鐘</span>
       </div>

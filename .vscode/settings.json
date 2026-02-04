@@ -13,5 +13,6 @@
   "prettier.documentSelectors": [
     "**/*.scss",
     "**/*.json"
-  ]
+  ],
+  "liveServer.settings.port": 5501
 }

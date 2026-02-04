@@ -12,7 +12,7 @@ const props = defineProps({
   isAdaptMode: { type: Boolean, default: false }
 });
 
-const emit = defineEmits(['update:modelValue']);
+const emit = defineEmits(['update:modelValue', 'open-tag-modal']);
 
 // 跳轉邏輯
 const goToOriginal = () => {
@@ -68,6 +68,7 @@ watch(
 const handleCoverUpload = (e) => {
   const file = e.target.files[0];
   if (!file) return;
+  emit('update:modelValue', { ...props.modelValue, coverImg: file });
   const reader = new FileReader();
   reader.onload = (evt) => updateField('coverImg', evt.target.result);
   reader.readAsDataURL(file);
@@ -157,12 +158,98 @@ const handleCoverUpload = (e) => {
           maxlength="200"></textarea>
         <p v-else class="desc-display p-p2">{{ modelValue.description || '暫無簡介' }}</p>
       </div>
+      
+      <div class="row-tags">
+        <div class="tags-wrapper">
+          <div class="tag-item" v-for="tag in modelValue.tags" :key="tag.tag_id">
+            <span class="tag-text p-p3"># {{ tag.tag_name }}</span>
+            <button v-if="isEditing" class="tag-delete-btn" @click="removeTag(tag.tag_id)">
+              <span>×</span>
+            </button>
+          </div>
+          <button v-if="isEditing" class="add-tag-btn p-p3" @click="$emit('open-tag-modal')">
+            <i class="bi bi-plus-lg"></i>
+            <span>新增標籤</span>
+          </button>
+          <span v-if="!isEditing && (!modelValue.tags || modelValue.tags.length === 0)" class="no-tag-hint p-p3">
+            尚未設定標籤
+          </span>
+        </div>
+      </div>
     </div>
   </section>
 </template>
 
 <style lang="scss" scoped>
 @import '@/assets/scss/abstracts/_color.scss';
+.row-tags {
+
+  .tags-wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .tag-item {
+    display: flex;
+    align-items: center;
+    background-color: $primary-color-100;
+    color: $primary-color-800;
+    padding: 4px 10px;
+    border-radius: 100px;
+
+    .tag-delete-btn {
+      appearance: none;
+      background: transparent !important;
+      border: none;
+      padding: 0;
+      margin: 0 0 0 6px;
+      outline: none;
+      box-shadow: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      color: #ff8e8e;
+      cursor: pointer;
+      font-size: 18px;
+      font-weight: 200;
+      line-height: 1;
+      transition: color 0.2s, transform 0.2s;
+
+      &:hover {
+        color: red;
+        background: transparent !important;
+      }
+
+      &:active {
+        transform: scale(0.9);
+      }
+    }
+  }
+}
+.add-tag-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: transparent;
+    color: $primary-color-700;
+    border: 1px dashed $primary-color-400;
+    padding: 4px 12px;
+    border-radius: 100px;
+    cursor: pointer;
+
+    &:hover {
+      background: $primary-color-100;
+    }
+  }
+
+  .no-tag-hint {
+    color: $neutral-color-400;
+    font-style: italic;
+  }
 
 .adapt-card-section {
   display: flex;
