@@ -1,200 +1,157 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { publicApi } from '@/utils/publicApi.js';
+import { phpApi } from '@/utils/publicApi.js';
 import { Check, Close } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 
 const route = useRoute();
 const router = useRouter();
-
-// ===== 頁面數據 =====
 const loading = ref(false);
 
-// 檢舉類型對應中文
-const reportTypeMap = {
-  0: '廣告/垃圾訊息',
-  1: '人身攻擊/歧視',
-  2: '不當圖片',
-  3: '詐騙/不實訊息',
-  4: '其他違規'
-}
+const statusTextMap = { pending: '待審核', resolved: '審核通過', ignored: '審核不通過' };
+const statusClassMap = { pending: '待審核', resolved: '已核准', ignored: '已拒絕' };
 
-// 審核狀態對應中文
-const statusMap = {
-  0: '待審核',
-  1: '審核通過',
-  2: '審核不通過'
-}
-
-// 根據 STATUS 獲取狀態文字
-const getStatusText = (status) => statusMap[status] ?? '未知狀態'
-
-// 根據 STATUS 獲取狀態 class
-const getStatusClass = (status) => {
-  if (status === 0) return '待審核'
-  if (status === 1) return '審核通過'
-  if (status === 2) return '審核不通過'
-  return ''
-}
+const getStatusText = (status) => statusTextMap[status] ?? '未知狀態';
+const getStatusClass = (status) => statusClassMap[status] ?? '';
 
 const reportData = ref({
   REPORTED_IMAGE_ID: '',
+  TARGET_LABEL: '被檢舉目標 ID',
   COMMENT_ID: '',
   REPORTER_ID: '',
   REPORT_TYPE: '',
   REPORT_REASON: '',
-  STATUS: '',
+  STATUS: 'pending',
   HANDLER_ID: '',
   REPORTERD_AT: '',
-  UPDATE_AT: ''
+  UPDATE_AT: '',
+  IMAGE_URL: '',
+  INTERNAL_TYPE: ''
 });
 
-// ===== 步驟1：載入舉報數據 =====
-/**
- * loadReportData 方法
- * 功能說明：根據路由參數取得舉報 ID，並從外部 API 獲取舉報詳細資料
- */
 const loadReportData = async () => {
+  if (loading.value) return; 
+  
   try {
     loading.value = true;
-    const reportId = route.params.id;
-    const response = await publicApi.get('data/social/reported_images.json');
-    const reports = response.data;
-    const report = reports.find(r => String(r.REPORTED_IMAGE_ID) === String(reportId));
-    if (report) {
-      reportData.value = { ...report };
+    const reportIdFromUrl = String(route.params.id); // 取得網址上的 ID
+    console.log("當前網址 ID:", reportIdFromUrl);
+
+    const response = await phpApi.get('others/report_manage.php');
+    
+    if (response.data.success) {
+      const allData = response.data.data;
+      console.log("後端回傳的所有資料:", allData);
+
+      // 🏆 改用更寬鬆的比對，確保能找到資料
+      const report = allData.find(r => String(r.report_id) === reportIdFromUrl);
+      console.log("找到的匹配檢舉案:", report);
+
+      if (report) {
+        const labelMap = {
+          comment: '被檢舉留言 ID',
+          gallery: '被檢舉成品 ID',
+          recipe:  '被檢舉食譜 ID'
+        };
+
+        // 🏆 圖片處理：先印出原始路徑看看
+        let finalImageUrl = '';
+        console.log("原始 report_img:", report.report_img);
+
+        if (report.report_img) {
+          const apiBase = phpApi.defaults.baseURL.replace(/\/+$/, '');
+          const cleanPath = report.report_img
+            .replace(/^\/+/, '')
+            .replace('social/32/', 'social/'); 
+
+          finalImageUrl = `${apiBase}/${cleanPath}`;
+        }
+        
+        console.log("生成的最終網址:", finalImageUrl);
+
+        // 🏆 重新賦值給 reportData
+        reportData.value = {
+          REPORTED_IMAGE_ID: report.report_id,
+          TARGET_LABEL: labelMap[report.report_type] || '被檢舉目標 ID',
+          COMMENT_ID: report.target_id || report.report_id, 
+          REPORTER_ID: report.user_id,
+          REPORT_TYPE: report.type_text,
+          REPORT_REASON: report.reason,
+          STATUS: report.status,
+          HANDLER_ID: '管理員',
+          REPORTERD_AT: report.report_at,
+          UPDATE_AT: report.update_at || '尚未處理',
+          IMAGE_URL: finalImageUrl, // 這裡確保有塞進去
+          INTERNAL_TYPE: report.report_type
+        };
+      } else {
+        console.error('在資料庫中找不到對應 ID 的檢舉案');
+        ElMessage.error('找不到該筆檢舉資料');
+      }
     }
   } catch (error) {
-    console.error('載入舉報數據失敗:', error.message);
+    console.error("載入失敗詳情:", error);
+    ElMessage.error('資料載入失敗');
   } finally {
     loading.value = false;
   }
 };
 
-// ===== 步驟2：核准舉報 =====
-/**
- * approveReport 方法
- * 功能說明：核准移除舉報圖片
- */
+const updateStatus = async (newStatus) => {
+  try {
+    loading.value = true;
+    const res = await phpApi.post('others/report_manage.php', {
+      report_id: reportData.value.REPORTED_IMAGE_ID,
+      report_type: reportData.value.INTERNAL_TYPE,
+      status: newStatus
+    });
+
+    if (res.data.success) {
+      ElMessage.success('狀態已更新');
+      await loadReportData(); 
+    } else {
+      ElMessage.error(res.data.message || '操作失敗');
+    }
+  } catch (error) {
+    ElMessage.error('連線異常');
+  } finally {
+    loading.value = false;
+  }
+};
+
 const approveReport = () => {
-  ElMessageBox.confirm(
-    '確定要同意刪除此圖片嗎？',
-    '確認',
-    {
-      confirmButtonText: '同意',
-      cancelButtonText: '取消',
-      type: 'warning'
-    }
-  ).then(async () => {
-    try {
-      loading.value = true;
-      // 模擬 API 請求
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      reportData.value.STATUS = 1;
-      reportData.value.HANDLER_ID = 10;
-      reportData.value.UPDATE_AT = new Date().toLocaleString('zh-TW');
-      ElMessage.success('舉報已審核通過');
-    } catch (error) {
-      ElMessage.error('操作失敗，請重試');
-      console.error('核准失敗:', error);
-    } finally {
-      loading.value = false;
-    }
-  }).catch(() => {
-    ElMessage.info('已取消');
-  });
+  ElMessageBox.confirm('確定要同意刪除此內容嗎？', '確認', {
+    confirmButtonText: '同意', cancelButtonText: '取消', type: 'warning'
+  }).then(() => updateStatus('resolved')).catch(() => {});
 };
 
-// ===== 步驟3：拒絕舉報 =====
-/**
- * rejectReport 方法
- * 功能說明：拒絕舉報
- */
 const rejectReport = () => {
-  ElMessageBox.confirm(
-    '確定要駁回此舉報嗎？',
-    '確認',
-    {
-      confirmButtonText: '駁回',
-      cancelButtonText: '取消',
-      type: 'warning'
-    }
-  ).then(async () => {
-    try {
-      loading.value = true;
-      // 模擬 API 請求
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      reportData.value.STATUS = 2;
-      reportData.value.HANDLER_ID = 10;
-      reportData.value.UPDATE_AT = new Date().toLocaleString('zh-TW');
-      ElMessage.success('舉報已審核不通過');
-    } catch (error) {
-      ElMessage.error('操作失敗，請重試');
-      console.error('拒絕失敗:', error);
-    } finally {
-      loading.value = false;
-    }
-  }).catch(() => {
-    ElMessage.info('已取消');
-  });
+  ElMessageBox.confirm('確定要駁回此舉報嗎？', '確認', {
+    confirmButtonText: '駁回', cancelButtonText: '取消', type: 'warning'
+  }).then(() => updateStatus('ignored')).catch(() => {});
 };
 
-// ===== 步驟4：修改審核 =====
-/**
- * resetReview 方法
- * 功能說明：重置審核狀態，允許重新審核
- */
 const resetReview = () => {
-  ElMessageBox.confirm(
-    '確定要修改審核嗎？',
-    '確認',
-    {
-      confirmButtonText: '修改',
-      cancelButtonText: '取消',
-      type: 'warning'
-    }
-  ).then(() => {
-    reportData.value.STATUS = 0;
-    reportData.value.HANDLER_ID = null;
-    reportData.value.UPDATE_AT = null;
-    ElMessage.success('已重置為待審核狀態');
-  }).catch(() => {
-    ElMessage.info('已取消');
-  });
+  ElMessageBox.confirm('確定要修改審核狀態嗎？', '確認', {
+    confirmButtonText: '修改', cancelButtonText: '取消', type: 'warning'
+  }).then(() => updateStatus('pending')).catch(() => {});
 };
 
-// ===== 步驟5：返回列表 =====
-/**
- * goBack 方法
- * 功能說明：返回舉報列表頁面
- */
-const goBack = () => {
-  router.push('/admin/reports');
-};
-
-onMounted(() => {
-  loadReportData();
-});
+const goBack = () => router.push('/admin/reports');
+onMounted(loadReportData);
 </script>
 
 <template>
   <div class="image-reports-wrapper">
-    <!-- ===== 頂部返回區 ===== -->
     <div class="report-header">
-      <h2 class="header-title">圖片檢舉管理</h2>
+      <h2 class="header-title">內容檢舉管理</h2>
       <div class="header-actions">
-        <el-button @click="goBack" class="back-btn">
-          返回
-        </el-button>
+        <el-button @click="goBack" class="back-btn"> 返回 </el-button>
       </div>
     </div>
 
-    <!-- ===== 主要內容區 ===== -->
     <div class="report-content">
-      <!-- ===== 左側：舉報詳情 ===== -->
       <div class="report-detail">
         <el-card class="detail-card" v-loading="loading">
           <template #header>
@@ -203,12 +160,11 @@ onMounted(() => {
             </div>
           </template>
 
-          <!-- 基本信息 -->
           <div class="info-section">
             <el-row :gutter="20">
               <el-col :xs="24" :sm="12">
                 <div class="info-item">
-                  <span class="info-label">被檢舉留言編號</span>
+                  <span class="info-label">{{ reportData.TARGET_LABEL }}</span>
                   <div class="info-value">{{ reportData.COMMENT_ID }}</div>
                 </div>
               </el-col>
@@ -223,17 +179,15 @@ onMounted(() => {
 
           <el-divider />
 
-          <!-- 檢舉類型 -->
           <div class="info-section">
             <div class="info-item">
               <span class="info-label">檢舉類型</span>
-              <div class="info-value">{{ reportTypeMap[reportData.REPORT_TYPE] ?? reportData.REPORT_TYPE }}</div>
+              <div class="info-value">{{ reportData.REPORT_TYPE }}</div>
             </div>
           </div>
 
           <el-divider />
 
-          <!-- 檢舉原因 -->
           <div class="info-section">
             <div class="info-item">
               <span class="info-label">檢舉原因</span>
@@ -243,19 +197,24 @@ onMounted(() => {
 
           <el-divider />
 
-          <!-- 圖片預覽 -->
           <div class="info-section">
             <div class="info-item">
-              <span class="info-label">舉報圖片</span>
+              <span class="info-label">舉報內容圖片</span>
               <div class="image-preview">
-                <img src="https://via.placeholder.com/400x300" alt="舉報圖片" />
+                <img
+                  :src="reportData.IMAGE_URL || 'https://via.placeholder.com/400x300?text=No+Image'"
+                  alt="舉報圖片"
+                  @error="(e) => (e.target.src = 'https://via.placeholder.com/400x300?text=Image+Not+Found')"
+                />
               </div>
+              <p v-if="reportData.INTERNAL_TYPE === 'comment'" style="font-size: 12px; color: #999; margin-top: 8px;">
+                * 此為留言檢舉，通常不包含實體圖片。
+              </p>
             </div>
           </div>
 
           <el-divider />
 
-          <!-- 舉報人 ID 與檢舉時間 -->
           <div class="info-section">
             <el-row :gutter="20">
               <el-col :xs="24" :sm="12">
@@ -275,23 +234,14 @@ onMounted(() => {
         </el-card>
       </div>
 
-      <!-- ===== 右側：審核面板 ===== -->
       <div class="review-panel">
         <el-card class="review-card" v-loading="loading">
           <template #header>
             <div class="card-header">
-              <h3>圖片審核</h3>
+              <h3>案件審核</h3>
             </div>
           </template>
 
-          <!-- 審核狀態 -->
-          <div class="status-section">
-            <div class="status-badge" :class="reportData.status">
-              {{ reportData.status }}
-            </div>
-          </div>
-
-          <!-- 審核狀態 -->
           <div class="status-section">
             <div class="status-badge" :class="getStatusClass(reportData.STATUS)">
               {{ getStatusText(reportData.STATUS) }}
@@ -300,25 +250,14 @@ onMounted(() => {
 
           <el-divider />
 
-          <!-- 審核按鈕（待審核狀態） -->
-          <div v-if="reportData.STATUS === 0" class="action-buttons">
-            <el-button
-              type="success"
-              size="large"
-              class="approve-btn"
-              @click="approveReport"
-            >
+          <div v-if="reportData.STATUS === 'pending'" class="action-buttons">
+            <el-button type="success" size="large" class="approve-btn" @click="approveReport">
               <div class="btn-content">
                 <el-icon><Check /></el-icon>
                 <span>同意刪除</span>
               </div>
             </el-button>
-            <el-button
-              type="danger"
-              size="large"
-              class="reject-btn"
-              @click="rejectReport"
-            >
+            <el-button type="danger" size="large" class="reject-btn" @click="rejectReport">
               <div class="btn-content">
                 <el-icon><Close /></el-icon>
                 <span>駁回舉報</span>
@@ -326,9 +265,7 @@ onMounted(() => {
             </el-button>
           </div>
 
-          <!-- 審核結果（已審核狀態） -->
           <div v-else class="review-result">
-            <el-divider />
             <div class="result-info">
               <div class="info-item">
                 <span class="info-label">審核人員</span>
@@ -340,13 +277,7 @@ onMounted(() => {
               </div>
             </div>
             <el-divider />
-            <el-button
-              type="warning"
-              size="large"
-              class="modify-btn"
-              @click="resetReview"
-              style="width: 100%"
-            >
+            <el-button type="warning" size="large" @click="resetReview" style="width: 100%">
               重新審核
             </el-button>
           </div>
@@ -355,6 +286,7 @@ onMounted(() => {
     </div>
   </div>
 </template>
+
 
 <style lang="scss" scoped>
 .image-reports-wrapper {
