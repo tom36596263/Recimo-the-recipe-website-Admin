@@ -70,39 +70,39 @@ const handleEdit = (data) => {
   });
 };
 
-const loadJsonData = async () => {
+const fetchData = async () => {
   try {
+    // 這裡使用您封裝好的 phpApi
     const response = await phpApi.get('recipes/admin_get_ingredients.php');
 
     if (response.data.status === 'success') {
       tableData.value = response.data.data.map((item) => {
-        const rawStatus = item.is_active ?? item.IS_ACTIVE; // 抓狀態
-        const rawId = item.ingredient_id ?? item.INGREDIENT_ID; // 抓 ID
-        const rawName = item.ingredient_name ?? item.INGREDIENT_NAME; // 抓名稱
-        const rawCategory = item.main_category ?? item.MAIN_CATEGORY; // 抓分類
-        const rawImage = item.ingredient_image_url ?? item.INGREDIENT_IMAGE_URL; // 抓圖片
+        const rawStatus = item.is_active ?? item.IS_ACTIVE;
+        const rawId = item.ingredient_id ?? item.INGREDIENT_ID;
+        const rawName = item.ingredient_name ?? item.INGREDIENT_NAME;
+        const rawCategory = item.main_category ?? item.MAIN_CATEGORY;
+        const rawImage = item.ingredient_image_url ?? item.INGREDIENT_IMAGE_URL;
 
         return {
           ...item,
-          // 確保 ID 是數字
           ingredient_id: Number(rawId),
           is_active: Number(rawStatus) === 1 ? 1 : 0,
-
-          // 補上其他欄位，防止列表文字消失
           ingredient_name: rawName,
           main_category: rawCategory,
           ingredient_image_url: rawImage
         };
       });
-
-      console.log('資料載入成功 (已修復顯示問題):', tableData.value);
-    } else {
-      console.error('API 回傳錯誤:', response.data.message);
+      console.log('數據已自動重新載入');
     }
   } catch (error) {
-    console.error('連線失敗:', error.message);
+    console.error('重新載入失敗:', error.message);
   }
 };
+
+// 記得同步修改 onMounted 裡的呼叫
+onMounted(() => {
+  fetchData();
+});
 
 // ===== 搜尋邏輯 =====
 const filteredData = computed(() => {
@@ -155,7 +155,7 @@ const displayData = computed(() => {
 });
 
 onMounted(() => {
-  loadJsonData();
+  fetchData();
 });
 
 const handleStatusChange = async (row) => {
@@ -307,7 +307,7 @@ const handleStatusChange = async (row) => {
       >
         <span class="p-p1" style="margin-right: 10px;">共 {{ tableData.length }} 筆資料</span>
       </el-pagination> -->
-    <IngredientModal ref="modalRef" />
+    <IngredientModal ref="modalRef" @refresh="fetchData" />
   </div>
 </template>
 

@@ -372,7 +372,7 @@ onMounted(() => {
       </div>
 
       <div class="nutrition-section">
-        <h3 class="section-title">營養資訊</h3>
+        <h3 class="section-title">營養資訊<span class="required">*</span></h3>
         <el-row :gutter="20" class="nutrition-container">
           <el-col :xs="24" :md="12">
             <el-table
