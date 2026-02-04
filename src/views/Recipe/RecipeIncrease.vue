@@ -2,7 +2,8 @@
 import { ref, provide, onMounted, computed, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useRecipeStore } from '@/stores/recipeEditor';
-import { publicApi } from '@/utils/publicApi';
+import { phpApi } from '@/utils/publicApi';
+import { parsePublicFile } from '@/utils/parseFile';
 
 import EditorHeader from '@/components/workspace/editrecipe/EditorHeader.vue';
 import IngredientEditor from '@/components/workspace/editrecipe/IngredientEditor.vue';
@@ -17,6 +18,7 @@ const baseUrl = import.meta.env.BASE_URL;
 
 const isEditing = ref(true);
 const isPublished = ref(false);
+const isLoading = ref(true);
 
 // --- 1. 食譜表單資料 ---
 const recipeForm = ref({
@@ -41,6 +43,113 @@ const isAdaptModeActive = computed(() => {
 });
 
 // --- 2. 核心邏輯 ---
+// const loadRecipeData = async () => {
+//   const rawId = route.query.editId || route.params.id;
+//   const editIdFromUrl = rawId ? Number(rawId) : null;
+//   const isAdapt = route.query.action === 'adapt';
+
+//   if (recipeStore.rawEditorData) {
+//     recipeForm.value = { ...recipeStore.rawEditorData };
+//     recipeStore.rawEditorData = null;
+//     return;
+//   }
+
+//   if (!editIdFromUrl) return;
+
+//   try {
+//     const [resR, resRecipeIng, resIngMaster, resS, resStepIng] = await Promise.all([
+//       publicApi.get('data/recipe/recipes.json'),
+//       publicApi.get('data/recipe/recipe_ingredient.json'),
+//       publicApi.get('data/recipe/ingredients.json'),
+//       publicApi.get('data/recipe/steps.json'),
+//       publicApi.get('data/recipe/step_ingredients.json')
+//     ]);
+
+//     const found = resR.data.find(r => Number(r.recipe_id) === editIdFromUrl);
+//     if (!found) return;
+
+//     if (isAdapt) {
+//       recipeForm.value.recipe_id = null;
+//       recipeForm.value.parent_recipe_id = editIdFromUrl;
+//       recipeForm.value.original_title = found.recipe_title;
+//       recipeForm.value.title = `${found.recipe_title} (改編版)`;
+//     } else {
+//       recipeForm.value.recipe_id = editIdFromUrl;
+//       recipeForm.value.title = found.recipe_title;
+//     }
+
+//     recipeForm.value.description = found.recipe_description || found.recipe_descreption || '';
+//     recipeForm.value.difficulty = found.recipe_difficulty || 1;
+
+//     // --- 修正：封面圖路徑拼接 ---
+//     const rawCover = found.recipe_image_url || found.recipe_cover_image || '';
+//     if (rawCover && !rawCover.startsWith('http') && !rawCover.startsWith('data:')) {
+//       const cleanPath = rawCover.replace(/^\//, '');
+//       // 使用正則確保路徑中沒有重複的斜線
+//       recipeForm.value.coverImg = `${baseUrl}${cleanPath}`.replace(/\/+/g, '/');
+//     } else {
+//       recipeForm.value.coverImg = rawCover || 'https://placehold.co/800x600?text=No+Image';
+//     }
+
+//     const totalTimeStr = String(found.recipe_total_time || '30');
+//     recipeForm.value.totalTime = totalTimeStr.includes(':')
+//       ? parseInt(totalTimeStr.split(':')[0], 10) * 60 + (parseInt(totalTimeStr.split(':')[1], 10) || 0)
+//       : parseInt(totalTimeStr, 10) || 30;
+
+//     const links = resRecipeIng.data.filter(i => Number(i.recipe_id) === editIdFromUrl);
+//     recipeForm.value.ingredients = links.map(link => {
+//       const master = resIngMaster.data.find(m => Number(m.ingredient_id) === Number(link.ingredient_id));
+//       return {
+//         id: link.ingredient_id,
+//         name: master?.ingredient_name || '',
+//         amount: link.amount,
+//         unit: link.unit_name || master?.unit_name || '份',
+//         note: link.remark || '',
+//         kcal_per_100g: master?.kcal_per_100g || 0
+//       };
+//     });
+
+//     const stepsData = resS.data
+//       .filter(s => Number(s.recipe_id) === editIdFromUrl)
+//       .sort((a, b) => (a.step_order || 0) - (b.step_order || 0));
+
+//     recipeForm.value.steps = stepsData.map((s, index) => {
+//       const rawImg = s.step_image_url || s.image || '';
+//       let finalStepImg = '';
+
+//       if (rawImg) {
+//         if (rawImg.startsWith('http') || rawImg.startsWith('data:')) {
+//           finalStepImg = rawImg;
+//         } else {
+//           // --- 修正：步驟圖片路徑拼接 ---
+//           const cleanPath = rawImg.replace(/^img\/recipes\/\d+\/steps\//, '').replace(/^\//, '');
+//           // 強制使用 / 作為分隔並清理重複斜線
+//           finalStepImg = `${baseUrl}img/recipes/${editIdFromUrl}/steps/${cleanPath}`.replace(/\/+/g, '/');
+//         }
+//       }
+
+//       const stepTimeStr = String(s.step_total_time || '0');
+//       const stepMinutes = stepTimeStr.includes(':')
+//         ? parseInt(stepTimeStr.split(':')[0], 10) * 60 + (parseInt(stepTimeStr.split(':')[1], 10) || 0)
+//         : parseInt(stepTimeStr, 10) || 0;
+
+//       return {
+//         id: isAdapt ? `adapt-step-${editIdFromUrl}-${index}` : (s.step_id || `s-${editIdFromUrl}-${index}`),
+//         origin_step_id: s.step_id || null,
+//         title: s.step_title || `步驟 ${index + 1}`,
+//         content: s.step_content || '',
+//         image: finalStepImg,
+//         time: stepMinutes,
+//         tags: resStepIng.data
+//           .filter(si => Number(si.step_id) === Number(s.step_id))
+//           .map(si => si.ingredient_id)
+//       };
+//     });
+//   } catch (err) {
+//     console.error('❌ 載入食譜失敗:', err);
+//   }
+// };
+
 const loadRecipeData = async () => {
   const rawId = route.query.editId || route.params.id;
   const editIdFromUrl = rawId ? Number(rawId) : null;
@@ -55,17 +164,19 @@ const loadRecipeData = async () => {
   if (!editIdFromUrl) return;
 
   try {
-    const [resR, resRecipeIng, resIngMaster, resS, resStepIng] = await Promise.all([
-      publicApi.get('data/recipe/recipes.json'),
-      publicApi.get('data/recipe/recipe_ingredient.json'),
-      publicApi.get('data/recipe/ingredients.json'),
-      publicApi.get('data/recipe/steps.json'),
-      publicApi.get('data/recipe/step_ingredients.json')
-    ]);
+    isLoading.value = true;
+    // 1. 串接 PHP API 取得完整細節
+    const response = await phpApi.get(`recipes/recipe_detail_get.php?recipe_id=${editIdFromUrl}`);
+    
+    if (!response.data.success) {
+      console.error('載入失敗:', response.data.message);
+      return;
+    }
 
-    const found = resR.data.find(r => Number(r.recipe_id) === editIdFromUrl);
-    if (!found) return;
+    const apiData = response.data.data;
+    const found = apiData.main;
 
+    // 2. 基礎欄位映射
     if (isAdapt) {
       recipeForm.value.recipe_id = null;
       recipeForm.value.parent_recipe_id = editIdFromUrl;
@@ -76,75 +187,50 @@ const loadRecipeData = async () => {
       recipeForm.value.title = found.recipe_title;
     }
 
-    recipeForm.value.description = found.recipe_description || found.recipe_descreption || '';
-    recipeForm.value.difficulty = found.recipe_difficulty || 1;
+    recipeForm.value.description = found.recipe_description || '';
+    recipeForm.value.difficulty = Number(found.recipe_difficulty) || 1;
 
-    // --- 修正：封面圖路徑拼接 ---
-    const rawCover = found.recipe_image_url || found.recipe_cover_image || '';
-    if (rawCover && !rawCover.startsWith('http') && !rawCover.startsWith('data:')) {
-      const cleanPath = rawCover.replace(/^\//, '');
-      // 使用正則確保路徑中沒有重複的斜線
-      recipeForm.value.coverImg = `${baseUrl}${cleanPath}`.replace(/\/+/g, '/');
+    // 3. 【關鍵】使用 parsePublicFile 處理封面圖
+    // 如果資料庫存的是 'img/recipes/1/cover.jpg'，它會自動補上 fileBase
+    recipeForm.value.coverImg = parsePublicFile(found.recipe_image_url);
+
+    // 4. 時間轉換 (將 HH:MM:SS 轉為純分鐘數給 Slider 使用)
+    const totalTimeStr = String(found.recipe_total_time || '00:30:00');
+    if (totalTimeStr.includes(':')) {
+      const parts = totalTimeStr.split(':'); // [HH, MM, SS]
+      recipeForm.value.totalTime = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
     } else {
-      recipeForm.value.coverImg = rawCover || 'https://placehold.co/800x600?text=No+Image';
+      recipeForm.value.totalTime = parseInt(totalTimeStr, 10) || 30;
     }
 
-    const totalTimeStr = String(found.recipe_total_time || '30');
-    recipeForm.value.totalTime = totalTimeStr.includes(':')
-      ? parseInt(totalTimeStr.split(':')[0], 10) * 60 + (parseInt(totalTimeStr.split(':')[1], 10) || 0)
-      : parseInt(totalTimeStr, 10) || 30;
+    // 5. 映射食材 (API 已完成 JOIN)
+    recipeForm.value.ingredients = apiData.ingredients.map(ing => ({
+      id: ing.recipe_ingredient_id,
+      name: ing.ingredient_name,
+      amount: ing.amount,
+      unit: ing.unit_name,
+      note: ing.remark || '',
+      kcal_per_100g: ing.kcal_per_100g || 0
+    }));
 
-    const links = resRecipeIng.data.filter(i => Number(i.recipe_id) === editIdFromUrl);
-    recipeForm.value.ingredients = links.map(link => {
-      const master = resIngMaster.data.find(m => Number(m.ingredient_id) === Number(link.ingredient_id));
+    // 6. 映射步驟與步驟圖
+    recipeForm.value.steps = apiData.steps.map((s, index) => {
       return {
-        id: link.ingredient_id,
-        name: master?.ingredient_name || '',
-        amount: link.amount,
-        unit: link.unit_name || master?.unit_name || '份',
-        note: link.remark || '',
-        kcal_per_100g: master?.kcal_per_100g || 0
-      };
-    });
-
-    const stepsData = resS.data
-      .filter(s => Number(s.recipe_id) === editIdFromUrl)
-      .sort((a, b) => (a.step_order || 0) - (b.step_order || 0));
-
-    recipeForm.value.steps = stepsData.map((s, index) => {
-      const rawImg = s.step_image_url || s.image || '';
-      let finalStepImg = '';
-
-      if (rawImg) {
-        if (rawImg.startsWith('http') || rawImg.startsWith('data:')) {
-          finalStepImg = rawImg;
-        } else {
-          // --- 修正：步驟圖片路徑拼接 ---
-          const cleanPath = rawImg.replace(/^img\/recipes\/\d+\/steps\//, '').replace(/^\//, '');
-          // 強制使用 / 作為分隔並清理重複斜線
-          finalStepImg = `${baseUrl}img/recipes/${editIdFromUrl}/steps/${cleanPath}`.replace(/\/+/g, '/');
-        }
-      }
-
-      const stepTimeStr = String(s.step_total_time || '0');
-      const stepMinutes = stepTimeStr.includes(':')
-        ? parseInt(stepTimeStr.split(':')[0], 10) * 60 + (parseInt(stepTimeStr.split(':')[1], 10) || 0)
-        : parseInt(stepTimeStr, 10) || 0;
-
-      return {
-        id: isAdapt ? `adapt-step-${editIdFromUrl}-${index}` : (s.step_id || `s-${editIdFromUrl}-${index}`),
+        id: isAdapt ? `adapt-step-${index}` : (s.step_id || `s-${index}`),
         origin_step_id: s.step_id || null,
         title: s.step_title || `步驟 ${index + 1}`,
         content: s.step_content || '',
-        image: finalStepImg,
-        time: stepMinutes,
-        tags: resStepIng.data
-          .filter(si => Number(si.step_id) === Number(s.step_id))
-          .map(si => si.ingredient_id)
+        // 【關鍵】同樣使用 parsePublicFile 處理步驟圖
+        image: parsePublicFile(s.step_image_url),
+        time: s.total_seconds ? Math.floor(s.total_seconds / 60) : 0,
+        tags: s.step_ingredients || [] // 這些是該步驟關聯的食材 ID 陣列
       };
     });
+
   } catch (err) {
-    console.error('❌ 載入食譜失敗:', err);
+    console.error('❌ API 讀取異常:', err);
+  } finally {
+    isLoading.value = false;
   }
 };
 
@@ -180,28 +266,92 @@ const handlePreview = () => {
   router.push({ path: `/admin/recipes/${currentId}`, query });
 };
 
-const handleSave = () => {
+const handleSave = async () => {
   if (!recipeForm.value.title) {
-    alert('請輸入食譜標題再發布喔！');
+    alert('請輸入食譜標題');
     return;
   }
-  if (isPublished.value) {
-    const localRevisions = JSON.parse(localStorage.getItem('user_revisions') || '[]');
-    localRevisions.unshift({
-      ...recipeForm.value,
-      id: Date.now(),
-      publishDate: new Date().toLocaleDateString(),
-      is_local: true,
-      is_adaptation: isAdaptModeActive.value
-    });
-    localStorage.setItem('user_revisions', JSON.stringify(localRevisions));
-    alert(`🎉「${recipeForm.value.title}」已公開發布！`);
-  } else {
-    alert('草稿儲存成功！');
+
+  // 小技巧：將圖片轉換為 Base64 (如果它是 File 物件)
+  const toBase64 = file => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = error => reject(error);
+  });
+  
+  try {
+    // 複製一份資料進行處理，避免影響 UI
+    const payload = JSON.parse(JSON.stringify(recipeForm.value));
+    payload.ingredients = payload.ingredients.map(ing => ({
+        id: ing.id, // 將編輯器的 id 轉回資料庫的 ingredient_id
+        amount: ing.amount,
+        unit: ing.unit,    // 確認這裡與資料庫欄位名一致
+        note: ing.note        // 確認這裡與資料庫欄位名一致
+    }));
+    // 處理主圖
+    if (recipeForm.value.coverImg instanceof File) {
+      payload.coverImg = await toBase64(recipeForm.value.coverImg);
+    }
+
+    // 處理步驟圖
+    for (let i = 0; i < payload.steps.length; i++) {
+      if (recipeForm.value.steps[i].image instanceof File) {
+        payload.steps[i].image = await toBase64(recipeForm.value.steps[i].image);
+      }
+    }
+
+    // 發送請求
+    console.log('正在發送資料...', payload);
+    const res = await phpApi.post('recipes/recipe_post.php', payload);
+
+    if (res.data.success) {
+      alert('儲存成功！');
+      router.push('/admin/recipes'); // 儲存後跳轉，列表頁會觸發 loadDataFromPhp 更新
+    } else {
+      alert('儲存失敗：' + res.data.message);
+    }
+  } catch (error) {
+    console.error('API 錯誤', error);
   }
-  recipeStore.rawEditorData = null;
-  router.push('/admin/recipes');
 };
+// const handleSave = async() => {
+//   console.log("儲存前的標題:", recipeForm.value.title);
+//   try {
+//         const formData = new FormData();
+        
+//         // 1. 基本字串欄位
+//         formData.append('recipe_id', recipeForm.value.recipe_id || '');
+//         formData.append('parent_recipe_id', recipeForm.value.parent_recipe_id || '');
+//         formData.append('title', recipeForm.value.title);
+//         formData.append('description', recipeForm.value.description);
+//         formData.append('difficulty', recipeForm.value.difficulty);
+//         formData.append('totalTime', recipeForm.value.totalTime);
+//         formData.append('servings', recipeForm.value.servings || 1);
+        
+
+//         // 2. 封面圖片 (如果是 File 物件才傳送)
+//         if (recipeForm.value.coverImg instanceof File) {
+//             formData.append('coverImg', recipeForm.value.coverImg);
+//         }
+
+//         // 3. 陣列資料 (必須轉成 JSON 字串)
+//         formData.append('ingredients', JSON.stringify(recipeForm.value.ingredients));
+//         formData.append('steps', JSON.stringify(recipeForm.value.steps));
+
+//         const res = await phpApi.post('recipes/recipe_post.php', formData);
+        
+//         if (res.data.status === 'success') {
+//             alert('食譜儲存成功！');
+//             router.push('/admin/recipes');
+//         } else {
+//             alert('儲存失敗：' + res.data.message);
+//         }
+//     } catch (err) {
+//         console.error(err);
+//         alert('發生系統錯誤');
+//     }
+// };
 
 provide('isEditing', isEditing);
 </script>
@@ -216,10 +366,10 @@ provide('isEditing', isEditing);
       <div class="recipe-main-content">
         <div class="row custom-row-fit">
           <aside class="ingredient-sidebar col-5 col-md-12">
-            <IngredientEditor :ingredients="recipeForm.ingredients" :is-editing="isEditing" />
+            <IngredientEditor v-model:ingredients="recipeForm.ingredients" :is-editing="isEditing" />
           </aside>
           <section class="step-content col-7 col-md-12">
-            <StepEditor :steps="recipeForm.steps" :ingredients="recipeForm.ingredients" :is-editing="isEditing" />
+            <StepEditor v-model:steps="recipeForm.steps" :ingredients="recipeForm.ingredients" :is-editing="isEditing" />
           </section>
         </div>
       </div>

@@ -6,7 +6,12 @@ const props = defineProps({
     ingredients: { type: Array, required: true },
     isEditing: { type: Boolean, default: false }
 });
-
+const emit = defineEmits(['update:ingredients']);
+const updateIngredient = (index, field, value) => {
+    const newIngredients = [...props.ingredients];
+    newIngredients[index][field] = value;
+    emit('update:ingredients', newIngredients);
+};
 const showSearchModal = ref(false);
 
 const openSearchModal = () => {
@@ -27,11 +32,13 @@ const validateAmount = (item) => {
 };
 
 const handleAddMultiple = (items) => {
+    const newIngredients = [...props.ingredients];
     items.forEach(item => {
-        const isDuplicate = props.ingredients.some(ing => ing.name === item.ingredient_name);
+        const isDuplicate = newIngredients.some(ing => ing.name === item.ingredient_name);
+        // const isDuplicate = props.ingredients.some(ing => ing.name === item.ingredient_name);
         if (!isDuplicate) {
-            props.ingredients.push({
-                id: 'id' + Date.now() + Math.floor(Math.random() * 1000),
+            newIngredients.push({
+                id: item.ingredient_id,
                 name: item.ingredient_name,
                 amount: '',
                 unit: item.unit_name || '',
@@ -44,13 +51,18 @@ const handleAddMultiple = (items) => {
                 carbs_per_100g: item.carbs_per_100g || 0
             });
         }
+        emit('update:ingredients', newIngredients);
     });
 };
-
 const removeItem = (id) => {
-    const index = props.ingredients.findIndex(i => i.id === id);
-    if (index !== -1) props.ingredients.splice(index, 1);
+    // 過濾掉被刪除的項目，並通知父組件更新
+    const newIngredients = props.ingredients.filter(i => i.id !== id);
+    emit('update:ingredients', newIngredients);
 };
+// const removeItem = (id) => {
+//     const index = props.ingredients.findIndex(i => i.id === id);
+//     if (index !== -1) props.ingredients.splice(index, 1);
+// };
 </script>
 
 <template>
@@ -60,12 +72,13 @@ const removeItem = (id) => {
         </div>
 
         <div class="ingredient-list">
-            <div v-for="ing in ingredients" :key="ing.id" class="ingredient-item" :class="{ 'is-view': !isEditing }">
+            <div v-for="(ing, index) in ingredients" :key="ing.id" class="ingredient-item" :class="{ 'is-view': !isEditing }">
                 <button v-if="isEditing" class="remove-btn" @click="removeItem(ing.id)">✕</button>
 
                 <div class="input-row main-row">
                     <input v-model="ing.name" type="text" class="custom-input name-field p-p1" placeholder="食材名稱"
-                        :readonly="!isEditing || ing.fromDB" />
+                        :readonly="!isEditing || ing.fromDB"
+                        @input="updateIngredient(index, 'name', $event.target.value)" />
                 </div>
 
                 <div class="input-row split-row">
@@ -73,7 +86,10 @@ const removeItem = (id) => {
                         <div class="amount-input-wrapper">
                             <input v-model="ing.amount" type="text" inputmode="decimal"
                                 class="custom-input amount-field p-p2" :class="{ 'error-shake': ing.isInvalid }"
-                                placeholder="分量" :readonly="!isEditing" @input="validateAmount(ing)" />
+                                placeholder="分量" :readonly="!isEditing" 
+                                @input="(e) => {
+                                    updateIngredient(index, 'amount', e.target.value);
+                                    validateAmount(ing);}" />
                             <span v-if="ing.isInvalid" class="number-hint">僅限數字</span>
                         </div>
 
@@ -87,7 +103,8 @@ const removeItem = (id) => {
 
                 <div class="input-row note-row">
                     <textarea v-model="ing.note" class="custom-input note-field p-p3" placeholder="新增備註 (限30字)..."
-                        :readonly="!isEditing" maxlength="30" rows="2"></textarea>
+                        :readonly="!isEditing" maxlength="30" rows="2"
+                        @input="updateIngredient(index, 'note', $event.target.value)"></textarea>
                 </div>
             </div>
         </div>

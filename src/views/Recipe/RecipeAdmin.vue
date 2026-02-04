@@ -1,13 +1,13 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import axios from 'axios';
-import { Edit ,Search,Delete} from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { Edit } from '@element-plus/icons-vue'
+import { useRoute, useRouter } from 'vue-router';
+import { phpApi } from '@/utils/publicApi.js';
+
 import MyPagination from '@/components/MyPagination.vue';
 import SearchBar from '@/components/SearchBar.vue';
 import DeleteButton from '@/components/DeleteButton.vue';
-import { useRoute, useRouter } from 'vue-router';
-//要引用json的檔案一定要import以下這行
-import { publicApi } from '@/utils/publicApi.js';
 
 const route = useRoute();
 const router = useRouter();
@@ -17,6 +17,19 @@ const currentPage = ref(1)
 const pageSize = ref(8)
 const search = ref('')
 
+
+const loadDataFromPhp = async () => {
+  
+  try {
+    const response = await phpApi.get('recipes/all_recipe_get.php', {
+      params: { mode: 'admin' } // 💡 告訴後端：我是管理員，我要看全部
+    });
+    console.log('後台載入成功', response.data);
+    tableData.value = response.data.data;
+  } catch (error) {
+    console.error('後台載入失敗', error);
+  }
+}
 // ===== 搜尋邏輯 =====
 const filteredData = computed(() => {
   if (!search.value) {
@@ -32,16 +45,6 @@ const filteredData = computed(() => {
     return title.includes(searchLower) || id.includes(searchLower);
   });
 });
-
-const loadJsonData = async () => {
-  try {
-    const response = await publicApi.get('data/recipe/recipes.json')
-    // 直接存入原始資料
-    tableData.value = response.data
-  } catch (error) {
-    console.error('抓取 JSON 失敗:', error.message)
-  }
-}
 
 // --- 排序邏輯 ---
 const handleSortChange = ({ prop, order }) => {
@@ -78,13 +81,35 @@ const displayData = computed(() => {
 })
 
 onMounted(() => {
-  loadJsonData()
+  loadDataFromPhp()
 })
 
-const handleStatusChange = (row) => {
-  //暫無改動資料狀態功能
-  console.log(row);
-  
+const handleStatusChange = async (row) => {
+  try {
+    // 💡 確保傳送的資料格式與 PHP 接收的一致
+    const response = await phpApi.post('recipes/update_status.php', {
+      recipe_id: row.recipe_id,
+      status: row.status
+    });
+
+    if (response.data.status === 'success') {
+      ElMessage({
+        message: `食譜 ID: ${row.recipe_id} 狀態已更新為 ${row.status === 0 ? '公開' : '下架'}`,
+        type: 'success',
+      });
+    } else {
+      throw new Error(response.data.message);
+    }
+  } catch (error) {
+    console.error('更新失敗:', error);
+    // 💡 發生錯誤時，將開關狀態彈回原本的樣子
+    row.status = row.status === 0 ? 2 : 0; 
+    
+    ElMessage({
+      message: '狀態更新失敗，請檢查網路連線或後端設定',
+      type: 'error',
+    });
+  }
 };
 
 // 跳轉到食譜編輯頁面
@@ -95,11 +120,6 @@ const goToDetail = (recipeId) => {
   });
 };
 
-// const handleCurrentChange = (val) => {
-//   console.log(val);
-  
-//   currentPage.value = val
-// }
 </script>
 
 <template>
@@ -159,8 +179,10 @@ const goToDetail = (recipeId) => {
           </template>
         </el-table-column>
         <el-table-column label="刪除" align="center" width="120">
-          <template #default>
-            <DeleteButton/>
+          <template #default="scope">
+            <DeleteButton 
+            :recipe-id="scope.row.recipe_id" 
+            @deleted="loadDataFromPhp"/>
           </template>
         </el-table-column>
       </el-table>

@@ -3,6 +3,8 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ArrowLeft, Delete } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+// 呼叫Api
+import { phpApi } from '@/utils/publicApi.js';
 
 const router = useRouter();
 
@@ -14,6 +16,7 @@ const productData = ref({
   product_category: '',
   product_description: '',
   product_price: 0,
+  product_net_weight: '',
   product_image: '',
   nutrition_info: [
     { name: '熱量', value: 0, unit: 'kcal' },
@@ -42,22 +45,39 @@ const loading = ref(false);
  * 功能說明：驗證表單必填項
  */
 const validateForm = () => {
-  if (!productData.value.product_name) {
-    ElMessage.warning('請輸入商品名稱');
+  const p = productData.value;
+
+  // 1. 基礎資訊驗證
+  if (!p.product_name) { ElMessage.warning('請輸入商品名稱'); return false; }
+  if (!p.product_category) { ElMessage.warning('請選擇商品分類'); return false; }
+  if (!p.product_price || p.product_price <= 0) { ElMessage.warning('請輸入商品價格'); return false; }
+  if (!p.product_net_weight) { ElMessage.warning('請輸入商品重量'); return false; }
+  if (!p.product_description) { ElMessage.warning('請輸入商品描述'); return false; }
+
+  // 2. 營養資訊驗證 (只要是 0 或空值都視為未填寫)
+  const allNutrition = [...p.nutrition_info, ...p.nutrition_info_right];
+  // 檢查是否有任何一項的值為 0、空字串、null 或 undefined
+  const hasEmptyNutrition = allNutrition.some(item =>
+    item.value === '' || item.value === null || item.value === undefined
+  );
+
+  if (hasEmptyNutrition) {
+    ElMessage.warning('請完整填寫所有營養資訊');
     return false;
   }
-  if (!productData.value.product_category) {
-    ElMessage.warning('請選擇商品分類');
+
+  // 3. 商品介紹驗證
+  if (!p.ingredient_content) { ElMessage.warning('請輸入食材內容'); return false; }
+  if (!p.ingredient_content_right) { ElMessage.warning('請輸入使用方法'); return false; }
+  if (!p.storage_period) { ElMessage.warning('請輸入保存期限'); return false; }
+  if (!p.product_tips) { ElMessage.warning('請輸入貼心提醒'); return false; }
+
+  // 4. 圖片驗證 (非常重要，防止資料庫 JSON 解析出錯)
+  if (p.recipe_images.length === 0) {
+    ElMessage.warning('請至少上傳一張商品圖片');
     return false;
   }
-  if (!productData.value.product_price) {
-    ElMessage.warning('請輸入商品價格');
-    return false;
-  }
-  if (!productData.value.product_description) {
-    ElMessage.warning('請輸入商品描述');
-    return false;
-  }
+
   return true;
 };
 
@@ -69,17 +89,32 @@ const validateForm = () => {
 const addProduct = async () => {
   if (!validateForm()) return;
 
+  // 複製一份資料以免影響 UI 雙向綁定
+  const payload = JSON.parse(JSON.stringify(productData.value))
+
+  payload.recipe_images = payload.recipe_images.map(img => ({
+    url: img.url
+  }))
+
+
   try {
     loading.value = true;
-    // 模擬 API 請求 - 實際應調用後端保存接口
-    await new Promise(resolve => setTimeout(resolve, 500));
+    const response = await phpApi.post('mall/add_product.php', payload);
 
-    ElMessage.success('商品新增成功！');
-    setTimeout(() => {
-      router.push('/admin/products');
-    }, 1000);
+    // Axios 會自動把後端回傳的 JSON 放在 .data 屬性中
+    if (response.data.status === 'success') {
+      ElMessage.success(response.data.message);
+      setTimeout(() => {
+        router.push('/admin/products');
+      }, 1000);
+    } else {
+      // 如果後端回傳 status 失敗
+      throw new Error(response.data.message || '新增失敗');
+    }
   } catch (error) {
-    ElMessage.error('新增失敗，請重試');
+    // 這裡要小心，如果是網路斷掉，response 可能不存在
+    const errMsg = error.response?.data?.message || error.message || '連線伺服器失敗';
+    ElMessage.success(response.data.message);
     console.error('新增商品失敗:', error);
   } finally {
     loading.value = false;
@@ -125,38 +160,26 @@ const deleteImage = (imageId) => {
  * 功能說明：處理圖片上傳 - 使用 FileReader 轉換為 base64
  */
 const handleImageUpload = (uploadFile) => {
-  // 獲取實際的 File 對象，兼容不同的參數格式
-  const fileObj = uploadFile?.raw || uploadFile?.file?.raw || uploadFile;
+  const file = uploadFile.raw
 
-  if (!fileObj || typeof fileObj.slice !== 'function') {
-    ElMessage.error('文件獲取失敗');
-    return false;
+  if (!(file instanceof File)) {
+    ElMessage.error('圖片格式異常')
+    return false
   }
 
-  // 使用 FileReader 讀取文件並轉換為 base64
-  const reader = new FileReader();
-
-  reader.onload = (e) => {
-    const newId = Math.max(...productData.value.recipe_images.map(img => img.id), 0) + 1;
+  const reader = new FileReader()
+  reader.onload = () => {
     productData.value.recipe_images.push({
-      id: newId,
-      url: e.target.result, // base64 編碼的圖片
-      alt: fileObj.name.replace(/\.[^/.]+$/, '') // 移除副檔名作為 alt 文本
-    });
-    ElMessage.success('圖片上傳成功');
-  };
+      id: Date.now(),
+      url: reader.result, // 一定是 data:image/...base64
+      alt: file.name
+    })
+  }
 
-  reader.onerror = () => {
-    ElMessage.error('圖片讀取失敗，請重試');
-    console.error('圖片讀取失敗');
-  };
+  reader.readAsDataURL(file)
+  return false
+}
 
-  // 讀取文件為 Data URL (base64)
-  reader.readAsDataURL(fileObj);
-
-  // 返回 false 阻止默認上傳行為
-  return false;
-};
 
 /**
  * beforeImageUpload 方法
@@ -217,10 +240,10 @@ onMounted(() => {
           <div class="info-item">
             <span class="info-label">商品分類 <span class="required">*</span></span>
             <el-select v-model="productData.product_category" class="w-full" placeholder="選擇分類">
-              <el-option label="低卡健身系列" value="fitness" />
-              <el-option label="日韓風味系列" value="asian" />
-              <el-option label="歐美西式系列" value="western" />
-              <el-option label="台式家常系列" value="taiwanese" />
+              <el-option label="低卡健身系列" value="低卡健身系列" />
+              <el-option label="日韓風味系列" value="日韓風味系列" />
+              <el-option label="歐美西式系列" value="歐美西式系列" />
+              <el-option label="台式家常系列" value="台式家常系列" />
             </el-select>
           </div>
         </el-col>
@@ -244,10 +267,22 @@ onMounted(() => {
         <el-input v-model="productData.product_description" type="textarea" :rows="5" placeholder="請輸入商品詳細描述"
           class="textarea-field" />
       </div>
+      <div class="weight-section" style="margin-top: 20px;">
+        <h3 class="section-title">商品重量 <span class="required">*</span></h3>
+        <el-row>
+          <el-col :xs="24" :sm="12" :md="8">
+            <el-input v-model="productData.product_net_weight" placeholder="請輸入商品重量" type="number">
+              <template #suffix>
+                <span class="unit-text">g</span>
+              </template>
+            </el-input>
+          </el-col>
+        </el-row>
+      </div>
 
       <!-- ===== 營養資訊區 ===== -->
       <div class="nutrition-section">
-        <h3 class="section-title">營養資訊</h3>
+        <h3 class="section-title">營養資訊<span class="required">*</span></h3>
         <el-row :gutter="20" class="nutrition-container">
           <!-- 左側營養資訊 -->
           <el-col :xs="24" :md="12">
@@ -294,7 +329,7 @@ onMounted(() => {
 
       <!-- ===== 食材內容區 ===== -->
       <div class="ingredient-section">
-        <h3 class="section-title">商品介紹</h3>
+        <h3 class="section-title">商品介紹<span class="required">*</span></h3>
         <el-row :gutter="20">
           <el-col :xs="24" :md="12">
             <h4 class="subsection-title">食材內容</h4>
@@ -325,7 +360,7 @@ onMounted(() => {
 
       <!-- ===== 菜譜圖片展示區 ===== -->
       <div class="recipe-image-section">
-        <h3 class="section-title">商品圖片</h3>
+        <h3 class="section-title">商品圖片<span class="required">*</span></h3>
         <div class="recipe-images">
           <div v-for="image in productData.recipe_images" :key="image.id" class="recipe-image-item">
             <img :src="image.url" :alt="image.alt" class="recipe-img" />

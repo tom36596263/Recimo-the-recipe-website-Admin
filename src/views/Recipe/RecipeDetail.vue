@@ -35,7 +35,13 @@ const isLiked = ref(false);
 const localLikesOffset = ref(0);
 
 const isPreviewMode = computed(() => route.query.mode === 'preview');
-
+const props = defineProps({
+  // 加入 id 的定義
+  id: {
+    type: [String, Number],
+    default: null
+  }
+});
 // --- 2. 功能函式 ---
 const toggleRecipeLike = () => {
     if (isPreviewMode.value) return;
