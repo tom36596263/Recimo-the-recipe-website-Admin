@@ -26,7 +26,7 @@ const validateAmount = (item) => {
     let val = item.amount.replace(/[^\d.]/g, "");
     const dotCount = (val.match(/\./g) || []).length;
     if (dotCount > 1) {
-        val = val.slice(0, val.lastIndexOf("."));
+        val = val.slice(0, val.lastIndexOf(".")); 
     }
     item.amount = val;
 };
