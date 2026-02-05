@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { publicApi } from '@/utils/publicApi';
+// ✨ 改用 phpApi，這樣 baseURL 才會正確指向 localhost:8888
+import { phpApi } from '@/utils/publicApi'; 
 
 const props = defineProps({
     modelValue: Boolean,
@@ -14,36 +15,54 @@ const emit = defineEmits(['update:modelValue', 'add-multiple']);
 
 // --- 數量限制設定 ---
 const MAX_TAGS = 3;
-
 const searchQuery = ref('');
 const currentCategory = ref('全部');
 const rawTags = ref([]);
 const tempSelected = ref([]);
 
-// 抓取資料 (省略重複部分...)
+// --- 修改後的資料抓取邏輯 ---
 const fetchTags = async () => {
     try {
-        const res = await publicApi.get('data/recipe/tags.json');
-        rawTags.value = res.data || [];
+        // ✨ 改用 phpApi 抓取 PHP API
+        const res = await phpApi.get('recipes/recipe_tags_get.php');
+
+        console.log("後台燈箱 PHP 回應原始資料:", res.data);
+
+        // ✨ 關鍵修正：對應 PHP 的結構 { success: true, data: [...] }
+        if (res.data && res.data.success) {
+            rawTags.value = res.data.data || [];
+            console.log("後台標籤清單載入成功，共：", rawTags.value.length, "筆");
+        } else {
+            console.error("PHP 回傳 success 為 false:", res.data?.message);
+        }
     } catch (error) {
-        console.error("標籤資料讀取失敗:", error);
+        console.error("後台抓取標籤失敗，請檢查 MAMP (8888) 或 PHP 檔案路徑:", error);
     }
 };
 
-onMounted(() => { fetchTags(); });
+onMounted(() => {
+    fetchTags();
+});
 
-// 自動提取分類 (省略重複部分...)
+// --- 自動提取分類 ---
 const categories = computed(() => {
+    if (!rawTags.value || rawTags.value.length === 0) return ['全部'];
     const types = rawTags.value.map(item => item.tag_type);
     return ['全部', ...new Set(types)];
 });
 
-// 搜尋與過濾 (省略重複部分...)
+// --- 搜尋與過濾 ---
 const displayTags = computed(() => {
-    let list = rawTags.value;
+    let list = rawTags.value || [];
+    
+    // 如果有搜尋文字，優先搜尋標籤名稱
     if (searchQuery.value) {
-        return list.filter(item => item.tag_name.toLowerCase().includes(searchQuery.value.toLowerCase()));
+        return list.filter(item => 
+            item.tag_name && item.tag_name.toLowerCase().includes(searchQuery.value.toLowerCase())
+        );
     }
+    
+    // 分類過濾
     if (currentCategory.value !== '全部') {
         list = list.filter(item => item.tag_type === currentCategory.value);
     }
@@ -51,19 +70,19 @@ const displayTags = computed(() => {
 });
 
 // --- 核心邏輯：數量判斷 ---
-// 計算「已在頁面上的」+「在燈箱剛選的」總數
 const totalCount = computed(() => props.selectedList.length + tempSelected.value.length);
 
 const isInParent = (id) => props.selectedList.some(s => Number(s.tag_id) === Number(id));
 const isInTemp = (id) => tempSelected.value.some(s => Number(s.tag_id) === Number(id));
 
 const handleToggleSelect = (item) => {
+    // 如果已經存在於主頁面清單中，不能再點
     if (isInParent(item.tag_id)) return;
 
     const index = tempSelected.value.findIndex(s => Number(s.tag_id) === Number(item.tag_id));
 
     if (index > -1) {
-        // 如果已經在暫選清單，就移除 (取消選取不受限)
+        // 取消選取
         tempSelected.value.splice(index, 1);
     } else {
         // ✨ 新增標籤前，先檢查是否滿額
@@ -87,6 +106,7 @@ const handleConfirm = () => {
         handleClose();
         return;
     }
+    // 把選好的標籤陣列傳回給父組件
     emit('add-multiple', [...tempSelected.value]);
     handleClose();
 };
