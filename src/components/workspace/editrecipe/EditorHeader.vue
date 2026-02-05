@@ -248,60 +248,57 @@ const handleTagsSelected = (newSelectedTags) => {
           <span v-else class="value">{{ modelValue.servings || 0 }} 人份</span>
         </div>
       </div>
-
-      <div
-        class="row-description"
-        :class="{ 'editing-border': isEditing, 'is-adapt': isAdaptMode }"
-      >
-        <textarea
-          v-if="isEditing"
-          :value="modelValue.description"
-          @input="updateField('description', $event.target.value)"
-          class="desc-textarea p-p2"
-          placeholder="請輸入說明..."
-          maxlength="200"
-        ></textarea>
-        <p v-else class="desc-display p-p2">
-          {{ modelValue.description || '暫無簡介' }}
-        </p>
-      </div>
-
       <div class="row-tags">
-        <div class="tags-wrapper">
-          <div
-            class="tag-item"
-            v-for="tag in modelValue.tags"
-            :key="tag.tag_id"
-          >
-            <span class="tag-text p-p3"># {{ tag.tag_name }}</span>
+          <div class="tags-wrapper">
+            <div
+              class="tag-item"
+              v-for="tag in modelValue.tags"
+              :key="tag.tag_id"
+            >
+              <span class="tag-text p-p3"># {{ tag.tag_name }}</span>
+              <button
+                v-if="isEditing"
+                class="tag-delete-btn"
+                @click="removeTag(tag.tag_id)"
+              >
+                <span>×</span>
+              </button>
+            </div>
             <button
               v-if="isEditing"
-              class="tag-delete-btn"
-              @click="removeTag(tag.tag_id)"
+              class="add-tag-btn p-p3"
+              @click="isTagModalOpen = true"
             >
-              <span>×</span>
+              <i class="bi bi-plus-lg"></i>
+              <span>新增標籤</span>
             </button>
+            <span
+              v-if="
+                !isEditing && (!modelValue.tags || modelValue.tags.length === 0)
+              "
+              class="no-tag-hint p-p3"
+            >
+              尚未設定標籤
+            </span>
           </div>
-          <button
-            v-if="isEditing"
-            class="add-tag-btn p-p3"
-            @click="isTagModalOpen = true"
-          >
-            <i class="bi bi-plus-lg"></i>
-            <span>新增標籤</span>
-          </button>
-          <span
-            v-if="
-              !isEditing && (!modelValue.tags || modelValue.tags.length === 0)
-            "
-            class="no-tag-hint p-p3"
-          >
-            尚未設定標籤
-          </span>
         </div>
+        <div
+          class="row-description"
+          :class="{ 'editing-border': isEditing, 'is-adapt': isAdaptMode }"
+        >
+          <textarea
+            v-if="isEditing"
+            :value="modelValue.description"
+            @input="updateField('description', $event.target.value)"
+            class="desc-textarea p-p2"
+            placeholder="請輸入說明..."
+            maxlength="200"
+          ></textarea>
+          <p v-else class="desc-display p-p2">
+            {{ modelValue.description || '暫無簡介' }}
+          </p>
       </div>
     </div>
-
     <TagModal
       v-model="isTagModalOpen"
       :selected-list="modelValue.tags || []"
@@ -313,6 +310,8 @@ const handleTagsSelected = (newSelectedTags) => {
 <style lang="scss" scoped>
 @import '@/assets/scss/abstracts/_color.scss';
 .row-tags {
+  padding: 0 16px;
+  margin: 4px 0 8px 0;
   .tags-wrapper {
     display: flex;
     flex-wrap: wrap;
