@@ -24,8 +24,8 @@ const handleDelete = () => {
     }
   ).then(async () => {
     try {
-      const res = await phpApi.post('recipes/recipe_delete.php', {
-        recipe_id: props.recipeId
+      const res = await phpApi.delete('recipes/recipe_delete.php', {
+        data: { recipe_id: props.recipeId } // 必須明確寫出 data 屬性
       });
       if (res.data.status === 'success') {
         ElMessage.success('刪除成功');

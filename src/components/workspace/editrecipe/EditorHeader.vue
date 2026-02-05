@@ -2,6 +2,8 @@
 import { computed, watch } from 'vue';
 import AdaptRecipeCard from '@/components/workspace/modifyrecipe/AdaptRecipeCard.vue';
 import { useRouter, useRoute } from 'vue-router';
+import TagModal from '@/components/workspace/editrecipe/modals/TagModal.vue';
+import { ref } from 'vue'; // 確保有匯入 ref
 
 const router = useRouter();
 const route = useRoute();
@@ -16,11 +18,12 @@ const emit = defineEmits(['update:modelValue', 'open-tag-modal']);
 
 // 跳轉邏輯
 const goToOriginal = () => {
-  const targetId = props.modelValue.parent_recipe_id || props.modelValue.recipe_id;
+  const targetId =
+    props.modelValue.parent_recipe_id || props.modelValue.recipe_id;
   if (targetId) {
     router.push(`/workspace/recipe-detail/${targetId}`);
   } else {
-    alert("找不到原始食譜編號");
+    alert('找不到原始食譜編號');
   }
 };
 
@@ -35,7 +38,10 @@ const setDifficulty = (val) => {
 // 自動計算步驟總時間
 const autoTotalTime = computed(() => {
   if (!props.modelValue.steps) return 0;
-  return props.modelValue.steps.reduce((sum, step) => sum + (Number(step.time) || 0), 0);
+  return props.modelValue.steps.reduce(
+    (sum, step) => sum + (Number(step.time) || 0),
+    0
+  );
 });
 
 const displayTime = computed(() => {
@@ -50,14 +56,15 @@ const adaptRecipeData = computed(() => {
     title: props.modelValue.adapt_title || '',
     description: props.modelValue.adapt_description || '',
     recipe_id: props.modelValue.parent_recipe_id || props.modelValue.recipe_id,
-    coverImg: props.modelValue.coverImg,
+    coverImg: props.modelValue.coverImg
   };
 });
 
 watch(
   () => props.modelValue.steps,
   (newSteps) => {
-    const newSum = newSteps?.reduce((sum, s) => sum + (Number(s.time) || 0), 0) || 0;
+    const newSum =
+      newSteps?.reduce((sum, s) => sum + (Number(s.time) || 0), 0) || 0;
     if (!props.modelValue.totalTime || props.modelValue.totalTime == 0) {
       updateField('totalTime', newSum);
     }
@@ -73,26 +80,67 @@ const handleCoverUpload = (e) => {
   reader.onload = (evt) => updateField('coverImg', evt.target.result);
   reader.readAsDataURL(file);
 };
+
+// 2. 控制燈箱顯示的狀態
+const isTagModalOpen = ref(false);
+
+// 3. 實作標籤操作邏輯
+const removeTag = (tagId) => {
+  const newTags = props.modelValue.tags.filter((t) => t.tag_id !== tagId);
+  updateField('tags', newTags);
+};
+
+const handleTagsSelected = (newSelectedTags) => {
+  // 取得原本已有的標籤
+  const currentTags = props.modelValue.tags || [];
+  // 合併舊標籤與新選的標籤
+  const updatedTags = [...currentTags, ...newSelectedTags];
+
+  updateField('tags', updatedTags);
+  isTagModalOpen.value = false; // 關閉燈箱
+};
 </script>
 
 <template>
   <section class="recipe-card-container">
-    <input ref="fileInput" type="file" class="hidden-input" accept="image/*" @change="handleCoverUpload" />
+    <input
+      ref="fileInput"
+      type="file"
+      class="hidden-input"
+      accept="image/*"
+      @change="handleCoverUpload"
+    />
 
     <template v-if="isAdaptMode">
       <div class="adapt-card-section">
-        <div class="adapt-card-wrapper" @click="isEditing && $refs.fileInput.click()"
-          :style="{ cursor: isEditing ? 'pointer' : 'default' }">
+        <div
+          class="adapt-card-wrapper"
+          @click="isEditing && $refs.fileInput.click()"
+          :style="{ cursor: isEditing ? 'pointer' : 'default' }"
+        >
           <AdaptRecipeCard :recipe="adaptRecipeData" />
         </div>
-        <BaseBtn title="查看原始食譜詳情" variant="outline" :width="320" @click="goToOriginal" class="back-original-btn" />
+        <BaseBtn
+          title="查看原始食譜詳情"
+          variant="outline"
+          :width="320"
+          @click="goToOriginal"
+          class="back-original-btn"
+        />
       </div>
     </template>
 
     <template v-else>
-      <div class="cover-section" :class="{ 'has-image': modelValue.coverImg }"
-        :style="{ backgroundImage: modelValue.coverImg ? `url(${modelValue.coverImg})` : '' }"
-        @click="isEditing && $refs.fileInput.click()">
+      <div
+        class="cover-section"
+        :class="{ 'has-image': modelValue.coverImg }"
+        :style="{
+          backgroundImage: modelValue.coverImg
+            ? `url(${modelValue.coverImg})`
+            : ''
+        }"
+        @click="isEditing && $refs.fileInput.click()"
+      >
         <div v-if="!modelValue.coverImg" class="upload-placeholder">
           <div class="placeholder-content">
             <span class="plus-icon">+</span>
@@ -109,25 +157,47 @@ const handleCoverUpload = (e) => {
       <div class="row-title">
         <template v-if="isAdaptMode">
           <div class="title-with-tag">
-            <h2 class="title-display zh-h2-bold">{{ modelValue.original_title || modelValue.title || '未命名食譜' }}</h2>
+            <h2 class="title-display zh-h2-bold">
+              {{
+                modelValue.original_title || modelValue.title || '未命名食譜'
+              }}
+            </h2>
             <span class="adapt-tag p-p3">改編自此食譜</span>
           </div>
         </template>
         <template v-else>
-          <input v-if="isEditing" :value="modelValue.title" @input="updateField('title', $event.target.value)"
-            class="title-input zh-h3" placeholder="請輸入標題..." maxlength="30" />
-          <h2 v-else class="title-display zh-h2-bold">{{ modelValue.title || '未命名食譜' }}</h2>
+          <input
+            v-if="isEditing"
+            :value="modelValue.title"
+            @input="updateField('title', $event.target.value)"
+            class="title-input zh-h3"
+            placeholder="請輸入標題..."
+            maxlength="30"
+          />
+          <h2 v-else class="title-display zh-h2-bold">
+            {{ modelValue.title || '未命名食譜' }}
+          </h2>
         </template>
       </div>
 
       <div v-if="isAdaptMode && isEditing" class="row-adapt-inputs">
         <div class="input-container full-width">
-          <input :value="modelValue.adapt_title" @input="updateField('adapt_title', $event.target.value)"
-            class="form-input p-p1" :class="{ 'is-success': modelValue.adapt_title }" placeholder="請輸入改編版本標題 (例：低脂版)" />
+          <input
+            :value="modelValue.adapt_title"
+            @input="updateField('adapt_title', $event.target.value)"
+            class="form-input p-p1"
+            :class="{ 'is-success': modelValue.adapt_title }"
+            placeholder="請輸入改編版本標題 (例：低脂版)"
+          />
         </div>
         <div class="input-container full-width">
-          <input :value="modelValue.adapt_description" @input="updateField('adapt_description', $event.target.value)"
-            class="form-input p-p1" :class="{ 'is-success': modelValue.adapt_description }" placeholder="說明改編了什麼？" />
+          <input
+            :value="modelValue.adapt_description"
+            @input="updateField('adapt_description', $event.target.value)"
+            class="form-input p-p1"
+            :class="{ 'is-success': modelValue.adapt_description }"
+            placeholder="說明改編了什麼？"
+          />
         </div>
       </div>
 
@@ -135,8 +205,13 @@ const handleCoverUpload = (e) => {
         <div class="meta-item">
           <span class="label">製作時間：</span>
           <template v-if="isEditing">
-            <input type="number" class="inline-input" :value="modelValue.totalTime"
-              @input="updateField('totalTime', $event.target.value)" :placeholder="autoTotalTime" />
+            <input
+              type="number"
+              class="inline-input"
+              :value="modelValue.totalTime"
+              @input="updateField('totalTime', $event.target.value)"
+              :placeholder="autoTotalTime"
+            />
             <span class="unit">分鐘</span>
           </template>
           <span v-else class="value">{{ displayTime }} 分鐘</span>
@@ -145,45 +220,99 @@ const handleCoverUpload = (e) => {
         <div class="meta-item">
           <span class="label">難易度：</span>
           <div class="stars-group" :class="{ 'is-editing': isEditing }">
-            <span v-for="n in 5" :key="n" class="star" :class="{ active: n <= modelValue.difficulty }"
-              @click="setDifficulty(n)">
-              {{ n <= modelValue.difficulty ? '★' : '☆' }} </span>
+            <span
+              v-for="n in 5"
+              :key="n"
+              class="star"
+              :class="{ active: n <= modelValue.difficulty }"
+              @click="setDifficulty(n)"
+            >
+              {{ n <= modelValue.difficulty ? '★' : '☆' }}
+            </span>
           </div>
+        </div>
+        <div class="meta-item">
+          <span class="label">份量：</span>
+          <template v-if="isEditing">
+            <input
+              type="number"
+              class="inline-input servings-input"
+              :value="modelValue.servings"
+              @input="updateField('servings', Number($event.target.value))"
+              placeholder="2"
+              min="1"
+              max="20"
+            />
+            <span class="unit">人份</span>
+          </template>
+          <span v-else class="value">{{ modelValue.servings || 0 }} 人份</span>
         </div>
       </div>
 
-      <div class="row-description" :class="{ 'editing-border': isEditing, 'is-adapt': isAdaptMode }">
-        <textarea v-if="isEditing" :value="modelValue.description"
-          @input="updateField('description', $event.target.value)" class="desc-textarea p-p2" placeholder="請輸入說明..."
-          maxlength="200"></textarea>
-        <p v-else class="desc-display p-p2">{{ modelValue.description || '暫無簡介' }}</p>
+      <div
+        class="row-description"
+        :class="{ 'editing-border': isEditing, 'is-adapt': isAdaptMode }"
+      >
+        <textarea
+          v-if="isEditing"
+          :value="modelValue.description"
+          @input="updateField('description', $event.target.value)"
+          class="desc-textarea p-p2"
+          placeholder="請輸入說明..."
+          maxlength="200"
+        ></textarea>
+        <p v-else class="desc-display p-p2">
+          {{ modelValue.description || '暫無簡介' }}
+        </p>
       </div>
-      
+
       <div class="row-tags">
         <div class="tags-wrapper">
-          <div class="tag-item" v-for="tag in modelValue.tags" :key="tag.tag_id">
+          <div
+            class="tag-item"
+            v-for="tag in modelValue.tags"
+            :key="tag.tag_id"
+          >
             <span class="tag-text p-p3"># {{ tag.tag_name }}</span>
-            <button v-if="isEditing" class="tag-delete-btn" @click="removeTag(tag.tag_id)">
+            <button
+              v-if="isEditing"
+              class="tag-delete-btn"
+              @click="removeTag(tag.tag_id)"
+            >
               <span>×</span>
             </button>
           </div>
-          <button v-if="isEditing" class="add-tag-btn p-p3" @click="$emit('open-tag-modal')">
+          <button
+            v-if="isEditing"
+            class="add-tag-btn p-p3"
+            @click="isTagModalOpen = true"
+          >
             <i class="bi bi-plus-lg"></i>
             <span>新增標籤</span>
           </button>
-          <span v-if="!isEditing && (!modelValue.tags || modelValue.tags.length === 0)" class="no-tag-hint p-p3">
+          <span
+            v-if="
+              !isEditing && (!modelValue.tags || modelValue.tags.length === 0)
+            "
+            class="no-tag-hint p-p3"
+          >
             尚未設定標籤
           </span>
         </div>
       </div>
     </div>
+
+    <TagModal
+      v-model="isTagModalOpen"
+      :selected-list="modelValue.tags || []"
+      @add-multiple="handleTagsSelected"
+    />
   </section>
 </template>
 
 <style lang="scss" scoped>
 @import '@/assets/scss/abstracts/_color.scss';
 .row-tags {
-
   .tags-wrapper {
     display: flex;
     flex-wrap: wrap;
@@ -217,7 +346,9 @@ const handleCoverUpload = (e) => {
       font-size: 18px;
       font-weight: 200;
       line-height: 1;
-      transition: color 0.2s, transform 0.2s;
+      transition:
+        color 0.2s,
+        transform 0.2s;
 
       &:hover {
         color: red;
@@ -231,25 +362,25 @@ const handleCoverUpload = (e) => {
   }
 }
 .add-tag-btn {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    background: transparent;
-    color: $primary-color-700;
-    border: 1px dashed $primary-color-400;
-    padding: 4px 12px;
-    border-radius: 100px;
-    cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  color: $primary-color-700;
+  border: 1px dashed $primary-color-400;
+  padding: 4px 12px;
+  border-radius: 100px;
+  cursor: pointer;
 
-    &:hover {
-      background: $primary-color-100;
-    }
+  &:hover {
+    background: $primary-color-100;
   }
+}
 
-  .no-tag-hint {
-    color: $neutral-color-400;
-    font-style: italic;
-  }
+.no-tag-hint {
+  color: $neutral-color-400;
+  font-style: italic;
+}
 
 .adapt-card-section {
   display: flex;
@@ -512,5 +643,42 @@ const handleCoverUpload = (e) => {
     outline: none;
     background: transparent;
   }
+}
+
+.row-meta {
+  display: flex;
+  flex-wrap: wrap; // 讓欄位多時能自動換行
+  gap: 24px;
+  align-items: center;
+  color: $neutral-color-800;
+  padding: 0 16px;
+  margin-top: 4px;
+
+  .meta-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .inline-input {
+    border: none;
+    border-bottom: 1px solid $neutral-color-400;
+    width: 50px; // 時間預設寬度
+    text-align: center;
+    outline: none;
+    background: transparent;
+
+    // ✨ 份量專用寬度微調
+    &.servings-input {
+      width: 40px;
+    }
+  }
+  
+  .value {
+    color: $primary-color-800;
+    font-weight: 500;
+  }
+
+  // ...星星相關樣式保持不變...
 }
 </style>
