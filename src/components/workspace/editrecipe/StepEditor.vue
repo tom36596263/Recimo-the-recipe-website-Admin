@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import draggable from 'vuedraggable';
+import { parsePublicFile } from '@/utils/parseFile';
 
 const props = defineProps(['steps', 'ingredients', 'isEditing']);
 const emit = defineEmits(['update:steps']);
@@ -43,13 +44,24 @@ const getStepImage = (step) => {
     return URL.createObjectURL(step.image);
   }
   
-  // 如果是 Base64 或 URL 字串
+  // // 如果是 Base64 或 URL 字串
+  // const imgSource = step.image;
+  // if (typeof imgSource === 'string' && imgSource.trim().length > 0) {
+  //   if (imgSource.startsWith('data:') || imgSource.startsWith('http')) return imgSource;
+  //   return imgSource.startsWith('/') ? imgSource : `/${imgSource}`;
+  // }
+  // return null;
+  // 2. 如果是字串 (資料庫來的路徑)
   const imgSource = step.image;
   if (typeof imgSource === 'string' && imgSource.trim().length > 0) {
-    if (imgSource.startsWith('data:') || imgSource.startsWith('http')) return imgSource;
-    return imgSource.startsWith('/') ? imgSource : `/${imgSource}`;
+    // 如果已經是完整 URL (http) 或 Base64 (data:)，直接回傳
+    if (imgSource.startsWith('data:') || imgSource.startsWith('http')) {
+      return imgSource;
+    }
+    
+    // ✅ 核心修改：使用 parsePublicFile 處理相對路徑 (如 img/recipes/...)
+    return parsePublicFile(imgSource);
   }
-  return null;
 };
 
 const handleImgError = (e) => {
@@ -121,22 +133,50 @@ const removeStep = (id) => {
   
 //   updateStepField(index, 'tags', newTags);
 // };
+// const toggleTag = (step, ingId) => {
+//   if (!step) return;
+//   // 找到當前步驟在原始陣列中的索引
+//   const index = props.steps.findIndex(s => s.id === step.id);
+//   if (index === -1) return;
+
+//   // const targetId = Number(ingId);
+//   // const newTags = [...(step.tags || [])].map(t => Number(t));
+//   // const tagIdx = newTags.indexOf(targetId);
+//   const newTags = [...(step.tags || [])];
+//   const tagIdx = newTags.indexOf(ingId);
+
+//   // if (tagIdx === -1) {
+//   //   newTags.push(targetId);
+//   // } else {
+//   //   newTags.splice(tagIdx, 1);
+//   // }
+//   if (tagIdx === -1) {
+//     newTags.push(ingId); // 確保存入的是數字，如 332
+//   } else {
+//     newTags.splice(tagIdx, 1);
+//   }
+  
+//   updateStepField(index, 'tags', newTags);
+// };
 const toggleTag = (step, ingId) => {
   if (!step) return;
-  // 找到當前步驟在原始陣列中的索引
-  const index = props.steps.findIndex(s => s.id === step.id);
+  // 找到索引 (相容 step_id 與 id)
+  const index = props.steps.findIndex(s => (s.step_id || s.id) === (step.step_id || step.id));
   if (index === -1) return;
 
-  const newTags = [...(step.tags || [])];
-  const tagIdx = newTags.indexOf(ingId);
+  // 取得現有標籤，來源可能是後端的 step_ingredients 或前端自定義的 tags
+  const currentTags = [...(step.tags || step.step_ingredients || [])];
+  const targetId = Number(ingId);
+  const tagIdx = currentTags.indexOf(targetId);
 
   if (tagIdx === -1) {
-    newTags.push(ingId); // 確保存入的是數字，如 332
+    currentTags.push(targetId);
   } else {
-    newTags.splice(tagIdx, 1);
+    currentTags.splice(tagIdx, 1);
   }
   
-  updateStepField(index, 'tags', newTags);
+  // 統一更新到 tags 欄位，這樣前端後續判斷會比較單純
+  updateStepField(index, 'tags', currentTags);
 };
 const uploadStepImg = (index) => {
   if (!props.isEditing) return;
@@ -186,10 +226,14 @@ const closePops = () => {
 
 const getActiveStep = () => props.steps.find(s => (s.id || s.step_id) === activeStepId.value);
 
-onMounted(() => window.addEventListener('click', closePops));
+onMounted(() => {
+  window.addEventListener('click', closePops);
+  console.log(props.steps[0]?.image)
+});
 onUnmounted(() => {
   window.removeEventListener('click', closePops);
   toggleBodyScroll(false);
+  console.log(props.ingredients);
 });
 
 const updateActiveStepTime = (val) => {
@@ -199,6 +243,22 @@ const updateActiveStepTime = (val) => {
   if (index !== -1) {
     updateStepField(index, 'time', Number(val));
   }
+};
+const getIngredientName = (tid) => {
+  if (!props.ingredients || props.ingredients.length === 0) return '載入中...';
+  
+  const target = props.ingredients.find(i => 
+    Number(i.ingredient_id) === Number(tid) || Number(i.id) === Number(tid)
+  );
+  
+  return target ? (target.ingredient_name || target.name) : `未知食材(${tid})`;
+};
+
+const getStepTags = (step) => {
+  if (!step) return [];
+  // 合併後端欄位與前端欄位，並過濾掉空值，統一轉為數字
+  const rawTags = step.tags || step.step_ingredients || [];
+  return rawTags.filter(t => t !== null).map(t => Number(t));
 };
 </script>
 
@@ -249,11 +309,16 @@ const updateActiveStepTime = (val) => {
                   <BaseTag text="食材" variant="action" width="85px"
                     @click.stop="openPop($event, step.id || idx, 'ing')" />
 
-                  <div v-for="tid in (step.tags || [])" :key="tid" class="selected-ing-wrapper">
+                  <!-- <div v-for="tid in (step.tags || [])" :key="tid" class="selected-ing-wrapper"> -->
+                  <div v-for="tid in getStepTags(step)" :key="tid" class="selected-ing-wrapper">
                     <BaseTag variant="label" width="auto">
                       <div class="ing-tag-content">
                         <img src="@/assets/images/recipe/Vector.svg" class="ing-icon-img" alt="icon" />
-                        <span class="ing-name p-p3">{{ingredients?.find(i => Number(i.id) === Number(tid))?.name || '找不到食材'}}</span>
+                        <span class="ing-name p-p3">
+                          {{ getIngredientName(tid) }}
+                          <!-- {{ ingredients?.find(i => Number(i.ingredient_id) === Number(tid))?.ingredient_name || '找不到食材' }} -->
+                          <!-- {{ingredients?.find(i => Number(i.id) === Number(tid))?.name || '找不到食材'}} -->
+                        </span>
                         <span v-if="isEditing" class="tag-close-icon" @click.stop="toggleTag(step, tid)">✕</span>
                       </div>
                     </BaseTag>
@@ -284,10 +349,19 @@ const updateActiveStepTime = (val) => {
   <div v-if="showIngPop" :style="popStyle" class="popover-box" @click.stop>
     <div class="popover-title p-p2">選擇食材</div>
     <div class="popover-content">
-      <button v-for="i in ingredients" :key="i.id" @click="toggleTag(getActiveStep(), i.id)" class="chip p-p3"
+      <!-- <button v-for="i in ingredients" :key="i.id" @click="toggleTag(getActiveStep(), i.id)" class="chip p-p3"
         :class="{ active: getActiveStep()?.tags?.includes(i.id) }">
         {{ i.name }}
-      </button>
+      </button> -->
+      <button 
+      v-for="i in ingredients" 
+      :key="i.ingredient_id || i.id" 
+      @click="toggleTag(getActiveStep(), i.ingredient_id || i.id)" 
+      class="chip p-p3"
+      :class="{ active: getStepTags(getActiveStep()).includes(Number(i.ingredient_id || i.id)) }"
+    >
+      {{ i.ingredient_name || i.name }}
+    </button>
     </div>
   </div>
 

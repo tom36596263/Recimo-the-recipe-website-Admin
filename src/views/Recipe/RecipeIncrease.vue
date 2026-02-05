@@ -205,7 +205,8 @@ const loadRecipeData = async () => {
 
     // 5. 映射食材 (API 已完成 JOIN)
     recipeForm.value.ingredients = apiData.ingredients.map(ing => ({
-      id: ing.recipe_ingredient_id,
+      // id: ing.recipe_ingredient_id,
+      id: Number(ing.ingredient_id),
       name: ing.ingredient_name,
       amount: ing.amount,
       unit: ing.unit_name,
@@ -284,7 +285,8 @@ const handleSave = async () => {
     // 複製一份資料進行處理，避免影響 UI
     const payload = JSON.parse(JSON.stringify(recipeForm.value));
     payload.ingredients = payload.ingredients.map(ing => ({
-        id: ing.id, // 將編輯器的 id 轉回資料庫的 ingredient_id
+        // id: ing.id, // 將編輯器的 id 轉回資料庫的 ingredient_id
+        id: Number(ing.id),
         amount: ing.amount,
         unit: ing.unit,    // 確認這裡與資料庫欄位名一致
         note: ing.note        // 確認這裡與資料庫欄位名一致
