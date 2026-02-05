@@ -19,6 +19,12 @@ const baseUrl = import.meta.env.BASE_URL;
 const isEditing = ref(true);
 const isPublished = ref(false);
 const isLoading = ref(true);
+// 判斷當前是「更新舊食譜」還是「建立新食譜」
+const currentMode = computed(() => {
+  // 如果有 recipe_id 且不是在改編模式下，就是「更新」
+  // (註：改編模式雖然有來源 ID，但那是 parent_recipe_id，最終是存成一筆新的食譜)
+  return recipeForm.value.recipe_id ? 'update' : 'create';
+});
 
 // --- 1. 食譜表單資料 ---
 const recipeForm = ref({
@@ -284,8 +290,9 @@ const handleSave = async () => {
   try {
     // 複製一份資料進行處理，避免影響 UI
     const payload = JSON.parse(JSON.stringify(recipeForm.value));
+    payload.mode = currentMode.value;
+    payload.status = isPublished.value ? 1 : 0; // 根據 checkbox 決定狀態
     payload.ingredients = payload.ingredients.map(ing => ({
-        // id: ing.id, // 將編輯器的 id 轉回資料庫的 ingredient_id
         id: Number(ing.id),
         amount: ing.amount,
         unit: ing.unit,    // 確認這裡與資料庫欄位名一致
@@ -304,7 +311,7 @@ const handleSave = async () => {
     }
 
     // 發送請求
-    console.log('正在發送資料...', payload);
+    console.log(`正在發送資料 [模式: ${payload.mode}]...`, payload);
     const res = await phpApi.post('recipes/recipe_post.php', payload);
 
     if (res.data.success) {
