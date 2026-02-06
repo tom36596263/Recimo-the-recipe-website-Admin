@@ -102,13 +102,9 @@ const handleSubmit = async () => {
 const getDbImageSrc = (path) => {
   if (!path) return '';
 
-  // 如果是本地開發環境 (Dev)，直接回傳
-  if (import.meta.env.DEV) {
-    return parsePublicFile(path);
-  }
-
-  // 如果是正式環境 (Prod)，去掉開頭的 img/
-  return parsePublicFile(path.replace(/^img\//, ''));
+  // 如果已經是完整的網址或 blob (預覽圖)，直接回傳
+  if (path.startsWith('http') || path.startsWith('blob:')) return path;
+  return parsePublicFile(path);
 };
 
 const handleClosed = () => {
