@@ -81,7 +81,7 @@ const fetchData = async () => {
         const rawId = item.ingredient_id ?? item.INGREDIENT_ID;
         const rawName = item.ingredient_name ?? item.INGREDIENT_NAME;
         const rawCategory = item.main_category ?? item.MAIN_CATEGORY;
-        const rawImage = item.ingredient_image_url ?? item.INGREDIENT_IMAGE_URL;
+        const fullUrl = item.full_image_url || '';
 
         return {
           ...item,
@@ -89,7 +89,7 @@ const fetchData = async () => {
           is_active: Number(rawStatus) === 1 ? 1 : 0,
           ingredient_name: rawName,
           main_category: rawCategory,
-          ingredient_image_url: rawImage
+          ingredient_image_url: fullUrl
         };
       });
       console.log('數據已自動重新載入');
@@ -99,18 +99,10 @@ const fetchData = async () => {
   }
 };
 // 判斷並處理圖片路徑
-const getImageSrc = (dbPath) => {
-  if (!dbPath) return '';
-
-  // 情況 A：如果是本地開發環境 (Development)
-  // 假設本地端 Base URL 沒包含 'img/'，所以我們保留資料庫原本的路徑
-  if (import.meta.env.DEV) {
-    return parsePublicFile(dbPath);
-  }
-
-  // 情況 B：如果是正式部署環境 (Production)
-  // 假設伺服器端 Base URL 已經包含 '.../img/'，所以我們要去掉資料庫路徑開頭的 'img/'
-  return parsePublicFile(dbPath.replace(/^img\//, ''));
+const getImageSrc = (url) => {
+  // 因為 PHP 已經給了完整的 https://... 網址
+  // 這裡什麼都不用做，直接回傳就好
+  return url;
 };
 
 // 記得同步修改 onMounted 裡的呼叫
