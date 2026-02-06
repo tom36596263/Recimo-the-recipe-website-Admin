@@ -2,7 +2,7 @@
 import { ref, reactive, defineEmits } from 'vue';
 import { Plus } from '@element-plus/icons-vue';
 import { parsePublicFile } from '@/utils/parseFile';
-
+import { phpApi } from '@/utils/publicApi.js';
 const visible = ref(false);
 const mode = ref('add'); // 'add' 或 'edit'
 const emit = defineEmits(['refresh']);
@@ -50,10 +50,10 @@ const handleImageChange = (file) => {
 };
 
 const handleSubmit = async () => {
-  // 1. 建立 FormData 物件，這是為了處理 PHP 中的 $_FILES 上傳
+  //建立 FormData 物件，這是為了處理 PHP 中的 $_FILES 上傳
   const formData = new FormData();
 
-  // 2. 封裝資料 (根據您的資料庫截圖與 PHP 代碼要求)
+  //封裝資料 (根據您的資料庫截圖與 PHP 代碼要求)
   formData.append('ingredient_id', form.id); // 修改時必填，新增時為空
   formData.append('ingredient_name', form.name);
   formData.append('main_category', form.category);
@@ -66,38 +66,36 @@ const handleSubmit = async () => {
   formData.append('gram_conversion', 1); // 換算係數，預設給 1
   formData.append('is_active', 1); // 1 = 上架
 
-  // 3. 處理圖片檔案
+  // 處理圖片檔案
   if (form.rawFile) {
     formData.append('ingredient_image', form.rawFile); // 對應 PHP 中的 $_FILES['ingredient_image']
   }
 
   try {
-    // 4. 使用您提供的完整絕對路徑
-    const apiUrl =
-      'http://localhost:8888/recimo_api/recipes/admin_save_ingredient.php';
+    // 加入 Headers 確保 PHP 能正確解析 FormData
+    const response = await phpApi.post(
+      'recipes/admin_save_ingredient.php',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      }
+    );
 
-    const response = await fetch(apiUrl, {
-      method: 'POST', // 必須使用 POST，因為 PHP 有檢查 Request Method
-      body: formData // 直接傳送 FormData，不要手動設定 Content-Type
-    });
-
-    // 檢查回應狀態
-    if (!response.ok) {
-      throw new Error(`伺服器錯誤: ${response.status}`);
-    }
-
-    const result = await response.json();
+    const result = response.data;
 
     if (result.status === 'success') {
       alert(result.message);
       visible.value = false;
       emit('refresh');
     } else {
+      // 這裡如果還是報「名稱必填」，代表後端 $_POST 依然拿不到東西
       alert('儲存失敗：' + result.message);
     }
   } catch (error) {
     console.error('API 請求出錯:', error);
-    alert('連線失敗，請檢查伺服器是否開啟或路徑是否正確');
+    alert('連線失敗，請檢查伺服器狀態');
   }
 };
 

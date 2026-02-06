@@ -82,7 +82,7 @@ const loadJsonData = async () => {
                 : '未知方式',
 
           method: '宅配',
-          status: item.order_status
+          status: Number(item.order_status)
         };
       });
       ElMessage.success('訂單讀取成功');
