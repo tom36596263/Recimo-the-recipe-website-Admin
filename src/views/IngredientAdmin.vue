@@ -98,6 +98,20 @@ const fetchData = async () => {
     console.error('重新載入失敗:', error.message);
   }
 };
+// 判斷並處理圖片路徑
+const getImageSrc = (dbPath) => {
+  if (!dbPath) return '';
+
+  // 情況 A：如果是本地開發環境 (Development)
+  // 假設本地端 Base URL 沒包含 'img/'，所以我們保留資料庫原本的路徑
+  if (import.meta.env.DEV) {
+    return parsePublicFile(dbPath);
+  }
+
+  // 情況 B：如果是正式部署環境 (Production)
+  // 假設伺服器端 Base URL 已經包含 '.../img/'，所以我們要去掉資料庫路徑開頭的 'img/'
+  return parsePublicFile(dbPath.replace(/^img\//, ''));
+};
 
 // 記得同步修改 onMounted 裡的呼叫
 onMounted(() => {
@@ -248,7 +262,7 @@ const handleStatusChange = async (row) => {
         <template #default="scope">
           <img
             v-if="scope.row.ingredient_image_url"
-            :src="parsePublicFile(scope.row.ingredient_image_url)"
+            :src="getImageSrc(scope.row.ingredient_image_url)"
             alt="食材圖片"
             style="
               width: 48px;
