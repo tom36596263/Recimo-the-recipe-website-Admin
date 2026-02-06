@@ -99,6 +99,18 @@ const handleSubmit = async () => {
   }
 };
 
+const getDbImageSrc = (path) => {
+  if (!path) return '';
+
+  // 如果是本地開發環境 (Dev)，直接回傳
+  if (import.meta.env.DEV) {
+    return parsePublicFile(path);
+  }
+
+  // 如果是正式環境 (Prod)，去掉開頭的 img/
+  return parsePublicFile(path.replace(/^img\//, ''));
+};
+
 const handleClosed = () => {
   // 彈窗關閉後重置數據
   Object.assign(form, initialForm);
@@ -160,7 +172,7 @@ defineExpose({ open });
                   :src="
                     form.imageUrl.startsWith('blob:')
                       ? form.imageUrl
-                      : parsePublicFile(form.imageUrl)
+                      : getDbImageSrc(form.imageUrl)
                   "
                   class="preview-img"
                 />
