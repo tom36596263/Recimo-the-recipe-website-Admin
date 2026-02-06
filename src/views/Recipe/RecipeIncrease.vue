@@ -170,7 +170,7 @@ const loadRecipeData = async () => {
   if (!editIdFromUrl) return;
 
   try {
-    isLoading.value = true;
+    isLoading.value = true; 
     // 1. 串接 PHP API 取得完整細節
     const response = await phpApi.get(`recipes/recipe_detail_get.php?recipe_id=${editIdFromUrl}`);
     
@@ -386,11 +386,8 @@ provide('isEditing', isEditing);
       <footer class="editor-footer">
         <div class="footer-center-group">
           <BaseBtn title="預覽" variant="outline" :width="100" @click="handlePreview" class="preview-btn" />
-          <BaseBtn :title="isPublished ? '確認發布' : '完成編輯'" :width="200" @click="handleSave" class="save-btn" />
-          <div class="publish-toggle">
-            <input type="checkbox" id="publish-check" v-model="isPublished" />
-            <label for="publish-check" class="p-p2">公開發布</label>
-          </div>
+          <BaseBtn title="確認發布" :width="200" @click="handleSave" class="save-btn" />
+          
         </div>
       </footer>
     </main>
