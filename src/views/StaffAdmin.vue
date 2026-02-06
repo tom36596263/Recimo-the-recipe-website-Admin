@@ -52,7 +52,11 @@ const filteredData = computed(() => {
 const loadJsonData = async () => {
   try {
     const response = await phpApi.get('others/admin_get.php')
-    tableData.value = response.data
+    // 確保 admin_level 為數字類型，避免字串導致 switch 異常
+    tableData.value = response.data.map(item => ({
+      ...item,
+      admin_level: Number(item.admin_level)
+    }))
   } catch (error) {
     console.error('抓取 JSON 失敗:', error.message)
   }
@@ -98,18 +102,23 @@ onMounted(() => {
 //-------switch------
 const handleStatusChange = async (row) => {
   // 主要管理員不可切換
-  if (row.admin_level == 2) return;
+  if (row.admin_level === 2) return;
+  
+  // 保存舊值，以便失敗時還原
+  const oldLevel = row.admin_level === 1 ? 0 : 1;
+  
   try {
     await phpApi.patch('others/admin_status.php', {
       admin_id: row.admin_id,
-      admin_level: row.admin_level,
+      admin_level: Number(row.admin_level), // 確保傳送數字類型
     });
     ElMessage.success('狀態已更新');
-    loadJsonData();
+    // 成功後重新加載以確保數據同步
+    await loadJsonData();
   } catch (e) {
     ElMessage.error('狀態更新失敗: ' + (e?.response?.data || e.message));
-    // 若失敗，還原 UI
-    loadJsonData();
+    // 若失敗，還原數值
+    row.admin_level = oldLevel;
   }
 };
 
@@ -139,16 +148,16 @@ const handleStatusChange = async (row) => {
       <el-table-column prop="admin_id" label="管理員編號" sortable="custom" align="center" width="180" />
       <el-table-column prop="admin_name" label="名稱" sortable="custom" align="center" />
       <el-table-column prop="admin_account" label="帳號" align="center" />
-      <!-- <el-table-column prop="USER_STARTDATE" label="加入日期" sortable="custom" align="center"/> -->
 
       <el-table-column label="人員狀態" align="center" width="120">
         <template #default="scope">
-          <span v-if="scope.row.admin_level == 2">主要管理員</span>
+          <span v-if="scope.row.admin_level === 2">主要管理員</span>
           <el-switch
             v-else
             v-model="scope.row.admin_level"
             :active-value="1"
             :inactive-value="0"
+            :disabled="scope.row.admin_level === 2"
             size="large"
             class="ml-2"
             inline-prompt
