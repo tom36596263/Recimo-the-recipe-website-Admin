@@ -82,10 +82,10 @@ const removeItem = (id) => {
                 </div>
 
                 <div class="input-row split-row">
-                    <div class="amount-group p-p2">
+                    <div class="amount-group p-p3">
                         <div class="amount-input-wrapper">
                             <input v-model="ing.amount" type="text" inputmode="decimal"
-                                class="custom-input amount-field p-p2" :class="{ 'error-shake': ing.isInvalid }"
+                                class="custom-input amount-field p-p3" :class="{ 'error-shake': ing.isInvalid }"
                                 placeholder="分量" :readonly="!isEditing" 
                                 @input="(e) => {
                                     updateIngredient(index, 'amount', e.target.value);
