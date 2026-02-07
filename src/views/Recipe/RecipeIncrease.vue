@@ -37,6 +37,7 @@ const recipeForm = ref({
   totalTime: 30,
   ingredients: [],
   steps: [],
+  tags: [],
   original_title: '',
   adapt_title: '',
   adapt_description: ''
@@ -195,6 +196,10 @@ const loadRecipeData = async () => {
 
     recipeForm.value.description = found.recipe_description || '';
     recipeForm.value.difficulty = Number(found.recipe_difficulty) || 1;
+    recipeForm.value.tags = apiData.tags ? apiData.tags.map(t => ({
+      tag_id: t.tag_id,
+      tag_name: t.tag_name
+    })) : [];
 
     // 3. 【關鍵】使用 parsePublicFile 處理封面圖
     // 如果資料庫存的是 'img/recipes/1/cover.jpg'，它會自動補上 fileBase
@@ -292,6 +297,7 @@ const handleSave = async () => {
     const payload = JSON.parse(JSON.stringify(recipeForm.value));
     payload.mode = currentMode.value;
     payload.status = isPublished.value ? 1 : 0; // 根據 checkbox 決定狀態
+    payload.tags = recipeForm.value.tags.map(t => t.tag_id);
     payload.ingredients = payload.ingredients.map(ing => ({
         id: Number(ing.id),
         amount: ing.amount,
