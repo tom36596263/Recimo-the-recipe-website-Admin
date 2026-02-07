@@ -1,41 +1,182 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, reactive } from 'vue';
 import { ArrowLeft, Plus } from '@element-plus/icons-vue';
 import { useRouter } from 'vue-router';
+import { phpApi } from '@/utils/publicApi.js';
+import { ElMessage, ElMessageBox } from 'element-plus';
 
 const router = useRouter();
 
+// 表單數據
 const form = ref({
   title: '',
-  target: 'all',
   category: 'general',
   content: ''
 });
 
+// 表單驗證規則
+const rules = reactive({
+  title: [
+    { required: true, message: '請輸入標題', trigger: 'blur' },
+    { min: 2, max: 100, message: '標題長度應在 2 到 100 個字符之間', trigger: 'blur' }
+  ],
+  category: [
+    { required: true, message: '請選擇消息類別', trigger: 'change' }
+  ],
+  content: [
+    { required: true, message: '請輸入消息內容', trigger: 'blur' },
+    { min: 10, max: 1000, message: '內容長度應在 10 到 1000 個字符之間', trigger: 'blur' }
+  ]
+});
+
 const imageFile = ref(null);
 const imagePreview = ref(null);
+const formRef = ref(null);
+const isSubmitting = ref(false);
 
-const handlePublish = () => {
-  console.log('發布消息:', form.value);
-  // 這裡添加發布邏輯
+/**
+ * 發布消息
+ */
+const handlePublish = async () => {
+  // 驗證表單
+  if (!formRef.value) {
+    ElMessage.error('表單初始化失敗');
+    return;
+  }
+
+  try {
+    await formRef.value.validate();
+  } catch (error) {
+    ElMessage.warning('請完整填寫表單');
+    return;
+  }
+
+  // 二次確認
+  try {
+    await ElMessageBox.confirm(
+      '確定要發布此消息嗎？',
+      '確認發布',
+      {
+        confirmButtonText: '確定',
+        cancelButtonText: '取消',
+        type: 'info'
+      }
+    );
+  } catch {
+    return; // 用戶取消
+  }
+
+  isSubmitting.value = true;
+
+  try {
+    // 構建 FormData（包含圖片和表單數據）
+    const formData = new FormData();
+    formData.append('notification_title', form.value.title);
+    formData.append('notification_type', form.value.category);
+    formData.append('notification_content', form.value.content);
+    formData.append('receiver_id', 'all'); // 固定發布給全部會員
+    formData.append('link_url', '');
+
+    // 如果有圖片，添加到 FormData（欄位名為 notification_photo）
+    if (imageFile.value) {
+      formData.append('notification_photo', imageFile.value);
+    }
+
+    // 調試：輸出 FormData 內容
+    console.log('=== 發送的 FormData ===');
+    for (let [key, value] of formData.entries()) {
+      console.log(`${key}:`, value instanceof File ? `File: ${value.name}` : value);
+    }
+
+    // 調用發布 API（使用 multipart/form-data）
+    const response = await phpApi.post('social/admin_notifications.php', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+
+    if (response.data.success) {
+      ElMessage.success(response.data.message || '消息發布成功！');
+
+      // 跳轉回列表頁
+      setTimeout(() => {
+        router.push('/admin/notifications');
+      }, 500);
+    } else {
+      ElMessage.error(response.data.message || '發布失敗');
+    }
+
+  } catch (error) {
+    console.error('發布失敗:', error);
+    console.error('錯誤詳情:', error.response?.data);
+
+    // 顯示後端返回的詳細錯誤信息
+    const errorMsg = error.response?.data?.message || error.message || '發布失敗，請稍後重試';
+    ElMessage.error(errorMsg);
+  } finally {
+    isSubmitting.value = false;
+  }
 };
 
-const handleCancel = () => {
-  router.back();
+/**
+ * 取消操作
+ */
+const handleCancel = async () => {
+  // 檢查是否有未保存的內容
+  const hasContent = form.value.title || form.value.content || imageFile.value;
+
+  if (hasContent) {
+    try {
+      await ElMessageBox.confirm(
+        '您有未保存的內容，確定要離開嗎？',
+        '確認取消',
+        {
+          confirmButtonText: '確定',
+          cancelButtonText: '繼續編輯',
+          type: 'warning'
+        }
+      );
+      router.back();
+    } catch {
+      return; // 用戶選擇繼續編輯
+    }
+  } else {
+    router.back();
+  }
 };
 
+/**
+ * 處理圖片上傳
+ */
 const handleImageUpload = (file) => {
+  // 驗證圖片大小（限制 5MB）
+  const maxSize = 5 * 1024 * 1024;
+  if (file.size > maxSize) {
+    ElMessage.error('圖片大小不能超過 5MB');
+    return;
+  }
+
+  // 驗證圖片格式
+  const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+  if (!validTypes.includes(file.type)) {
+    ElMessage.error('只支持 JPG、PNG、GIF 格式的圖片');
+    return;
+  }
+
   const reader = new FileReader();
   reader.onload = (e) => {
     imagePreview.value = e.target.result;
     imageFile.value = file;
+    ElMessage.success('圖片添加成功');
   };
   reader.readAsDataURL(file);
 };
 
+/**
+ * 移除圖片
+ */
 const handleRemoveImage = () => {
   imageFile.value = null;
   imagePreview.value = null;
+  ElMessage.info('圖片已移除');
 };
 </script>
 
@@ -50,10 +191,11 @@ const handleRemoveImage = () => {
         <h1 class="zh-h2">發布消息</h1>
       </div>
       <div class="header-right">
-        <el-button type="primary" class="btn-publish" @click="handlePublish">
-          發布
+        <el-button type="primary" class="btn-publish" @click="handlePublish" :loading="isSubmitting"
+          :disabled="isSubmitting">
+          {{ isSubmitting ? '發布中...' : '發布' }}
         </el-button>
-        <el-button class="btn-cancel" @click="handleCancel">
+        <el-button class="btn-cancel" @click="handleCancel" :disabled="isSubmitting">
           取消
         </el-button>
       </div>
@@ -63,68 +205,41 @@ const handleRemoveImage = () => {
     <div class="form-wrapper">
       <div class="form-content">
         <!-- 左側表單 -->
-        <el-form :model="form" label-position="top" class="notification-form">
+        <el-form ref="formRef" :model="form" :rules="rules" label-position="top" class="notification-form">
           <!-- 標題 -->
-          <el-form-item label="標題">
-            <el-input
-              v-model="form.title"
-              placeholder="請輸入標題"
-              class="form-input"
-            />
-          </el-form-item>
-
-          <!-- 發布對象 -->
-          <el-form-item label="發布對象">
-            <el-select
-              v-model="form.target"
-              placeholder="請選擇發布對象"
-              class="form-select"
-            >
-              <el-option label="全部" value="all" />
-              <el-option label="會員" value="member" />
-              <el-option label="特定用戶" value="specific" />
-            </el-select>
+          <el-form-item label="標題" prop="title">
+            <el-input v-model="form.title" placeholder="請輸入標題（2-100 字符）" class="form-input" maxlength="100"
+              show-word-limit />
           </el-form-item>
 
           <!-- 消息類別 -->
-          <el-form-item label="消息類別">
-            <el-select
-              v-model="form.category"
-              placeholder="請選擇類別"
-              class="form-select"
-            >
+          <el-form-item label="消息類別" prop="category">
+            <el-select v-model="form.category" placeholder="請選擇類別" class="form-select">
               <el-option label="一般消息" value="general" />
               <el-option label="重要通知" value="important" />
-              <el-option label="更新公告" value="update" />
-              <el-option label="促銷訊息" value="promotion" />
+              <el-option label="系統公告" value="system" />
+              <el-option label="促銷活動" value="promotion" />
+              <el-option label="功能更新" value="update" />
             </el-select>
           </el-form-item>
 
           <!-- 消息內容 -->
-          <el-form-item label="消息內容">
-            <el-input
-              v-model="form.content"
-              type="textarea"
-              :rows="8"
-              placeholder="請輸入消息內容"
-              class="form-textarea"
-            />
+          <el-form-item label="消息內容" prop="content">
+            <el-input v-model="form.content" type="textarea" :rows="8" placeholder="請輸入消息內容（10-1000 字符）"
+              class="form-textarea" maxlength="1000" show-word-limit />
           </el-form-item>
         </el-form>
 
         <!-- 右側圖片上傳 -->
         <div class="image-upload-box">
           <div v-if="!imagePreview" class="upload-placeholder">
-            <el-upload
-              drag
-              action="#"
-              :auto-upload="false"
-              @change="(file) => handleImageUpload(file.raw)"
-              accept="image/*"
-            >
+            <el-upload drag action="#" :auto-upload="false" @change="(file) => handleImageUpload(file.raw)"
+              accept="image/*">
               <template #default>
                 <div class="upload-content">
-                  <el-icon class="upload-icon"><Plus /></el-icon>
+                  <el-icon class="upload-icon">
+                    <Plus />
+                  </el-icon>
                   <p>新增圖片</p>
                 </div>
               </template>
@@ -133,12 +248,7 @@ const handleRemoveImage = () => {
 
           <div v-else class="image-preview">
             <img :src="imagePreview" alt="preview" />
-            <el-button
-              type="danger"
-              size="small"
-              class="btn-remove"
-              @click="handleRemoveImage"
-            >
+            <el-button type="danger" size="small" class="btn-remove" @click="handleRemoveImage">
               移除圖片
             </el-button>
           </div>
@@ -221,11 +331,11 @@ $border-color: #e0e0e0;
 }
 
 // 表單區域
-.el-input{
-    border: 0;
-    padding: 0;
-  }
-  
+.el-input {
+  border: 0;
+  padding: 0;
+}
+
 .form-wrapper {
   background-color: #ffffff;
   border-radius: 8px;

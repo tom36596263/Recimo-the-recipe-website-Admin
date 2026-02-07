@@ -1,21 +1,55 @@
 <script setup>
 // ===== 導入 =====
-import { ref, onMounted } from 'vue';
-import { ArrowLeft } from '@element-plus/icons-vue'; // 返回箭頭圖標
+import { ref, onMounted, reactive } from 'vue';
+import { ArrowLeft, Edit, Delete, Plus } from '@element-plus/icons-vue'; // 圖標
 import { useRouter, useRoute } from 'vue-router'; // 路由相關
-import { publicApi } from '@/utils/publicApi.js'; // 統一的 API 實例
-import { ElMessage } from 'element-plus'; // 消息提示
+import { phpApi } from '@/utils/publicApi.js'; // 統一的 API 實例
+import { ElMessage, ElMessageBox } from 'element-plus'; // 消息提示
+import { parsePublicFile } from '@/utils/parseFile.js'; // 圖片路徑處理
 
 // ===== 路由相關 =====
 const router = useRouter(); // 用於導航
 const route = useRoute(); // 用於獲取路由參數
 
 // ===== 狀態管理 =====
-// 通知詳情數據（包含類別、發布對象、日期、內容、圖片等）
+// 通知詳情數據（包含類別、日期、內容、圖片等）
 const notification = ref({});
+
+// 編輯模式的表單數據
+const editForm = reactive({
+  title: '',
+  category: '',
+  categoryType: '',
+  content: ''
+});
 
 // 控制加載狀態（顯示 skeleton loading）
 const loading = ref(true);
+
+// 控制編輯模式
+const isEditMode = ref(false);
+
+// 控制保存中狀態
+const isSaving = ref(false);
+
+// 圖片相關
+const newImageFile = ref(null);
+const newImagePreview = ref(null);
+const formRef = ref(null);
+
+// 類別映射（英文 -> 中文）
+const categoryMap = {
+  general: '一般消息',
+  important: '重要通知',
+  system: '系統公告',
+  promotion: '促銷活動',
+  update: '功能更新'
+};
+
+// 轉換類別為中文
+const getCategoryLabel = (category) => {
+  return categoryMap[category] || category;
+};
 
 // ===== 方法 =====
 /**
@@ -30,22 +64,31 @@ const fetchNotificationDetail = async () => {
   try {
     loading.value = true;
     const notificationId = Number(route.params.id);
-    const response = await publicApi.get('data/others/notifications.json');
-    if (Array.isArray(response.data)) {
-      const found = response.data.find(item => item.notification_id === notificationId);
-      if (found) {
-        notification.value = {
-          id: found.notification_id,
-          category: found.notification_type,
-          target: found.receiver_id,
-          categoryType: found.notification_type,
-          date: found.created_at,
-          content: found.notification_content,
-          image: found.notification_photo_url && found.notification_photo_url.trim() !== '' ? found.notification_photo_url : '/img/test1.jpg'
-        };
-      } else {
-        ElMessage.error('查無此通知');
-      }
+
+    // 調用 API 獲取通知詳情
+    const response = await phpApi.get(`social/admin_notifications.php?id=${notificationId}`);
+
+    if (response.data.success) {
+      const found = response.data.data;
+      notification.value = {
+        id: found.notification_id,
+        title: found.notification_title,
+        category: found.notification_type,
+        categoryType: found.notification_type,
+        date: found.created_at,
+        content: found.notification_content,
+        image: found.notification_photo_url || ''
+      };
+
+      // 初始化編輯表單
+      Object.assign(editForm, {
+        title: notification.value.title,
+        category: notification.value.category,
+        categoryType: notification.value.categoryType,
+        content: notification.value.content
+      });
+    } else {
+      ElMessage.error(response.data.message || '查無此通知');
     }
   } catch (error) {
     console.error('獲取通知詳情失敗:', error);
@@ -60,7 +103,201 @@ const fetchNotificationDetail = async () => {
  * 功能說明：使用路由歷史返回
  */
 const handleBack = () => {
-  router.back();
+  if (isEditMode.value) {
+    ElMessageBox.confirm(
+      '您有未保存的更改，確定要離開嗎？',
+      '確認離開',
+      {
+        confirmButtonText: '確定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    ).then(() => {
+      router.back();
+    }).catch(() => { });
+  } else {
+    router.back();
+  }
+};
+
+/**
+ * 切換編輯模式
+ */
+const toggleEditMode = () => {
+  isEditMode.value = !isEditMode.value;
+  if (!isEditMode.value) {
+    // 取消編輯時重置表單
+    Object.assign(editForm, {
+      title: notification.value.title,
+      category: notification.value.category,
+      categoryType: notification.value.categoryType,
+      content: notification.value.content
+    });
+    newImageFile.value = null;
+    newImagePreview.value = null;
+  }
+};
+
+/**
+ * 保存編輯
+ */
+const handleSaveEdit = async () => {
+  // 驗證表單
+  if (!editForm.title || !editForm.content) {
+    ElMessage.warning('標題和內容不能為空');
+    return;
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      '確定要保存修改嗎？',
+      '確認保存',
+      {
+        confirmButtonText: '確定',
+        cancelButtonText: '取消',
+        type: 'info'
+      }
+    );
+  } catch {
+    return;
+  }
+
+  isSaving.value = true;
+
+  try {
+    // 構建 FormData（包含圖片和表單數據）
+    const formData = new FormData();
+    formData.append('notification_id', notification.value.id);
+    formData.append('notification_title', editForm.title);
+    formData.append('notification_type', editForm.categoryType);
+    formData.append('notification_content', editForm.content);
+    formData.append('link_url', '');
+
+    // 傳送現有圖片 URL（如果沒有新圖片，PHP 會保留此值）
+    formData.append('notification_photo_url', notification.value.image || '');
+
+    // 如果有新圖片，添加到 FormData（欄位名為 notification_photo）
+    if (newImageFile.value) {
+      formData.append('notification_photo', newImageFile.value);
+    }
+
+    // 調試：輸出 FormData 內容
+    console.log('=== 發送的編輯數據 ===');
+    console.log('notification_id:', notification.value.id);
+    console.log('notification_title:', editForm.title);
+    console.log('notification_type:', editForm.categoryType);
+    console.log('notification_content:', editForm.content);
+    console.log('notification_photo_url:', notification.value.image || '');
+    for (let [key, value] of formData.entries()) {
+      console.log(`${key}:`, value instanceof File ? `File: ${value.name}` : value);
+    }
+
+    // 調用更新 API（使用 POST 因為 PUT 不支持文件上傳）
+    const response = await phpApi.post('social/admin_notifications.php?_method=PUT', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+
+    if (response.data.success) {
+      // 更新本地數據
+      notification.value.title = editForm.title;
+      notification.value.category = editForm.category;
+      notification.value.categoryType = editForm.categoryType;
+      notification.value.content = editForm.content;
+      if (newImagePreview.value) {
+        notification.value.image = response.data.photo_url || newImagePreview.value;
+      }
+
+      ElMessage.success('保存成功！');
+      isEditMode.value = false;
+      newImageFile.value = null;
+      newImagePreview.value = null;
+    } else {
+      ElMessage.error(response.data.message || '保存失敗');
+    }
+
+  } catch (error) {
+    console.error('保存失敗:', error);
+    ElMessage.error('保存失敗，請稍後重試');
+  } finally {
+    isSaving.value = false;
+  }
+};
+
+/**
+ * 刪除通知
+ */
+const handleDelete = async () => {
+  try {
+    await ElMessageBox.confirm(
+      '刪除後將無法恢復，確定要刪除此通知嗎？',
+      '確認刪除',
+      {
+        confirmButtonText: '確定刪除',
+        cancelButtonText: '取消',
+        type: 'warning',
+        confirmButtonClass: 'el-button--danger'
+      }
+    );
+
+    // 調用刪除 API
+    const response = await phpApi.delete('social/admin_notifications.php', {
+      data: { notification_id: notification.value.id }
+    });
+
+    if (response.data.success) {
+      ElMessage.success('刪除成功！');
+
+      // 跳轉回列表頁
+      setTimeout(() => {
+        router.push('/admin/notifications');
+      }, 500);
+    } else {
+      ElMessage.error(response.data.message || '刪除失敗');
+    }
+
+  } catch (error) {
+    if (error === 'cancel') {
+      return; // 用戶取消
+    }
+    console.error('刪除失敗:', error);
+    ElMessage.error('刪除失敗，請稍後重試');
+  }
+};
+
+/**
+ * 處理圖片上傳
+ */
+const handleImageUpload = (file) => {
+  // 驗證圖片大小（限制 5MB）
+  const maxSize = 5 * 1024 * 1024;
+  if (file.size > maxSize) {
+    ElMessage.error('圖片大小不能超過 5MB');
+    return;
+  }
+
+  // 驗證圖片格式
+  const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+  if (!validTypes.includes(file.type)) {
+    ElMessage.error('只支持 JPG、PNG、GIF 格式的圖片');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    newImagePreview.value = e.target.result;
+    newImageFile.value = file;
+    ElMessage.success('圖片添加成功');
+  };
+  reader.readAsDataURL(file);
+};
+
+/**
+ * 移除新圖片
+ */
+const handleRemoveNewImage = () => {
+  newImageFile.value = null;
+  newImagePreview.value = null;
+  ElMessage.info('圖片已移除');
 };
 
 // ===== 生命週期 =====
@@ -78,72 +315,155 @@ onMounted(() => {
     <!-- ===== 頂部區域 ===== -->
     <!-- 頁面標題和返回按鈕 -->
     <div class="content-header">
-      <h1 class="zh-h2">消息詳情</h1>
-      <!-- 返回按鈕，點擊返回上一頁 -->
-      <el-button type="primary" class="btn-back" @click="handleBack">
-        返回
-      </el-button>
+      <div class="header-left">
+        <el-icon class="back-icon" @click="handleBack">
+          <ArrowLeft />
+        </el-icon>
+        <h1 class="zh-h2">消息詳情</h1>
+      </div>
+      <div class="header-actions">
+        <!-- 編輯模式按鈕組 -->
+        <template v-if="isEditMode">
+          <el-button type="primary" class="btn-save" :loading="isSaving" :disabled="isSaving" @click="handleSaveEdit">
+            {{ isSaving ? '保存中...' : '保存' }}
+          </el-button>
+          <el-button class="btn-cancel" @click="toggleEditMode" :disabled="isSaving">
+            取消
+          </el-button>
+        </template>
+        <!-- 查看模式按鈕組 -->
+        <template v-else>
+          <el-button type="primary" class="btn-edit" :icon="Edit" @click="toggleEditMode">
+            編輯
+          </el-button>
+          <el-button type="danger" class="btn-delete" :icon="Delete" @click="handleDelete">
+            刪除
+          </el-button>
+          <el-button class="btn-back" @click="handleBack">
+            返回
+          </el-button>
+        </template>
+      </div>
     </div>
 
     <!-- ===== 詳情內容區 ===== -->
     <div class="detail-wrapper">
       <!-- 加載狀態：顯示 skeleton 動畫 -->
       <el-skeleton v-if="loading" :rows="5" animated />
-      
+
       <!-- 內容顯示：左側詳情 + 右側圖片 -->
       <div v-else class="detail-content">
-        
+
         <!-- ===== 左側詳情信息 ===== -->
         <div class="detail-info">
-          
-          <!-- 第一行：標籤 + 消息編號 -->
-          <div class="info-row">
-            <div class="info-item">
-              <label>標籤：</label>
-              <span class="info-value">{{ notification.category }}</span>
-            </div>
-            <div class="info-item">
-              <label>消息編號：</label>
-              <span class="info-value">{{ notification.id }}</span>
-            </div>
-          </div>
 
-          <!-- 第二行：發布對象 + 發布日期 -->
-          <div class="info-row">
-            <div class="info-item">
-              <label>發布對象：</label>
-              <span class="info-value">{{ notification.target }}</span>
+          <!-- 查看模式 -->
+          <template v-if="!isEditMode">
+            <!-- 第一行：標題 -->
+            <div class="info-row">
+              <div class="info-item full-width">
+                <label>標題：</label>
+                <span class="info-value">{{ notification.title }}</span>
+              </div>
             </div>
-            <div class="info-item">
-              <label>發布日期：</label>
-              <span class="info-value">{{ notification.date }}</span>
-            </div>
-          </div>
 
-          <!-- 第三行：消息類別（佔滿整行） -->
-          <div class="info-row">
-            <div class="info-item full-width">
-              <label>消息類別：</label>
-              <span class="info-value">{{ notification.categoryType }}</span>
+            <!-- 第二行：消息編號 -->
+            <div class="info-row">
+              <div class="info-item full-width">
+                <label>消息編號：</label>
+                <span class="info-value">{{ notification.id }}</span>
+              </div>
             </div>
-          </div>
 
-          <!-- 消息內容區：可滾動的文本框 -->
-          <div class="info-section">
-            <label>消息內容</label>
-            <div class="content-box">
-              <!-- 按換行符分割內容並逐行顯示 -->
-              <p v-for="(line, index) in notification.content.split('\n')" :key="index">
-                {{ line }}
-              </p>
+            <!-- 第三行：發布日期（佔滿整行） -->
+            <div class="info-row">
+              <div class="info-item full-width">
+                <label>發布日期：</label>
+                <span class="info-value">{{ notification.date }}</span>
+              </div>
             </div>
-          </div>
+
+            <!-- 第四行：消息類別（佔滿整行） -->
+            <div class="info-row">
+              <div class="info-item full-width">
+                <label>消息類別：</label>
+                <span class="info-value">{{ getCategoryLabel(notification.categoryType) }}</span>
+              </div>
+            </div>
+
+            <!-- 消息內容區：可滾動的文本框 -->
+            <div class="info-section">
+              <label>消息內容</label>
+              <div class="content-box">
+                <!-- 按換行符分割內容並逐行顯示 -->
+                <p v-for="(line, index) in notification.content.split('\n')" :key="index">
+                  {{ line }}
+                </p>
+              </div>
+            </div>
+          </template>
+
+          <!-- 編輯模式 -->
+          <template v-else>
+            <el-form :model="editForm" label-position="top" class="edit-form">
+              <!-- 標題 -->
+              <el-form-item label="標題" required>
+                <el-input v-model="editForm.title" placeholder="請輸入標題" maxlength="100" show-word-limit />
+              </el-form-item>
+
+              <!-- 消息類別 -->
+              <el-form-item label="消息類別" required>
+                <el-select v-model="editForm.categoryType" placeholder="請選擇">
+                  <el-option label="一般消息" value="general" />
+                  <el-option label="重要通知" value="important" />
+                  <el-option label="系統公告" value="system" />
+                  <el-option label="促銷活動" value="promotion" />
+                  <el-option label="功能更新" value="update" />
+                </el-select>
+              </el-form-item>
+
+              <!-- 消息內容 -->
+              <el-form-item label="消息內容" required>
+                <el-input v-model="editForm.content" type="textarea" :rows="8" placeholder="請輸入消息內容" maxlength="1000"
+                  show-word-limit />
+              </el-form-item>
+            </el-form>
+          </template>
         </div>
 
         <!-- ===== 右側圖片 ===== -->
-        <div class="detail-image">
-          <!-- 消息圖片展示 -->
-          <img :src="notification.image" alt="notification" />
+        <div class="detail-image" v-if="notification.image || isEditMode">
+          <!-- 查看模式 -->
+          <template v-if="!isEditMode">
+            <img v-if="notification.image" :src="parsePublicFile(notification.image)" alt="notification" />
+          </template>
+
+          <!-- 編輯模式 -->
+          <template v-else>
+            <div class="image-edit-box">
+              <!-- 顯示新圖片預覽或原圖片 -->
+              <div v-if="newImagePreview || notification.image" class="image-preview">
+                <img :src="newImagePreview || parsePublicFile(notification.image)" alt="notification" />
+                <el-button v-if="newImagePreview" type="danger" size="small" class="btn-remove-image"
+                  @click="handleRemoveNewImage">
+                  移除新圖片
+                </el-button>
+              </div>
+
+              <!-- 上傳新圖片 -->
+              <el-upload drag action="#" :auto-upload="false" @change="(file) => handleImageUpload(file.raw)"
+                accept="image/*" :show-file-list="false">
+                <template #default>
+                  <div class="upload-content">
+                    <el-icon class="upload-icon">
+                      <Plus />
+                    </el-icon>
+                    <p>{{ newImagePreview ? '更換圖片' : '上傳新圖片' }}</p>
+                  </div>
+                </template>
+              </el-upload>
+            </div>
+          </template>
         </div>
       </div>
     </div>
@@ -181,23 +501,81 @@ $text-color: #333; // 文本顏色
   padding-bottom: 15px;
   border-bottom: 1px solid $border-color;
 
-  h1 {
-    margin: 0;
-    font-size: 24px;
-    font-weight: 600;
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+
+    .back-icon {
+      font-size: 24px;
+      cursor: pointer;
+      color: #666;
+      transition: color 0.3s;
+
+      &:hover {
+        color: $primary-green;
+      }
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 600;
+    }
   }
 
-  // 返回按鈕樣式
-  .btn-back {
-    background-color: $primary-green;
-    border-color: $primary-green;
-    padding: 8px 24px;
-    height: 36px;
-    border-radius: 6px;
+  // 操作按鈕組
+  .header-actions {
+    display: flex;
+    gap: 12px;
 
-    &:hover {
-      background-color: #367054;
-      border-color: #367054;
+    // 保存按鈕樣式
+    .btn-save {
+      background-color: $primary-green;
+      border-color: $primary-green;
+      padding: 8px 24px;
+      height: 36px;
+      border-radius: 6px;
+
+      &:hover {
+        background-color: #367054;
+        border-color: #367054;
+      }
+    }
+
+    // 編輯按鈕樣式
+    .btn-edit {
+      background-color: $primary-green;
+      border-color: $primary-green;
+      padding: 8px 24px;
+      height: 36px;
+      border-radius: 6px;
+
+      &:hover {
+        background-color: #367054;
+        border-color: #367054;
+      }
+    }
+
+    // 刪除按鈕樣式
+    .btn-delete {
+      padding: 8px 24px;
+      height: 36px;
+      border-radius: 6px;
+    }
+
+    // 返回/取消按鈕樣式
+    .btn-back,
+    .btn-cancel {
+      padding: 8px 24px;
+      height: 36px;
+      border-radius: 6px;
+      border: 1px solid $border-color;
+      background-color: transparent;
+
+      &:hover {
+        background-color: #f5f5f5;
+      }
     }
   }
 }
@@ -227,8 +605,12 @@ $text-color: #333; // 文本顏色
  */
 .detail-content {
   display: grid;
-  grid-template-columns: 1fr 250px;
+  grid-template-columns: 1fr;
   gap: 40px;
+
+  &:has(.detail-image) {
+    grid-template-columns: 1fr 250px;
+  }
 }
 
 // ===== 左側詳情信息樣式 =====
@@ -367,6 +749,110 @@ $text-color: #333; // 文本顏色
   .detail-image {
     justify-content: center;
     align-items: center;
+  }
+}
+
+// ===== 編輯模式樣式 =====
+/**
+ * 編輯表單樣式
+ */
+.edit-form {
+  :deep(.el-form-item) {
+    margin-bottom: 20px;
+
+    .el-form-item__label {
+      font-weight: 600;
+      color: $text-color;
+      padding-bottom: 8px;
+    }
+  }
+
+  :deep(.el-input__wrapper),
+  :deep(.el-textarea__inner) {
+    border-radius: 4px;
+  }
+
+  :deep(.el-select) {
+    width: 100%;
+  }
+}
+
+/**
+ * 表單行並排佈局
+ */
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+/**
+ * 圖片編輯容器
+ */
+.image-edit-box {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  width: 100%;
+
+  .image-preview {
+    position: relative;
+    width: 100%;
+    border-radius: 8px;
+    overflow: hidden;
+
+    img {
+      width: 100%;
+      max-width: 250px;
+      border-radius: 8px;
+      object-fit: cover;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-remove-image {
+      margin-top: 10px;
+      width: 100%;
+      max-width: 250px;
+    }
+  }
+
+  :deep(.el-upload) {
+    width: 100%;
+  }
+
+  :deep(.el-upload-dragger) {
+    width: 100%;
+    padding: 20px;
+    border: 2px dashed $border-color;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+
+    &:hover {
+      border-color: $primary-green;
+      background-color: #f0f7f4;
+    }
+  }
+
+  .upload-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+
+    .upload-icon {
+      font-size: 36px;
+      color: $primary-green;
+    }
+
+    p {
+      margin: 0;
+      color: #666;
+      font-size: 14px;
+    }
   }
 }
 </style>
