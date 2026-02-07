@@ -81,7 +81,7 @@ const fetchData = async () => {
         const rawId = item.ingredient_id ?? item.INGREDIENT_ID;
         const rawName = item.ingredient_name ?? item.INGREDIENT_NAME;
         const rawCategory = item.main_category ?? item.MAIN_CATEGORY;
-        const rawImage = item.ingredient_image_url ?? item.INGREDIENT_IMAGE_URL;
+        const fullUrl = item.full_image_url || '';
 
         return {
           ...item,
@@ -89,7 +89,7 @@ const fetchData = async () => {
           is_active: Number(rawStatus) === 1 ? 1 : 0,
           ingredient_name: rawName,
           main_category: rawCategory,
-          ingredient_image_url: rawImage
+          ingredient_image_url: fullUrl
         };
       });
       console.log('數據已自動重新載入');
@@ -97,6 +97,12 @@ const fetchData = async () => {
   } catch (error) {
     console.error('重新載入失敗:', error.message);
   }
+};
+// 判斷並處理圖片路徑
+const getImageSrc = (url) => {
+  // 因為 PHP 已經給了完整的 https://... 網址
+  // 這裡什麼都不用做，直接回傳就好
+  return url;
 };
 
 // 記得同步修改 onMounted 裡的呼叫
@@ -248,7 +254,7 @@ const handleStatusChange = async (row) => {
         <template #default="scope">
           <img
             v-if="scope.row.ingredient_image_url"
-            :src="parsePublicFile(scope.row.ingredient_image_url)"
+            :src="getImageSrc(scope.row.ingredient_image_url)"
             alt="食材圖片"
             style="
               width: 48px;

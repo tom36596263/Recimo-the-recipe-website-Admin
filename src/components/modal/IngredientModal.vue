@@ -99,6 +99,14 @@ const handleSubmit = async () => {
   }
 };
 
+const getDbImageSrc = (path) => {
+  if (!path) return '';
+
+  // 如果已經是完整的網址或 blob (預覽圖)，直接回傳
+  if (path.startsWith('http') || path.startsWith('blob:')) return path;
+  return parsePublicFile(path);
+};
+
 const handleClosed = () => {
   // 彈窗關閉後重置數據
   Object.assign(form, initialForm);
@@ -160,7 +168,7 @@ defineExpose({ open });
                   :src="
                     form.imageUrl.startsWith('blob:')
                       ? form.imageUrl
-                      : parsePublicFile(form.imageUrl)
+                      : getDbImageSrc(form.imageUrl)
                   "
                   class="preview-img"
                 />

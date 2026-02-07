@@ -27,7 +27,8 @@ const reportData = ref({
   REPORTERD_AT: '',
   UPDATE_AT: '',
   IMAGE_URL: '',
-  INTERNAL_TYPE: ''
+  INTERNAL_TYPE: '',
+  DISPLAY_TEXT: ''
 });
 
 const loadReportData = async () => {
@@ -35,18 +36,14 @@ const loadReportData = async () => {
   
   try {
     loading.value = true;
-    const reportIdFromUrl = String(route.params.id); // 取得網址上的 ID
-    console.log("當前網址 ID:", reportIdFromUrl);
-
+    const reportIdFromUrl = String(route.params.id);
+    
+    // 💡 提示：這裡雖然撈了全部資料，但之後建議後端補一個 get_report_by_id.php
     const response = await phpApi.get('others/report_manage.php');
     
     if (response.data.success) {
       const allData = response.data.data;
-      console.log("後端回傳的所有資料:", allData);
-
-      // 🏆 改用更寬鬆的比對，確保能找到資料
       const report = allData.find(r => String(r.report_id) === reportIdFromUrl);
-      console.log("找到的匹配檢舉案:", report);
 
       if (report) {
         const labelMap = {
@@ -55,39 +52,41 @@ const loadReportData = async () => {
           recipe:  '被檢舉食譜 ID'
         };
 
-        // 🏆 圖片處理：先印出原始路徑看看
+        // 🏆 1. 修正圖片路徑與紅字問題
         let finalImageUrl = '';
-        console.log("原始 report_img:", report.report_img);
-
         if (report.report_img) {
           const apiBase = phpApi.defaults.baseURL.replace(/\/+$/, '');
           const cleanPath = report.report_img
             .replace(/^\/+/, '')
             .replace('social/32/', 'social/'); 
-
           finalImageUrl = `${apiBase}/${cleanPath}`;
+        } else {
+          // 如果沒有圖片（例如留言檢舉），給一個乾淨的暫位圖，避免 ERR_NAME_NOT_RESOLVED
+          finalImageUrl = 'https://placehold.co/400x300?text=No+Image+Provided';
         }
-        
-        console.log("生成的最終網址:", finalImageUrl);
 
-        // 🏆 重新賦值給 reportData
+        // 🏆 2. 重新賦值（確保原因欄位安全）
         reportData.value = {
           REPORTED_IMAGE_ID: report.report_id,
           TARGET_LABEL: labelMap[report.report_type] || '被檢舉目標 ID',
           COMMENT_ID: report.target_id || report.report_id, 
           REPORTER_ID: report.user_id,
           REPORT_TYPE: report.type_text,
-          REPORT_REASON: report.reason,
+          
+          // 🔥 這裡先做基礎保護，如果後端給錯，我們至少顯示「來自[類型]的原因」方便除錯
+          REPORT_REASON: report.reason || '未提供原因', 
+          
           STATUS: report.status,
-          HANDLER_ID: '管理員',
+          HANDLER_ID: report.handler_id || '管理員', // 修正這裡，改用資料庫回傳的 handler
           REPORTERD_AT: report.report_at,
-          UPDATE_AT: report.update_at || '尚未處理',
-          IMAGE_URL: finalImageUrl, // 這裡確保有塞進去
-          INTERNAL_TYPE: report.report_type
+          UPDATE_AT: (report.status === 'pending') ? '尚未處理' : (report.update_at || '時間不詳'),
+          IMAGE_URL: finalImageUrl,
+          INTERNAL_TYPE: report.report_type,
+          DISPLAY_TEXT: report.display_text || '(此內容不包含文字資訊)'
         };
       } else {
-        console.error('在資料庫中找不到對應 ID 的檢舉案');
         ElMessage.error('找不到該筆檢舉資料');
+        router.push('/admin/reports'); // 找不到就退回列表
       }
     }
   } catch (error) {
@@ -104,6 +103,7 @@ const updateStatus = async (newStatus) => {
     const res = await phpApi.post('others/report_manage.php', {
       report_id: reportData.value.REPORTED_IMAGE_ID,
       report_type: reportData.value.INTERNAL_TYPE,
+      target_id: reportData.value.COMMENT_ID,
       status: newStatus
     });
 
@@ -199,12 +199,23 @@ onMounted(loadReportData);
 
           <div class="info-section">
             <div class="info-item">
+              <span class="info-label">被檢舉的原始內容 (心得/留言)</span>
+              <div class="info-value original-content-box">
+                {{ reportData.DISPLAY_TEXT || '(此筆資料無文字內容)' }}
+              </div>
+            </div>
+          </div>
+
+          <el-divider />
+
+          <div class="info-section">
+            <div class="info-item">
               <span class="info-label">舉報內容圖片</span>
               <div class="image-preview">
                 <img
-                  :src="reportData.IMAGE_URL || 'https://via.placeholder.com/400x300?text=No+Image'"
+                  :src="reportData.IMAGE_URL"
                   alt="舉報圖片"
-                  @error="(e) => (e.target.src = 'https://via.placeholder.com/400x300?text=Image+Not+Found')"
+                  @error="(e) => (e.target.src = 'https://placehold.co/400x300?text=Image+Not+Found')"
                 />
               </div>
               <p v-if="reportData.INTERNAL_TYPE === 'comment'" style="font-size: 12px; color: #999; margin-top: 8px;">
@@ -586,5 +597,18 @@ onMounted(loadReportData);
       }
     }
   }
+}
+
+/* 讓原始內容文字區塊更有質感 */
+.original-content-box {
+  background: $neutral-color-100!important; /* 淡淡的象牙橘 */
+  padding: 12px 15px;
+  // border-left: 4px solid #e6a23c; /* 左側橘色邊條 */
+  border-radius: 4px;
+  color: #606266;
+  // font-style: italic;
+  white-space: pre-wrap; /* 保留原始文字的換行 */
+  margin-top: 5px;
+  line-height: 1.6;
 }
 </style>

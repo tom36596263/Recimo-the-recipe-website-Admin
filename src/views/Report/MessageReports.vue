@@ -60,34 +60,47 @@ const reportData = ref({
   comment_content: ''
 });
 
-// ===== 步驟1：載入舉報數據 (從 PHP 抓) =====
+/// ===== 步驟1：載入舉報數據 (從 PHP 抓) =====
 const loadReportData = async () => {
   try {
     loading.value = true;
-    const reportId = route.params.id;
-    // 🏆 呼叫 PHP API
+    
+    // 1. 取得網址上的原始 ID (例如 "comment_3")
+    const rawId = route.params.id; 
+    
+    // 2. 🏆 這次直接用原本的 ID 去比對，因為你的 JSON 裡面 report_id 就是 "comment_3"
+    // 不用再 replace 了，直接比對最準！
+    const cleanId = String(rawId); 
+
     const response = await phpApi.get('others/report_manage.php');
+
     if (response.data.success) {
       const allData = response.data.data;
-      // 找到對應 ID 的資料
+      
+      // 3. 🏆 根據你給的 JSON 結構：report_id 是 "comment_3"
       const report = allData.find(
-        (r) => String(r.report_id) === String(reportId)
+        (r) => String(r.report_id) === cleanId
       );
 
       if (report) {
-        // 映射後端欄位到你原本的 reportData 結構
+        // 4. 🏆 欄位對接：API 給的是 display_text，前端要顯示的是 comment_content
         reportData.value = {
           REPORTED_COMMENT_ID: report.report_id,
-          COMMENT_ID: report.comment_id || 'N/A',
+          COMMENT_ID: report.target_id || 'N/A', 
           REPORTER_ID: report.user_id,
-          REPORT_TYPE: report.type_text, // 直接用後端給的中文
+          REPORT_TYPE: report.type_text,
           REPORT_REASON: report.reason,
-          STATUS: report.status, // 'pending', 'resolved', 'ignored'
-          HANDLER_ID: '管理員', // 後端有需要可再補
+          STATUS: report.status,
+          HANDLER_ID: report.handler_id || '管理員',
           REPORTERD_AT: report.report_at,
           UPDATE_AT: report.update_at,
-          comment_content: report.reason // 如果有內容欄位再替換
+          // 這裡最重要：把 API 的 display_text 塞進去
+          comment_content: report.display_text 
         };
+        console.log('匹配成功！資料為：', reportData.value);
+      } else {
+        ElMessage.error(`找不到案件編號 ${cleanId}`);
+        console.warn('搜尋 ID:', cleanId, '但資料庫裡只有:', allData.map(i => i.report_id));
       }
     }
   } catch (error) {
@@ -105,6 +118,7 @@ const updateStatus = async (newStatus) => {
     const res = await phpApi.post('others/report_manage.php', {
       report_id: reportData.value.REPORTED_COMMENT_ID,
       report_type: 'comment',
+      target_id: reportData.value.COMMENT_ID,
       status: newStatus
     });
 

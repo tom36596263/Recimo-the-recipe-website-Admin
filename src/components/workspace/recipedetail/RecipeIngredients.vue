@@ -41,8 +41,8 @@ const computedIngredients = computed(() => {
                     <div class="cell amount" :title="item.displayAmount + ' ' + item.unit_name">
                         <p class="p-p2">{{ item.displayAmount }} {{ item.unit_name }}</p>
                     </div>
-                    <div class="cell note" :title="item.note">
-                        <p class="p-p2">{{ item.note }}</p>
+                    <div class="cell note" :title="item.remark">
+                        <p class="p-p2">{{ item.remark || '-' }}</p>
                     </div>
                 </div>
             </div>
