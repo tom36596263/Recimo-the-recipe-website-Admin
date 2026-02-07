@@ -35,10 +35,21 @@ const form = reactive({ ...initialForm });
 
 const open = (type, data = null) => {
   mode.value = type;
+  form.rawFile = null;
+
   if (type === 'edit' && data) {
+    // 1. 文字資料：原本是好的，就維持原樣！(不要動它)
     Object.assign(form, data);
+
+    // 2. 圖片資料：【這是唯一要加的】
+    // 告訴 Vue：「請優先使用後端給的那個『無敵路徑』」
+    // 如果不加這行，Vue 就會忽略我們剛剛修好的路徑
+    if (data.full_image_url) {
+      form.imageUrl = data.full_image_url;
+    }
   } else {
     Object.assign(form, initialForm);
+    form.imageUrl = '';
   }
   visible.value = true;
 };
