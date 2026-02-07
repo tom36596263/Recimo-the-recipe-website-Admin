@@ -149,20 +149,65 @@ const removeItem = (id) => {
 .ingredient-item {
     position: relative;
     background: $neutral-color-white;
-    border: 0.5px solid $neutral-color-400;
+    border: 1px solid $neutral-color-400;
     border-radius: 12px;
-    padding: 12px 16px;
-    transition: all 0.2s ease;
+    padding: 10px 20px 10px 30px;
+    transition: all 0.3s ease;
+    overflow: hidden;
+
+    &::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 6px;
+        background: $primary-color-700;
+        opacity: 0.7;
+        z-index: 1;
+    }
+
+    &.tag-green {
+        border-color: #74D09C;
+        background: rgba(116, 208, 156, 0.05);
+
+        &::before {
+            background: #74D09C;
+            opacity: 1;
+        }
+    }
+
+    &.tag-orange {
+        border-color: #FFCB82;
+        background: rgba(255, 203, 130, 0.05);
+
+        &::before {
+            background: #FFCB82;
+            opacity: 1;
+        }
+    }
+
+    &.tag-blue {
+        border-color: #90C6FF;
+        background: rgba(144, 198, 255, 0.05);
+
+        &::before {
+            background: #90C6FF;
+            opacity: 1;
+        }
+    }
 
     &:hover {
-        border-color: $primary-color-400;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+        border-color: $primary-color-700;
     }
 
     &.is-view {
-        border-color: transparent;
         background: $primary-color-100;
-        padding: 8px 12px;
+        border-color: transparent;
+
+        &::before {
+            background: $neutral-color-400;
+        }
     }
 
     .remove-btn {
@@ -173,7 +218,8 @@ const removeItem = (id) => {
         border: none;
         color: $secondary-color-danger-400;
         cursor: pointer;
-        z-index: 2;
+        z-index: 5;
+        font-size: 18px;
 
         &:hover {
             color: $secondary-color-danger-700;

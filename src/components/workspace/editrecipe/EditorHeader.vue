@@ -282,10 +282,7 @@ const handleTagsSelected = (newSelectedTags) => {
             </span>
           </div>
         </div>
-        <div
-          class="row-description"
-          :class="{ 'editing-border': isEditing, 'is-adapt': isAdaptMode }"
-        >
+        <div class="row-description">
           <textarea
             v-if="isEditing"
             :value="modelValue.description"
@@ -621,10 +618,10 @@ const handleTagsSelected = (newSelectedTags) => {
   background: $neutral-color-100;
   border-radius: 10px;
 
-  &.editing-border {
-    border: 1px dashed $primary-color-700;
-    background: $neutral-color-white;
-  }
+  // &.editing-border {
+  //   border: 1px dashed $primary-color-700;
+  //   background: $neutral-color-white;
+  // }
 
   &.is-adapt {
     min-height: 140px;

@@ -279,7 +279,7 @@ const getStepTags = (step) => {
                 <div class="step-number p-p2">{{ idx + 1 }}</div>
               </div>
 
-              <input v-if="isEditing" v-model="step.title" class="step-title-input zh-h4" placeholder="步驟標題"
+              <input v-if="isEditing" v-model="step.title" class="step-title-input zh-h4" placeholder="請輸入步驟標題"
                 maxlength="30"
                 @input="updateStepField(idx, 'title', $event.target.value)" />
               <span v-else class="step-title-display zh-h4">
@@ -475,6 +475,11 @@ const getStepTags = (step) => {
       border: none;
       cursor: pointer;
       padding: 4px 8px;
+
+      @media (max-width: 768px) {
+        font-size: 20px; // 放大刪除鈕，手機好點擊
+        padding: 8px;
+      }
     }
   }
 
@@ -483,8 +488,8 @@ const getStepTags = (step) => {
     gap: 20px;
 
     @media (max-width: 768px) {
-      flex-direction: column;
-      gap: 12px;
+      flex-direction: column; // 🚀 關鍵：手機版圖上文下
+      gap: 16px;
     }
   }
 }
@@ -663,12 +668,9 @@ const getStepTags = (step) => {
 
   :deep(.base-tag) {
     height: 32px !important;
-    min-height: 32px !important;
     background-color: $primary-color-100 !important;
     border-radius: 10px !important;
-    border: none !important;
     padding: 0 10px !important;
-    max-width: 160px;
   }
 }
 
