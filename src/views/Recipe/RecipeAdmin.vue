@@ -38,11 +38,16 @@ const filteredData = computed(() => {
   
   const searchLower = search.value.toLowerCase();
   return tableData.value.filter(item => {
+    // const title = item.recipe_title ? item.recipe_title.toLowerCase() : '';
+    // const id = item.recipe_id ? String(item.recipe_id) : '';
+    // return title.includes(searchLower) || id.includes(searchLower);
     const title = item.recipe_title ? item.recipe_title.toLowerCase() : '';
+    const adaptTitle = item.adaptation_title ? item.adaptation_title.toLowerCase() : '';
     const id = item.recipe_id ? String(item.recipe_id) : '';
-    // recipes.json 沒有 category，這裡可根據實際欄位調整
-    // const categoryText = item.category ? item.category.toLowerCase() : '';
-    return title.includes(searchLower) || id.includes(searchLower);
+
+    return title.includes(searchLower) || 
+          adaptTitle.includes(searchLower) || // 增加這一行
+          id.includes(searchLower);
   });
 });
 
@@ -56,6 +61,11 @@ const handleSortChange = ({ prop, order }) => {
     // 例如 prop 可能是 'recipe_id', 'recipe_title' 等
     let valA = a[prop];
     let valB = b[prop];
+    // 🏆 增加這一段：如果排序的是食譜名稱，優先取改編標題
+    if (prop === 'recipe_title') {
+      valA = a.adaptation_title || a.recipe_title;
+      valB = b.adaptation_title || b.recipe_title;
+    }
     // 若是日期欄位
     if (prop === 'recipe_created_at' || prop === 'recipe_last_updated') {
       valA = new Date(valA);
@@ -153,7 +163,12 @@ const goToDetail = (recipeId) => {
 
         <el-table-column prop="recipe_id" label="食譜編號" sortable="custom" align="center" width="180"/>
         <!-- <el-table-column prop="category" label="食譜分類" sortable="custom" align="center"/> -->
-        <el-table-column prop="recipe_title" label="食譜名稱" align="center"/>
+        <!-- <el-table-column prop="recipe_title" label="食譜名稱" align="center"/> -->
+        <el-table-column label="食譜名稱" align="center">
+          <template #default="scope">
+            {{ scope.row.adaptation_title || scope.row.recipe_title }}
+          </template>
+        </el-table-column>
 
         <el-table-column label="公開狀態" align="center" width="120">
           <template #default="scope">

@@ -109,7 +109,7 @@ onMounted(loadDataFromPhp);
         <el-table-column label="檢舉類型" align="center" width="180">
           <template #default="scope">{{ scope.row.type_text }}</template>
         </el-table-column>
-        <el-table-column prop="reason" label="檢舉原因" align="center" show-overflow-tooltip />
+        <el-table-column prop="reason" label="檢舉原因" align="center"/>
         <el-table-column prop="user_id" label="被檢舉人ID" align="center" width="110" />
         <el-table-column label="狀態" align="center" width="120">
           <template #default="scope">
@@ -139,7 +139,7 @@ onMounted(loadDataFromPhp);
         <el-table-column label="檢舉類型" align="center" width="180">
           <template #default="scope">{{ scope.row.type_text }}</template>
         </el-table-column>
-        <el-table-column prop="reason" label="檢舉原因" align="center" show-overflow-tooltip />
+        <el-table-column prop="reason" label="檢舉原因" align="center"/>
         <el-table-column prop="user_id" label="被檢舉人ID" align="center" width="110" />
         <el-table-column label="狀態" align="center" width="120">
           <template #default="scope">
@@ -169,7 +169,7 @@ onMounted(loadDataFromPhp);
         <el-table-column label="檢舉類型" align="center" width="180">
           <template #default="scope">{{ scope.row.type_text }}</template>
         </el-table-column>
-        <el-table-column prop="reason" label="檢舉原因" align="center" show-overflow-tooltip />
+        <el-table-column prop="reason" label="檢舉原因" align="center"/>
         <el-table-column prop="user_id" label="被檢舉人ID" align="center" width="110" />
         <el-table-column label="狀態" align="center" width="120">
           <template #default="scope">
