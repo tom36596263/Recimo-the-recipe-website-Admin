@@ -114,10 +114,10 @@ const handleSubmit = async () => {
 
 const getDbImageSrc = (path) => {
   if (!path) return '';
-
-  // 如果已經是完整的網址或 blob (預覽圖)，直接回傳
   if (path.startsWith('http') || path.startsWith('blob:')) return path;
-  return parsePublicFile(path);
+  const BASE_URL = 'https://tibamef2e.com/cjd102/g2/';
+  const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+  return `${BASE_URL}${cleanPath}`;
 };
 
 const handleClosed = () => {
