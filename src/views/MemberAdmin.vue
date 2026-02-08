@@ -220,7 +220,25 @@ const handleUpdate = async (formData) => {
       :header-cell-style="{ backgroundColor: '#F1F6EF', color: '#000', fontWeight: 'normal' }">
       <el-table-column prop="user_id" label="會員編號" sortable="custom" align="center" width="180" />
       <el-table-column prop="user_name" label="姓名" sortable="custom" align="center" />
-      <el-table-column prop="user_email" label="電子信箱" align="center" />
+      <el-table-column label="電子信箱" align="center" width="220">
+        <template #default="scope">
+          <div class="email-column">
+            <template v-if="scope.row.user_email && scope.row.user_email.endsWith('@line.com')">
+              <div class="line-status-tag">
+                <i class="fab fa-line"></i>
+                <span>LINE 註冊</span>
+              </div>
+              <span class="email-text line-id truncate" :title="scope.row.user_email">
+                {{ scope.row.user_email.split('@')[0] }}
+              </span>
+            </template>
+
+            <template v-else>
+              <span class="email-text truncate">{{ scope.row.user_email }}</span>
+            </template>
+          </div>
+        </template>
+      </el-table-column>
       <el-table-column prop="user_startdate" label="加入日期" sortable="custom" align="center" />
 
       <el-table-column label="狀態" align="center" width="120">
@@ -306,5 +324,86 @@ const handleUpdate = async (formData) => {
 :deep(.rounded-search .el-input__inner::placeholder) {
   color: #4a8b6f;
   opacity: 0.8;
+}
+
+.email-column {
+  display: flex;
+  flex-direction: column; // 標籤與文字上下排列，節省橫向空間
+  align-items: center;
+  gap: 4px;
+}
+
+/* line的email亂碼改成這些 */
+.email-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  /* 垂直置中關鍵 */
+  position: relative;
+  /* 為了讓子元素絕對定位 */
+  min-height: 50px;
+  /* 固定高度確保置中效果 */
+  cursor: default;
+
+  &:hover {
+    .email-text.line-id {
+      opacity: 1;
+      visibility: visible;
+      transform: translate(-50%, 0);
+      /* Hover 時回到定位點並顯示 */
+    }
+
+    // Hover 時讓標籤稍微往上移一點，給 Email 留位置
+    .line-status-tag {
+      transform: translateY(-10px);
+    }
+  }
+}
+
+/* 一般 Email 不受影響 */
+.email-text.truncate {
+  display: inline-block;
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
+
+.line-status-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background-color: #06C755;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: bold;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: transform 0.3s ease;
+}
+
+.email-text.line-id {
+  position: absolute;
+  /* 絕對定位，不佔據空間 */
+  bottom: 4px;
+  /* 靠底部顯示 */
+  left: 50%;
+  /* 靠左 50% */
+  transform: translate(-50%, 5px);
+  /* 初始位置：水平置中且下移 5px */
+
+  color: #999;
+  font-size: 11px;
+  font-family: monospace;
+  white-space: nowrap;
+
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+  z-index: 1;
 }
 </style>
