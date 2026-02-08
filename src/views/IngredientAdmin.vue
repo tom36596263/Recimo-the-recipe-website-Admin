@@ -9,6 +9,8 @@ import IngredientModal from '@/components/modal/IngredientModal.vue';
 import { useRoute } from 'vue-router';
 import { publicApi, phpApi } from '@/utils/publicApi.js';
 import { parsePublicFile } from '@/utils/parseFile';
+import { ElMessage } from 'element-plus';
+import 'element-plus/theme-chalk/el-message.css';
 
 // 取得 $parseFile 全域方法
 const route = useRoute();
@@ -181,16 +183,17 @@ const handleStatusChange = async (row) => {
     if (response.data.status === 'success') {
       // 可以加個簡單提示，或是什麼都不做(因為開關已經變了)
       console.log('狀態更新成功');
+      ElMessage.success('狀態更新成功');
     } else {
       // 失敗的話，要把開關切換回來，避免畫面跟資料庫不同步
       row.is_active = !row.is_active;
-      alert('更新失敗: ' + response.data.message);
+      ElMessage.warning('更新失敗: ' + (response.data.message || '未知錯誤'));
     }
   } catch (error) {
     console.error('API 錯誤:', error);
     // 失敗回復狀態
     row.is_active = !row.is_active;
-    alert('連線錯誤，請稍後再試');
+    ElMessage.error('連線錯誤，請稍後再試');
   }
 };
 

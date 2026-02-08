@@ -3,6 +3,8 @@ import { ref, reactive, defineEmits } from 'vue';
 import { Plus } from '@element-plus/icons-vue';
 import { parsePublicFile } from '@/utils/parseFile';
 import { phpApi } from '@/utils/publicApi.js';
+import { ElMessage } from 'element-plus';
+import 'element-plus/theme-chalk/el-message.css';
 const visible = ref(false);
 const mode = ref('add'); // 'add' 或 'edit'
 const emit = defineEmits(['refresh']);
@@ -97,16 +99,16 @@ const handleSubmit = async () => {
     const result = response.data;
 
     if (result.status === 'success') {
-      alert(result.message);
+      ElMessage.success(result.message || '儲存成功');
       visible.value = false;
       emit('refresh');
     } else {
       // 這裡如果還是報「名稱必填」，代表後端 $_POST 依然拿不到東西
-      alert('儲存失敗：' + result.message);
+      ElMessage.warning('儲存失敗：' + result.message);
     }
   } catch (error) {
     console.error('API 請求出錯:', error);
-    alert('連線失敗，請檢查伺服器狀態');
+    ElMessage.error('連線失敗，請檢查伺服器狀態');
   }
 };
 
