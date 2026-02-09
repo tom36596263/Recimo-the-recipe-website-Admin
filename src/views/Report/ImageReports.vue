@@ -19,7 +19,7 @@ const reportData = ref({
   REPORTED_IMAGE_ID: '',
   TARGET_LABEL: '被檢舉目標 ID',
   COMMENT_ID: '',
-  RECIPE_ID: '', // 🏆 新增欄位：記錄所在食譜 ID
+  RECIPE_ID: '', 
   REPORTER_ID: '',
   REPORT_TYPE: '',
   REPORT_REASON: '',
@@ -39,8 +39,8 @@ const loadReportData = async () => {
     loading.value = true;
     const reportIdFromUrl = String(route.params.id);
     
-    // 呼叫後端 API (已在 PHP 補上 recipe_id)
-    const response = await phpApi.get('others/report_manage.php');
+    // 🏆 加入時間戳防止瀏覽器快取 (Cache Busting)
+    const response = await phpApi.get(`others/report_manage.php?t=${new Date().getTime()}`);
     
     if (response.data.success) {
       const allData = response.data.data;
@@ -53,7 +53,6 @@ const loadReportData = async () => {
           recipe:  '被檢舉食譜 ID'
         };
 
-        // 1. 修正圖片路徑
         let finalImageUrl = '';
         if (report.report_img) {
           const apiBase = phpApi.defaults.baseURL.replace(/\/+$/, '');
@@ -65,12 +64,11 @@ const loadReportData = async () => {
           finalImageUrl = 'https://placehold.co/400x300?text=No+Image+Provided';
         }
 
-        // 2. 重新賦值並加入 RECIPE_ID
         reportData.value = {
           REPORTED_IMAGE_ID: report.report_id,
           TARGET_LABEL: labelMap[report.report_type] || '被檢舉目標 ID',
           COMMENT_ID: report.target_id || report.report_id, 
-          RECIPE_ID: report.recipe_id || 'N/A', // 🏆 抓取 API 回傳的 recipe_id
+          RECIPE_ID: report.recipe_id || 'N/A', 
           REPORTER_ID: report.user_id,
           REPORT_TYPE: report.type_text,
           REPORT_REASON: report.reason || '未提供原因', 
@@ -107,6 +105,9 @@ const updateStatus = async (newStatus) => {
 
     if (res.data.success) {
       ElMessage.success('狀態已更新');
+      // 🏆 關鍵：先手動同步本地狀態，讓使用者立即看到 UI 變化
+      reportData.value.STATUS = newStatus;
+      // 🏆 再重新從伺服器抓取包含更新時間的完整資料
       await loadReportData(); 
     } else {
       ElMessage.error(res.data.message || '操作失敗');
@@ -119,20 +120,20 @@ const updateStatus = async (newStatus) => {
 };
 
 const approveReport = () => {
-  ElMessageBox.confirm('確定要同意刪除此內容嗎？', '確認', {
-    confirmButtonText: '同意', cancelButtonText: '取消', type: 'warning'
+  ElMessageBox.confirm('確定要同意並將此內容下架嗎？', '確認', {
+    confirmButtonText: '確定下架', cancelButtonText: '取消', type: 'warning'
   }).then(() => updateStatus('resolved')).catch(() => {});
 };
 
 const rejectReport = () => {
-  ElMessageBox.confirm('確定要駁回此舉報嗎？', '確認', {
-    confirmButtonText: '駁回', cancelButtonText: '取消', type: 'warning'
+  ElMessageBox.confirm('確定要駁回此檢舉嗎？', '確認', {
+    confirmButtonText: '駁回', cancelButtonText: '取消', type: 'info'
   }).then(() => updateStatus('ignored')).catch(() => {});
 };
 
 const resetReview = () => {
-  ElMessageBox.confirm('確定要修改審核狀態嗎？', '確認', {
-    confirmButtonText: '修改', cancelButtonText: '取消', type: 'warning'
+  ElMessageBox.confirm('確定要將此案件設回待審核嗎？內容將會恢復顯示。', '確認', {
+    confirmButtonText: '恢復顯示', cancelButtonText: '取消', type: 'warning'
   }).then(() => updateStatus('pending')).catch(() => {});
 };
 
@@ -163,7 +164,7 @@ onMounted(loadReportData);
               <el-col :xs="24" :sm="12">
                 <div class="info-item">
                   <span class="info-label">{{ reportData.TARGET_LABEL }}</span>
-                  <div class="info-value">{{ reportData.COMMENT_ID }}</div>
+                  <div class="info-value"># {{ reportData.COMMENT_ID }}</div>
                 </div>
               </el-col>
               <el-col :xs="24" :sm="12">
@@ -207,9 +208,9 @@ onMounted(loadReportData);
 
           <div class="info-section">
             <div class="info-item">
-              <span class="info-label">被檢舉的原始內容 (心得/留言)</span>
+              <span class="info-label">檢舉標的內容</span>
               <div class="info-value original-content-box">
-                {{ reportData.DISPLAY_TEXT || '(此筆資料無文字內容)' }}
+                {{ reportData.DISPLAY_TEXT }}
               </div>
             </div>
           </div>
@@ -217,20 +218,20 @@ onMounted(loadReportData);
           <el-divider />
 
           <div class="info-section">
-            <div class="info-item">
-              <span class="info-label">舉報內容圖片</span>
-              <div class="image-preview">
-                <img
-                  :src="reportData.IMAGE_URL"
-                  alt="舉報圖片"
-                  @error="(e) => (e.target.src = 'https://placehold.co/400x300?text=Image+Not+Found')"
-                />
-              </div>
-              <p v-if="reportData.INTERNAL_TYPE === 'comment'" style="font-size: 12px; color: #999; margin-top: 8px;">
-                * 此為留言檢舉，通常不包含實體圖片。
-              </p>
-            </div>
-          </div>
+    <div class="info-item">
+      <span class="info-label">舉報參考圖片</span>
+      <div class="image-preview">
+        <img
+          :src="reportData.IMAGE_URL"
+          alt="舉報圖片"
+          @error="(e) => (e.target.src = 'https://placehold.co/400x300?text=No+Preview')"
+        />
+      </div>
+      <p v-if="reportData.INTERNAL_TYPE === 'comment'" style="font-size: 12px; color: #999; margin-top: 8px;">
+        * 留言檢舉以文字審核為主。
+      </p>
+    </div>
+  </div>
 
           <el-divider />
 
@@ -273,7 +274,7 @@ onMounted(loadReportData);
             <el-button type="success" size="large" class="approve-btn" @click="approveReport">
               <div class="btn-content">
                 <el-icon><Check /></el-icon>
-                <span>同意刪除</span>
+                <span>同意下架</span>
               </div>
             </el-button>
             <el-button type="danger" size="large" class="reject-btn" @click="rejectReport">
@@ -291,7 +292,7 @@ onMounted(loadReportData);
                 <div class="info-value">{{ reportData.HANDLER_ID }}</div>
               </div>
               <div class="info-item">
-                <span class="info-label">審核時間</span>
+                <span class="info-label">處理時間</span>
                 <div class="info-value">{{ reportData.UPDATE_AT }}</div>
               </div>
             </div>
@@ -307,7 +308,6 @@ onMounted(loadReportData);
 </template>
 
 <style lang="scss" scoped>
-/* 保持你原本的樣式，並確保 original-content-box 樣式正確 */
 .image-reports-wrapper {
   padding: 20px;
   min-height: 100vh;
@@ -402,18 +402,24 @@ onMounted(loadReportData);
       }
 
       .image-preview {
-        width: 100%;
-        max-width: 400px;
-        aspect-ratio: 1;
-        border-radius: 8px;
-        overflow: hidden;
-        border: 1px solid #e8e8e8;
-        background: #f5f7fa;
+      width: 100%;
+      max-width: 500px; /* 稍微放大一點點增加氣勢 */
+      min-height: 200px;
+      max-height: 500px; /* 避免長圖過長 */
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid #e8e8e8;
+      background: #f5f7fa;
+      display: flex;
+      align-items: center;
+      justify-content: center;
 
-        img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
+      img {
+        width: 100%;
+        height: 100%;
+        display: block;
+        /* 🏆 改為 cover，圖片會填滿整個容器不留白，若要完整顯示且不留白則去掉 height: 100% */
+        object-fit: cover;
         }
       }
     }
@@ -456,21 +462,21 @@ onMounted(loadReportData);
       width: 100%;
 
       &.待審核 {
-        background: #fef0f0;
-        color: #f56c6c;
-        border: 1px solid #fde2e2;
+        background: #fffbe6;
+        color: #faad14;
+        border: 1px solid #ffe58f;
       }
 
       &.已核准 {
-        background: #f0f9ff;
-        color: #409eff;
-        border: 1px solid #c6e2ff;
+        background: #f6ffed;
+        color: #52c41a;
+        border: 1px solid #b7eb8f;
       }
 
       &.已拒絕 {
-        background: #f5f7fa;
-        color: #909399;
-        border: 1px solid #dcdfe6;
+        background: #fff1f0;
+        color: #f5222d;
+        border: 1px solid #ffa39e;
       }
     }
   }
@@ -496,16 +502,13 @@ onMounted(loadReportData);
 
     .approve-btn {
       width: 100%;
+      background: #3e8d60;
+      border-color: #3e8d60;
+      color: white;
 
-      &:not(:disabled) {
-        background: #3e8d60;
-        border-color: #3e8d60;
-        color: white;
-
-        &:hover {
-          background: #357a52;
-          border-color: #357a52;
-        }
+      &:hover {
+        background: #357a52;
+        border-color: #357a52;
       }
     }
 
@@ -539,7 +542,7 @@ onMounted(loadReportData);
 }
 
 .original-content-box {
-  background: #fdf6ec!important; /* 淺橘背景 */
+  background: #fdf6ec!important;
   padding: 12px 15px;
   border-radius: 4px;
   color: #606266;
