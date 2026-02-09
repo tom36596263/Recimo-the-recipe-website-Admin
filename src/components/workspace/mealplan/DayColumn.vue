@@ -4,44 +4,70 @@ import SmallRecipeCard from './SmallRecipeCard.vue';
 
 const props = defineProps({
   currentDate: {
-    type: Date,
+    type: [Date, Number],
     required: true
   },
   items: {
     type: Array,
     default: () => []
+  },
+  isTemplateMode: {
+    type: Boolean,
+    default: false
   }
 });
 
 const emit = defineEmits(['click']);
 
 // --- 邏輯處理區 ---
+// 標題顯示邏輯
+const headerTitle = computed(() => {
+  if (props.isTemplateMode) {
+    // 模板模式：顯示 Day 1, Day 2...
+    return `Day ${props.currentDate}`;
+  }
 
-const dayNumber = computed(() => props.currentDate.getDate());
+  // 日期模式：顯示 20 ( 三 )
+  // 必須確保 currentDate 是 Date 物件才能呼叫 getDate()
+  if (props.currentDate instanceof Date) {
+    const dayNumber = props.currentDate.getDate();
+    const days = ['日', '一', '二', '三', '四', '五', '六'];
+    const dayOfWeek = days[props.currentDate.getDay()];
+    return `${dayNumber} ( ${dayOfWeek} )`;
+  }
 
-const dayOfWeek = computed(() => {
-  const days = ['日', '一', '二', '三', '四', '五', '六'];
-  return days[props.currentDate.getDay()];
+  return '';
 });
 
 // 根據 meal_type 分類
-const breakfastItems = computed(() => props.items.filter(item => item.meal_type === 0));
-const lunchItems = computed(() => props.items.filter(item => item.meal_type === 1));
-const dinnerItems = computed(() => props.items.filter(item => item.meal_type === 2));
+const breakfastItems = computed(() =>
+  props.items.filter((item) => item.meal_type === 0)
+);
+const lunchItems = computed(() =>
+  props.items.filter((item) => item.meal_type === 1)
+);
+const dinnerItems = computed(() =>
+  props.items.filter((item) => item.meal_type === 2)
+);
 </script>
 
 <template>
   <div class="day-column" @click="emit('click', currentDate)">
+    <div class="day-column__date">{{ headerTitle }}</div>
 
-    <div class="day-column__date">
-      {{ dayNumber }} ( {{ dayOfWeek }} )
-    </div>
-
-    <div v-for="(mealGroup, idx) in [breakfastItems, lunchItems, dinnerItems]" :key="idx" class="day-column__slot"
-      @wheel.stop>
+    <div
+      v-for="(mealGroup, idx) in [breakfastItems, lunchItems, dinnerItems]"
+      :key="idx"
+      class="day-column__slot"
+      @wheel.stop
+    >
       <template v-if="mealGroup.length > 0">
-        <SmallRecipeCard v-for="item in mealGroup" :key="item.item_id" :title="item.detail?.recipe_title"
-          :kcal="item.detail?.recipe_kcal_per_100g" />
+        <SmallRecipeCard
+          v-for="item in mealGroup"
+          :key="item.item_id"
+          :title="item.detail?.recipe_title"
+          :kcal="item.detail?.recipe_kcal_per_100g"
+        />
       </template>
 
       <div v-else class="add-btn">
@@ -49,7 +75,6 @@ const dinnerItems = computed(() => props.items.filter(item => item.meal_type ===
         <span class="text">新增菜色</span>
       </div>
     </div>
-
   </div>
 </template>
 
@@ -71,6 +96,7 @@ const dinnerItems = computed(() => props.items.filter(item => item.meal_type ===
     border-radius: 10px;
     color: $primary-color-800;
     transition: all 0.3s ease;
+    border: 1px solid transparent;
   }
 
   &__date {
@@ -116,12 +142,10 @@ const dinnerItems = computed(() => props.items.filter(item => item.meal_type ===
         margin-bottom: 2px;
       }
     }
-
   }
 
   // 滑鼠懸停效果
   &:hover {
-
     .day-column__date,
     .day-column__slot {
       background-color: $accent-color-100;
