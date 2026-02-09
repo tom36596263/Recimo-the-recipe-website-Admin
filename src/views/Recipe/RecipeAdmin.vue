@@ -113,7 +113,7 @@ const handleStatusChange = async (row) => {
   } catch (error) {
     console.error('更新失敗:', error);
     // 💡 發生錯誤時，將開關狀態彈回原本的樣子
-    row.status = row.status === 0 ? 2 : 0; 
+    row.status = Number(row.status) === 0 ? 2 : 0;
     
     ElMessage({
       message: '狀態更新失敗，請檢查網路連線或後端設定',

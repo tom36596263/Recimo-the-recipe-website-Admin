@@ -30,7 +30,22 @@ const validateAmount = (item) => {
     }
     item.amount = val;
 };
+const handleAmountChange = (index, value) => {
+    const newIngredients = [...props.ingredients];
+    let val = value.replace(/[^\d.]/g, ""); // 移除非數字
+    
+    // 處理多個點的情況
+    const dotCount = (val.match(/\./g) || []).length;
+    if (dotCount > 1) {
+        val = val.slice(0, val.lastIndexOf("."));
+    }
 
+    // 更新陣列中該項目的值
+    newIngredients[index].amount = val;
+    
+    // 統一發送 emit 給父組件
+    emit('update:ingredients', newIngredients);
+};
 const handleAddMultiple = (items) => {
     const newIngredients = [...props.ingredients];
     items.forEach(item => {
@@ -51,8 +66,9 @@ const handleAddMultiple = (items) => {
                 carbs_per_100g: item.carbs_per_100g || 0
             });
         }
-        emit('update:ingredients', newIngredients);
+        
     });
+    emit('update:ingredients', newIngredients);
 };
 const removeItem = (id) => {
     // 過濾掉被刪除的項目，並通知父組件更新
@@ -84,12 +100,12 @@ const removeItem = (id) => {
                 <div class="input-row split-row">
                     <div class="amount-group p-p3">
                         <div class="amount-input-wrapper">
-                            <input v-model="ing.amount" type="text" inputmode="decimal"
+                            <input :value="ing.amount" type="text" inputmode="decimal"
                                 class="custom-input amount-field p-p3" :class="{ 'error-shake': ing.isInvalid }"
                                 placeholder="分量" :readonly="!isEditing" 
                                 @input="(e) => {
-                                    updateIngredient(index, 'amount', e.target.value);
-                                    validateAmount(ing);}" />
+                                    handleAmountChange(index, e.target.value);
+                                    }" />
                             <span v-if="ing.isInvalid" class="number-hint">僅限數字</span>
                         </div>
 
