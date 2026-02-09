@@ -1,95 +1,155 @@
 <script setup>
-import { ref, computed } from 'vue';
-import DefaultPlanAccordion from './DefaultPlanAccordion.vue';
+import { ref, computed, watch } from 'vue';
 import DateTabs from './DateTabs.vue';
 import NutritionChart from './NutritionChart.vue';
 
 const props = defineProps({
   planData: { type: Object, required: true },
-  mealPlanItems: { type: Array, default: () => [] }, // 關鍵：接收完整配餐清單
-  allRecipes: { type: Array, default: () => [] }     // 關鍵：接收食譜資料庫
+  mealPlanItems: { type: Array, default: () => [] },
+  allRecipes: { type: Array, default: () => [] },
+  targetCalories: { type: Number, default: 2000 },
+  isTemplateMode: { type: Boolean, default: false },
+  initialDay: { type: Number, default: 1 }
 });
 
-const emit = defineEmits(['close']);
+const emit = defineEmits(['close', 'update-plan-info']);
 
-// --- 1. 根據計畫日期產生日誌頁籤 ---
+// ------ 1. 產生頁籤列表 (Day 1, Day 2...) ------
 const dateTabsData = computed(() => {
-  if (!props.planData.start_date) return [];
+  if (props.isTemplateMode || !props.planData.start_date) {
+    const days = Number(props.planData.total_days) || 7;
+    const list = [];
+    for (let i = 1; i <= days; i++) {
+      list.push({ id: i, day: 'Day', date: i });
+    }
+    return list;
+  }
   const start = new Date(props.planData.start_date);
   const end = new Date(props.planData.end_date);
   const list = [];
   const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
-
+  let current = new Date(start);
   let idCounter = 1;
-  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+  while (current <= end) {
     list.push({
       id: idCounter++,
-      day: weekDays[d.getDay()],
-      date: d.getDate().toString(),
-      fullDate: d.toISOString().split('T')[0] // 隱藏屬性，用於後續過濾配餐
+      day: weekDays[current.getDay()],
+      date: current.getDate().toString(),
+      fullDate: current.toISOString().split('T')[0]
     });
+    current.setDate(current.getDate() + 1);
   }
   return list;
 });
 
-// --- 2. 狀態：當前選中的頁籤 ID ---
-const activeTabId = ref(1);
+const activeTabId = ref(props.initialDay || 1);
 
-// --- 3. 核心邏輯：計算「當前選中日期」的營養總和 ---
-const currentNutritionData = computed(() => {
-  // A. 找出目前 activeTabId 對應的完整日期字串
-  const activeTab = dateTabsData.value.find(tab => tab.id === activeTabId.value);
-  if (!activeTab) return { calories: 0, protein: 0, carbs: 0, starch: 0, fat: 0 };
-
-  // B. 從所有配餐清單中，篩選出符合該日期的項目
-  const todaysItems = props.mealPlanItems.filter(item =>
-    item.planned_date.includes(activeTab.fullDate)
-  );
-
-  // C. 累加營養素：遍歷今日項目，根據 recipe_id 到食譜庫查詢數值
-  return todaysItems.reduce((acc, item) => {
-    const recipe = props.allRecipes.find(r => r.recipe_id === item.recipe_id);
-    if (recipe) {
-      acc.calories += recipe.recipe_kcal_per_100g || 0;
-      acc.protein += recipe.recipe_protein_per_100g || 0;
-      acc.carbs += recipe.recipe_carbs_per_100g || 0;
-      acc.fat += recipe.recipe_fat_per_100g || 0;
-      acc.starch += (recipe.recipe_carbs_per_100g * 0.7) || 0; // 暫定澱粉佔碳水 70%
+watch(
+  () => props.initialDay,
+  (newVal) => {
+    if (newVal) {
+      activeTabId.value = newVal;
     }
-    return acc;
-  }, { calories: 0, protein: 0, carbs: 0, starch: 0, fat: 0 });
+  }
+);
+
+const currentNutritionData = computed(() => {
+  const activeTab = dateTabsData.value.find(
+    (tab) => tab.id === activeTabId.value
+  );
+  if (!activeTab)
+    return { calories: 0, protein: 0, carbs: 0, starch: 0, fat: 0 };
+
+  const todaysItems = props.mealPlanItems.filter((item) => {
+    if (props.isTemplateMode) return Number(item.day) === activeTab.id;
+    return item.planned_date && item.planned_date.includes(activeTab.fullDate);
+  });
+
+  return todaysItems.reduce(
+    (acc, item) => {
+      const recipe =
+        item.detail ||
+        props.allRecipes.find(
+          (r) => Number(r.recipe_id) === Number(item.recipe_id)
+        );
+      if (recipe) {
+        acc.calories += Number(recipe.recipe_kcal_per_100g) || 0;
+        acc.protein += Number(recipe.recipe_protein_per_100g) || 0;
+        acc.carbs += Number(recipe.recipe_carbs_per_100g) || 0;
+        acc.fat += Number(recipe.recipe_fat_per_100g) || 0;
+        acc.starch += Number(recipe.recipe_carbs_per_100g) * 0.7 || 0;
+      }
+      return acc;
+    },
+    { calories: 0, protein: 0, carbs: 0, starch: 0, fat: 0 }
+  );
 });
 
-const closePanel = () => { emit('close'); };
+const handleAddDay = () => {
+  if (props.planData.total_days < 30) {
+    emit('update-plan-info', {
+      total_days: Number(props.planData.total_days) + 1
+    });
+  }
+};
+
+const handleRemoveDay = () => {
+  if (props.planData.total_days > 1) {
+    if (confirm('確定要減少一天嗎？該日的食譜將會被隱藏（如果有的話）。')) {
+      emit('update-plan-info', {
+        total_days: Number(props.planData.total_days) - 1
+      });
+    }
+  }
+};
+
+const closePanel = () => {
+  emit('close');
+};
 </script>
 
 <template>
   <div class="plan-panel">
     <div class="plan-panel__header">
-      <div class="plan-panel__field p-p1">
-        計畫名稱：
-        <input type="text" :placeholder="planData.title || '載入中...'" class="plan-panel__input p-p1" />
+      <div class="plan-panel__title-block">
+        <div class="plan-panel__field p-p1">
+          <span class="label">名稱：</span>
+          <input
+            type="text"
+            :value="planData.title || '載入中...'"
+            @blur="(e) => emit('update-plan-info', { title: e.target.value })"
+            class="plan-panel__input title p-p1"
+          />
+        </div>
       </div>
       <div class="plan-panel__close" @click="closePanel">
         <i-material-symbols-close />
       </div>
     </div>
 
-    <div class="plan-panel__accordion p-p1">
-      <DefaultPlanAccordion />
-    </div>
-
-    <div class="plan-panel__cover">
-      <i-material-symbols-camping-outline />
-      <span class="cover-hint">更換封面圖片</span>
+    <div class="plan-panel__description-block">
+      <div class="field-label p-p1">描述：</div>
+      <textarea
+        class="description-input p-p2"
+        :value="planData.description || ''"
+        @blur="(e) => emit('update-plan-info', { description: e.target.value })"
+        placeholder="請輸入計畫描述..."
+      ></textarea>
     </div>
 
     <div class="plan-panel__tabs">
-      <DateTabs v-model="activeTabId" :tabs="dateTabsData" />
+      <DateTabs
+        v-model="activeTabId"
+        :tabs="dateTabsData"
+        :is-template-mode="isTemplateMode"
+        @add-day="handleAddDay"
+        @remove-day="handleRemoveDay"
+      />
     </div>
 
     <div class="plan-panel__chart">
-      <NutritionChart :data="currentNutritionData" />
+      <h3 class="plan-panel__chart-title p-p1">單日營養總計</h3>
+      <NutritionChart :data="currentNutritionData" :target="targetCalories" />
     </div>
   </div>
 </template>
@@ -113,7 +173,7 @@ const closePanel = () => { emit('close'); };
   &__header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     flex-shrink: 0;
   }
 
@@ -123,6 +183,11 @@ const closePanel = () => { emit('close'); };
     gap: 8px;
     color: $primary-color-800;
     font-weight: bold;
+    width: 100%;
+
+    .label {
+      flex-shrink: 0;
+    }
   }
 
   &__input {
@@ -133,9 +198,53 @@ const closePanel = () => { emit('close'); };
     padding: 4px 0;
     color: inherit;
     transition: border-bottom 0.3s;
+    width: 100%;
 
     &:focus {
       border-bottom: 1px solid $primary-color-800;
+    }
+
+    &.title {
+      font-weight: bold;
+    }
+  }
+
+  /* 🔴 新增：描述區塊樣式 */
+  &__description-block {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    .field-label {
+      color: $primary-color-800;
+      font-weight: bold;
+    }
+
+    .description-input {
+      width: 100%;
+      min-height: 80px;
+      padding: 10px;
+      border: 1px solid $neutral-color-400;
+      border-radius: 8px;
+      resize: vertical; /* 允許垂直調整大小 */
+      outline: none;
+      background-color: $neutral-color-100;
+      color: $neutral-color-800;
+      font-family: inherit;
+      line-height: 1.5;
+
+      &:focus {
+        border-color: $primary-color-800;
+        background-color: $neutral-color-white;
+      }
+
+      &::placeholder {
+        color: $neutral-color-400;
+      }
+
+      &::-webkit-scrollbar {
+        display: none;
+      }
     }
   }
 
@@ -150,35 +259,6 @@ const closePanel = () => { emit('close'); };
     }
   }
 
-  &__cover {
-    background-color: $accent-color-100;
-    width: 100%;
-    height: 225px;
-    border-radius: 12px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    color: $accent-color-800;
-    cursor: pointer;
-    flex-shrink: 0;
-    transition: background-color 0.3s;
-
-    svg {
-      font-size: 80px;
-    }
-
-    .cover-hint {
-      font-size: 0.8rem;
-      margin-top: 10px;
-      font-weight: bold;
-    }
-
-    &:hover {
-      background-color: mix($accent-color-100, $neutral-color-white, 80%);
-    }
-  }
-
   &__tabs {
     margin-top: 10px;
   }
@@ -187,13 +267,14 @@ const closePanel = () => { emit('close'); };
     padding-bottom: 40px;
   }
 
-  &::-webkit-scrollbar {
-    width: 6px;
+  &__chart-title {
+    color: $primary-color-800;
+    font-weight: bold;
+    margin-bottom: 10px;
   }
 
-  &::-webkit-scrollbar-thumb {
-    background-color: $neutral-color-100;
-    border-radius: 10px;
+  &::-webkit-scrollbar {
+    display: none;
   }
 }
 </style>
