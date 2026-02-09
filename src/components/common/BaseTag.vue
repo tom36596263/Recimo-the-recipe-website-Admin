@@ -90,7 +90,7 @@ const handleClick = (event) => {
 // 1. 大型互動標籤 (高度 32px)
 .tag-action {
   @include tag-base($height: 32px,
-    $font-size: 16px,
+    $font-size: 10px,
     $width: 100%,
     $padding-x: 8px);
 
