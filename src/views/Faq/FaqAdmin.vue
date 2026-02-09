@@ -4,11 +4,10 @@ import { ref, onMounted, computed } from 'vue';
 import { Edit, Search, Delete } from '@element-plus/icons-vue'
 import MyPagination from '@/components/MyPagination.vue';
 import SearchBar from '@/components/SearchBar.vue'; // 搜尋欄組件
-import DeleteButton from '@/components/DeleteButton.vue';
 import { useRoute } from 'vue-router';
 import { publicApi } from '@/utils/publicApi.js';
 import { phpApi } from '@/utils/publicApi.js';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 
 const route = useRoute();
 
@@ -93,6 +92,15 @@ const handleSortChange = ({ prop, order }) => {
 // 刪除 FAQ
 const handleDelete = async (row) => {
   try {
+    await ElMessageBox.confirm(
+      `確定要刪除「${row.faq_title}」嗎？`,
+      '刪除確認',
+      {
+        confirmButtonText: '確定',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    );
     const params = new URLSearchParams();
     params.append('faq_id', row.faq_id);
     const res = await phpApi.delete('/system/faqs.php', { data: params });
@@ -103,7 +111,10 @@ const handleDelete = async (row) => {
       ElMessage.error(res.data?.message || '刪除失敗');
     }
   } catch (e) {
-    ElMessage.error('刪除失敗，請稍後再試');
+    // 使用者取消時不顯示錯誤訊息
+    if (e !== 'cancel') {
+      ElMessage.error('刪除失敗，請稍後再試');
+    }
   }
 };
 
@@ -155,7 +166,9 @@ onMounted(() => {
       </el-table-column>
       <el-table-column label="刪除" align="center" width="120">
         <template #default="scope">
-          <DeleteButton :onDelete="() => handleDelete(scope.row)" />
+          <el-icon @click="handleDelete(scope.row)" style="cursor: pointer; color: #555;">
+            <Delete />
+          </el-icon>
         </template>
       </el-table-column>
 

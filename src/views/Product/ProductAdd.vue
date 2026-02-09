@@ -19,16 +19,16 @@ const productData = ref({
   product_net_weight: '',
   product_image: '',
   nutrition_info: [
-    { name: '熱量', value: 0, unit: 'kcal' },
-    { name: '總脂肪', value: 0, unit: 'g' },
-    { name: '蛋白質', value: 0, unit: 'g' },
-    { name: '鈉', value: 0, unit: 'mg' }
+    { name: '熱量', value: '', unit: 'kcal' },
+    { name: '總脂肪', value: '', unit: 'g' },
+    { name: '蛋白質', value: '', unit: 'g' },
+    { name: '鈉', value: '', unit: 'mg' }
   ],
   nutrition_info_right: [
-    { name: '碳水化合物', value: 0, unit: 'g' },
-    { name: '飽和脂肪', value: 0, unit: 'g' },
-    { name: '膳食纖維', value: 0, unit: 'g' },
-    { name: '糖', value: 0, unit: 'g' }
+    { name: '碳水化合物', value: '', unit: 'g' },
+    { name: '飽和脂肪', value: '', unit: 'g' },
+    { name: '膳食纖維', value: '', unit: 'g' },
+    { name: '糖', value: '', unit: 'g' }
   ],
   ingredient_content: '',
   ingredient_content_right: '',
@@ -51,12 +51,18 @@ const validateForm = () => {
   if (!p.product_name) { ElMessage.warning('請輸入商品名稱'); return false; }
   if (!p.product_category) { ElMessage.warning('請選擇商品分類'); return false; }
   if (!p.product_price || p.product_price <= 0) { ElMessage.warning('請輸入商品價格'); return false; }
-  if (!p.product_net_weight) { ElMessage.warning('請輸入商品重量'); return false; }
   if (!p.product_description) { ElMessage.warning('請輸入商品描述'); return false; }
 
-  // 2. 營養資訊驗證 (只要是 0 或空值都視為未填寫)
+  // 2.重量驗證：不能為空，且必須大於 0
+  if (!p.product_net_weight || parseFloat(p.product_net_weight) <= 0) {
+    ElMessage.warning('請輸入有效的商品重量 (需大於0)');
+    return false;
+  }
+
+
+  // 3. 營養資訊驗證 (只要是 空值都視為未填寫)
   const allNutrition = [...p.nutrition_info, ...p.nutrition_info_right];
-  // 檢查是否有任何一項的值為 0、空字串、null 或 undefined
+  // 檢查是否有任何一項的值為 空字串、null 或 undefined
   const hasEmptyNutrition = allNutrition.some(item =>
     item.value === '' || item.value === null || item.value === undefined
   );
@@ -66,13 +72,13 @@ const validateForm = () => {
     return false;
   }
 
-  // 3. 商品介紹驗證
+  // 4. 商品介紹驗證
   if (!p.ingredient_content) { ElMessage.warning('請輸入食材內容'); return false; }
   if (!p.ingredient_content_right) { ElMessage.warning('請輸入使用方法'); return false; }
   if (!p.storage_period) { ElMessage.warning('請輸入保存期限'); return false; }
   if (!p.product_tips) { ElMessage.warning('請輸入貼心提醒'); return false; }
 
-  // 4. 圖片驗證 (非常重要，防止資料庫 JSON 解析出錯)
+  // 5. 圖片驗證 (非常重要，防止資料庫 JSON 解析出錯)
   if (p.recipe_images.length === 0) {
     ElMessage.warning('請至少上傳一張商品圖片');
     return false;
@@ -112,9 +118,8 @@ const addProduct = async () => {
       throw new Error(response.data.message || '新增失敗');
     }
   } catch (error) {
-    // 這裡要小心，如果是網路斷掉，response 可能不存在
     const errMsg = error.response?.data?.message || error.message || '連線伺服器失敗';
-    ElMessage.success(response.data.message);
+    ElMessage.error(errMsg)
     console.error('新增商品失敗:', error);
   } finally {
     loading.value = false;
@@ -185,20 +190,20 @@ const handleImageUpload = (uploadFile) => {
  * beforeImageUpload 方法
  * 功能說明：圖片上傳前的驗證
  */
-const beforeImageUpload = (file) => {
-  const isImage = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type);
-  const isLt5M = file.size / 1024 / 1024 < 5;
+// const beforeImageUpload = (file) => {
+//   const isImage = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(file.type);
+//   const isLt5M = file.size / 1024 / 1024 < 5;
 
-  if (!isImage) {
-    ElMessage.error('只能上傳圖片格式的文件（JPG、PNG、GIF、WebP）');
-    return false;
-  }
-  if (!isLt5M) {
-    ElMessage.error('圖片大小不能超過 5MB');
-    return false;
-  }
-  return true;
-};
+//   if (!isImage) {
+//     ElMessage.error('只能上傳圖片格式的文件（JPG、PNG、GIF、WebP）');
+//     return false;
+//   }
+//   if (!isLt5M) {
+//     ElMessage.error('圖片大小不能超過 5MB');
+//     return false;
+//   }
+//   return true;
+// };
 
 onMounted(() => {
   // 新增頁面無需載入數據，直接使用初始空數據

@@ -33,7 +33,7 @@ const getCategoryLabel = (category) => {
 // ===== 搜尋邏輯 =====
 // 只顯示 sender_id 為 1 的資料，並支援搜尋
 const filteredData = computed(() => {
-  let filtered = tableData.value.filter(item => item.sender_id === 1);
+  let filtered = tableData.value.filter(item => item.sender_id == 1);
 
   // 應用搜尋
   if (search.value) {
