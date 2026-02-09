@@ -124,7 +124,7 @@ const handleDeleteOne = async (row) => {
 
     // 調用刪除 API
     const response = await phpApi.delete('social/admin_notifications.php', {
-      data: { notification_id: row.notification_id }
+      data: { notification_id: Number(row.notification_id) }
     });
 
     if (response.data.success) {

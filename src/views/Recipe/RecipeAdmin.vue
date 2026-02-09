@@ -98,7 +98,7 @@ const handleStatusChange = async (row) => {
   try {
     // 💡 確保傳送的資料格式與 PHP 接收的一致
     const response = await phpApi.post('recipes/update_status.php', {
-      recipe_id: row.recipe_id,
+      recipe_id: Number(row.recipe_id),
       status: row.status
     });
 

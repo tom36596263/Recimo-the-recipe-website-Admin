@@ -109,7 +109,7 @@ const handleStatusChange = async (row) => {
   
   try {
     await phpApi.patch('others/admin_status.php', {
-      admin_id: row.admin_id,
+      admin_id: Number(row.admin_id),
       admin_level: Number(row.admin_level), // 確保傳送數字類型
     });
     ElMessage.success('狀態已更新');
