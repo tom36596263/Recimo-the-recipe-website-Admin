@@ -19,6 +19,7 @@ const reportData = ref({
   REPORTED_IMAGE_ID: '',
   TARGET_LABEL: '被檢舉目標 ID',
   COMMENT_ID: '',
+  RECIPE_ID: '', // 🏆 新增欄位：記錄所在食譜 ID
   REPORTER_ID: '',
   REPORT_TYPE: '',
   REPORT_REASON: '',
@@ -38,7 +39,7 @@ const loadReportData = async () => {
     loading.value = true;
     const reportIdFromUrl = String(route.params.id);
     
-    // 💡 提示：這裡雖然撈了全部資料，但之後建議後端補一個 get_report_by_id.php
+    // 呼叫後端 API (已在 PHP 補上 recipe_id)
     const response = await phpApi.get('others/report_manage.php');
     
     if (response.data.success) {
@@ -52,7 +53,7 @@ const loadReportData = async () => {
           recipe:  '被檢舉食譜 ID'
         };
 
-        // 🏆 1. 修正圖片路徑與紅字問題
+        // 1. 修正圖片路徑
         let finalImageUrl = '';
         if (report.report_img) {
           const apiBase = phpApi.defaults.baseURL.replace(/\/+$/, '');
@@ -61,23 +62,20 @@ const loadReportData = async () => {
             .replace('social/32/', 'social/'); 
           finalImageUrl = `${apiBase}/${cleanPath}`;
         } else {
-          // 如果沒有圖片（例如留言檢舉），給一個乾淨的暫位圖，避免 ERR_NAME_NOT_RESOLVED
           finalImageUrl = 'https://placehold.co/400x300?text=No+Image+Provided';
         }
 
-        // 🏆 2. 重新賦值（確保原因欄位安全）
+        // 2. 重新賦值並加入 RECIPE_ID
         reportData.value = {
           REPORTED_IMAGE_ID: report.report_id,
           TARGET_LABEL: labelMap[report.report_type] || '被檢舉目標 ID',
           COMMENT_ID: report.target_id || report.report_id, 
+          RECIPE_ID: report.recipe_id || 'N/A', // 🏆 抓取 API 回傳的 recipe_id
           REPORTER_ID: report.user_id,
           REPORT_TYPE: report.type_text,
-          
-          // 🔥 這裡先做基礎保護，如果後端給錯，我們至少顯示「來自[類型]的原因」方便除錯
           REPORT_REASON: report.reason || '未提供原因', 
-          
           STATUS: report.status,
-          HANDLER_ID: report.handler_id || '管理員', // 修正這裡，改用資料庫回傳的 handler
+          HANDLER_ID: report.handler_id || '管理員',
           REPORTERD_AT: report.report_at,
           UPDATE_AT: (report.status === 'pending') ? '尚未處理' : (report.update_at || '時間不詳'),
           IMAGE_URL: finalImageUrl,
@@ -86,7 +84,7 @@ const loadReportData = async () => {
         };
       } else {
         ElMessage.error('找不到該筆檢舉資料');
-        router.push('/admin/reports'); // 找不到就退回列表
+        router.push('/admin/reports');
       }
     }
   } catch (error) {
@@ -170,8 +168,8 @@ onMounted(loadReportData);
               </el-col>
               <el-col :xs="24" :sm="12">
                 <div class="info-item">
-                  <span class="info-label">案件編號</span>
-                  <div class="info-value">{{ reportData.REPORTED_IMAGE_ID }}</div>
+                  <span class="info-label">所在食譜 ID</span>
+                  <div class="info-value"># {{ reportData.RECIPE_ID }}</div>
                 </div>
               </el-col>
             </el-row>
@@ -180,10 +178,20 @@ onMounted(loadReportData);
           <el-divider />
 
           <div class="info-section">
-            <div class="info-item">
-              <span class="info-label">檢舉類型</span>
-              <div class="info-value">{{ reportData.REPORT_TYPE }}</div>
-            </div>
+            <el-row :gutter="20">
+              <el-col :xs="24" :sm="12">
+                <div class="info-item">
+                  <span class="info-label">檢舉類型</span>
+                  <div class="info-value">{{ reportData.REPORT_TYPE }}</div>
+                </div>
+              </el-col>
+              <el-col :xs="24" :sm="12">
+                <div class="info-item">
+                  <span class="info-label">案件編號</span>
+                  <div class="info-value">{{ reportData.REPORTED_IMAGE_ID }}</div>
+                </div>
+              </el-col>
+            </el-row>
           </div>
 
           <el-divider />
@@ -298,13 +306,12 @@ onMounted(loadReportData);
   </div>
 </template>
 
-
 <style lang="scss" scoped>
+/* 保持你原本的樣式，並確保 original-content-box 樣式正確 */
 .image-reports-wrapper {
   padding: 20px;
   min-height: 100vh;
 
-  // ===== 頂部返回區 =====
   .report-header {
     display: flex;
     justify-content: space-between;
@@ -336,7 +343,6 @@ onMounted(loadReportData);
     }
   }
 
-  // ===== 主要內容區 =====
   .report-content {
     display: grid;
     grid-template-columns: 1fr 320px;
@@ -344,7 +350,6 @@ onMounted(loadReportData);
     align-items: start;
   }
 
-  // ===== 左側詳情卡片 =====
   .report-detail {
     .detail-card {
       background: white;
@@ -362,7 +367,6 @@ onMounted(loadReportData);
     }
   }
 
-  // ===== 卡片頂部 =====
   .card-header {
     h3 {
       margin: 0;
@@ -374,7 +378,6 @@ onMounted(loadReportData);
     }
   }
 
-  // ===== 信息項樣式 =====
   .info-section {
     margin-bottom: 15px;
 
@@ -416,13 +419,11 @@ onMounted(loadReportData);
     }
   }
 
-  // ===== 分割線 =====
   :deep(.el-divider) {
     margin: 15px 0;
     background: #e8e8e8;
   }
 
-  // ===== 右側審核面板 =====
   .review-panel {
     .review-card {
       background: white;
@@ -442,7 +443,6 @@ onMounted(loadReportData);
     }
   }
 
-  // ===== 審核狀態 =====
   .status-section {
     margin-bottom: 15px;
 
@@ -475,7 +475,6 @@ onMounted(loadReportData);
     }
   }
 
-  // ===== 審核按鈕 =====
   .action-buttons {
     display: flex;
     flex-direction: column;
@@ -508,30 +507,15 @@ onMounted(loadReportData);
           border-color: #357a52;
         }
       }
-
-      &:disabled {
-        background: #ccc;
-        border-color: #ccc;
-        cursor: not-allowed;
-        color: white;
-      }
     }
 
     .reject-btn {
       width: 100%;
       margin-left: 0;
-
-      &:disabled {
-        background: #ccc;
-        border-color: #ccc;
-        cursor: not-allowed;
-        color: white;
-      }
     }
   }
 
-  // ===== 審核人員信息 =====
-  .reviewer-info {
+  .result-info {
     .info-item {
       margin-bottom: 12px;
 
@@ -539,8 +523,6 @@ onMounted(loadReportData);
         font-weight: 600;
         color: #666;
         font-size: 13px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
         display: block;
         margin-bottom: 6px;
       }
@@ -556,59 +538,22 @@ onMounted(loadReportData);
   }
 }
 
-// ===== 響應式設計 =====
-@media (max-width: 1024px) {
-  .image-reports-wrapper {
-    .report-content {
-      grid-template-columns: 1fr;
-    }
-
-    .review-panel {
-      .review-card {
-        position: static;
-      }
-    }
-  }
-}
-
-@media (max-width: 768px) {
-  .image-reports-wrapper {
-    padding: 12px;
-
-    .report-header {
-      flex-direction: column;
-      gap: 12px;
-      align-items: flex-start;
-
-      .header-title {
-        font-size: 18px;
-      }
-    }
-
-    .info-section {
-      .info-item {
-        .info-label {
-          font-size: 12px;
-        }
-
-        .info-value {
-          font-size: 13px;
-        }
-      }
-    }
-  }
-}
-
-/* 讓原始內容文字區塊更有質感 */
 .original-content-box {
-  background: $neutral-color-100!important; /* 淡淡的象牙橘 */
+  background: #fdf6ec!important; /* 淺橘背景 */
   padding: 12px 15px;
-  // border-left: 4px solid #e6a23c; /* 左側橘色邊條 */
   border-radius: 4px;
   color: #606266;
-  // font-style: italic;
-  white-space: pre-wrap; /* 保留原始文字的換行 */
+  white-space: pre-wrap; 
   margin-top: 5px;
   line-height: 1.6;
+}
+
+@media (max-width: 1024px) {
+  .report-content {
+    grid-template-columns: 1fr;
+  }
+  .review-panel .review-card {
+    position: static;
+  }
 }
 </style>

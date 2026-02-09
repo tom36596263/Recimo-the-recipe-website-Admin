@@ -12,7 +12,7 @@ const router = useRouter();
 // ===== 頁面數據 =====
 const loading = ref(false);
 
-// 檢舉類型對應中文 (這裡保持你的對應，或根據 PHP 回傳的 type_text 顯示)
+// 檢舉類型對應中文
 const reportTypeMap = {
   0: '廣告/垃圾訊息',
   1: '人身攻擊/歧視',
@@ -21,14 +21,14 @@ const reportTypeMap = {
   4: '其他違規'
 };
 
-// 審核狀態對應中文 (對應 PHP 回傳的字串狀態)
+// 審核狀態對應中文
 const statusTextMap = {
   pending: '待審核',
   resolved: '審核通過',
   ignored: '審核不通過'
 };
 
-// 將字串狀態轉為你原本 CSS 用的數字 (0, 1, 2)
+// 將字串狀態轉為你原本 CSS 用的數字
 const statusNumberMap = {
   pending: 0,
   resolved: 1,
@@ -38,22 +38,23 @@ const statusNumberMap = {
 // 根據 STATUS 獲取狀態文字
 const getStatusText = (status) => statusTextMap[status] ?? '未知狀態';
 
-// 根據 STATUS 獲取狀態 class (這裡會回傳 "待審核" 等，對應你 CSS 的 class)
+// 根據 STATUS 獲取狀態 class
 const getStatusClass = (status) => {
   const num = statusNumberMap[status];
   if (num === 0) return '待審核';
-  if (num === 1) return '已核准'; // 修正：對應你 CSS 裡的 .已核准
-  if (num === 2) return '已拒絕'; // 修正：對應你 CSS 裡的 .已拒絕
+  if (num === 1) return '已核准'; 
+  if (num === 2) return '已拒絕'; 
   return '';
 };
 
 const reportData = ref({
   REPORTED_COMMENT_ID: '',
   COMMENT_ID: '',
+  RECIPE_ID: '', // 🏆 新增：留言所在的食譜 ID
   REPORTER_ID: '',
   REPORT_TYPE: '',
   REPORT_REASON: '',
-  STATUS: 'pending', // 初始改為字串
+  STATUS: 'pending', 
   HANDLER_ID: '',
   REPORTERD_AT: '',
   UPDATE_AT: '',
@@ -64,29 +65,22 @@ const reportData = ref({
 const loadReportData = async () => {
   try {
     loading.value = true;
-    
-    // 1. 取得網址上的原始 ID (例如 "comment_3")
     const rawId = route.params.id; 
-    
-    // 2. 🏆 這次直接用原本的 ID 去比對，因為你的 JSON 裡面 report_id 就是 "comment_3"
-    // 不用再 replace 了，直接比對最準！
     const cleanId = String(rawId); 
 
     const response = await phpApi.get('others/report_manage.php');
 
     if (response.data.success) {
       const allData = response.data.data;
-      
-      // 3. 🏆 根據你給的 JSON 結構：report_id 是 "comment_3"
       const report = allData.find(
         (r) => String(r.report_id) === cleanId
       );
 
       if (report) {
-        // 4. 🏆 欄位對接：API 給的是 display_text，前端要顯示的是 comment_content
         reportData.value = {
           REPORTED_COMMENT_ID: report.report_id,
           COMMENT_ID: report.target_id || 'N/A', 
+          RECIPE_ID: report.recipe_id || 'N/A', // 🏆 欄位對接：取得該留言隸屬的食譜 ID
           REPORTER_ID: report.user_id,
           REPORT_TYPE: report.type_text,
           REPORT_REASON: report.reason,
@@ -94,13 +88,11 @@ const loadReportData = async () => {
           HANDLER_ID: report.handler_id || '管理員',
           REPORTERD_AT: report.report_at,
           UPDATE_AT: report.update_at,
-          // 這裡最重要：把 API 的 display_text 塞進去
           comment_content: report.display_text 
         };
         console.log('匹配成功！資料為：', reportData.value);
       } else {
         ElMessage.error(`找不到案件編號 ${cleanId}`);
-        console.warn('搜尋 ID:', cleanId, '但資料庫裡只有:', allData.map(i => i.report_id));
       }
     }
   } catch (error) {
@@ -111,7 +103,6 @@ const loadReportData = async () => {
   }
 };
 
-// 封裝一個更新狀態的 function
 const updateStatus = async (newStatus) => {
   try {
     loading.value = true;
@@ -124,7 +115,7 @@ const updateStatus = async (newStatus) => {
 
     if (res.data.success) {
       ElMessage.success('操作成功');
-      await loadReportData(); // 重新整理頁面數據
+      await loadReportData(); 
     } else {
       ElMessage.error(res.data.message || '操作失敗');
     }
@@ -135,7 +126,6 @@ const updateStatus = async (newStatus) => {
   }
 };
 
-// ===== 步驟2：核准舉報 =====
 const approveReport = () => {
   ElMessageBox.confirm('確定要核准此舉報內容嗎？', '確認', {
     confirmButtonText: '同意',
@@ -146,7 +136,6 @@ const approveReport = () => {
     .catch(() => ElMessage.info('已取消'));
 };
 
-// ===== 步驟3：拒絕舉報 =====
 const rejectReport = () => {
   ElMessageBox.confirm('確定要駁回此舉報嗎？', '確認', {
     confirmButtonText: '駁回',
@@ -157,7 +146,6 @@ const rejectReport = () => {
     .catch(() => ElMessage.info('已取消'));
 };
 
-// ===== 步驟4：修改審核 =====
 const resetReview = () => {
   ElMessageBox.confirm('確定要修改審核嗎？', '確認', {
     confirmButtonText: '修改',
@@ -193,13 +181,19 @@ onMounted(loadReportData);
 
           <div class="info-section">
             <el-row :gutter="20">
-              <el-col :xs="24" :sm="12">
+              <el-col :xs="24" :sm="8">
                 <div class="info-item">
                   <span class="info-label">被檢舉留言編號</span>
                   <div class="info-value">{{ reportData.COMMENT_ID }}</div>
                 </div>
               </el-col>
-              <el-col :xs="24" :sm="12">
+              <el-col :xs="24" :sm="8">
+                <div class="info-item">
+                  <span class="info-label">留言所在食譜 ID</span>
+                  <div class="info-value"># {{ reportData.RECIPE_ID }}</div>
+                </div>
+              </el-col>
+              <el-col :xs="24" :sm="8">
                 <div class="info-item">
                   <span class="info-label">案件編號</span>
                   <div class="info-value">
@@ -331,7 +325,7 @@ onMounted(loadReportData);
 </template>
 
 <style lang="scss" scoped>
-/* 這裡完全沒動你的 CSS */
+/* 樣式保持原樣 */
 .message-reports-wrapper {
   padding: 20px;
   min-height: 100vh;
@@ -516,7 +510,7 @@ onMounted(loadReportData);
       }
     }
   }
-  .reviewer-info {
+  .result-info {
     .info-item {
       margin-bottom: 12px;
       .info-label {
@@ -539,13 +533,11 @@ onMounted(loadReportData);
   }
 }
 
-// ===== 響應式設計 =====
 @media (max-width: 1024px) {
   .message-reports-wrapper {
     .report-content {
       grid-template-columns: 1fr;
     }
-
     .review-panel {
       .review-card {
         position: static;
@@ -557,23 +549,19 @@ onMounted(loadReportData);
 @media (max-width: 768px) {
   .message-reports-wrapper {
     padding: 12px;
-
     .report-header {
       flex-direction: column;
       gap: 12px;
       align-items: flex-start;
-
       .header-title h2 {
         font-size: 18px;
       }
     }
-
     .info-section {
       .info-item {
         .info-label {
           font-size: 12px;
         }
-
         .info-value {
           font-size: 13px;
         }
