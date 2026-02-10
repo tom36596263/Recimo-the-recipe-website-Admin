@@ -54,9 +54,14 @@ const loadRecipeData = async () => {
   const editIdFromUrl = rawId ? Number(rawId) : null;
   const isAdapt = route.query.action === 'adapt';
 
-  if (recipeStore.rawEditorData) {
-    recipeForm.value = { ...recipeStore.rawEditorData };
-    recipeStore.rawEditorData = null;
+if (recipeStore.rawEditorData) {
+    // 使用簡單的展開運算子處理第一層，確保 File 物件不被破壞
+    const savedData = recipeStore.rawEditorData;
+    recipeForm.value = { 
+      ...savedData,
+      steps: [...savedData.steps] // 關鍵：展開步驟陣列
+    };
+    recipeStore.rawEditorData = null; // 清空緩存
     return;
   }
 
@@ -64,10 +69,12 @@ const loadRecipeData = async () => {
 
   try {
     isLoading.value = true; 
-    // 1. 串接 PHP API 取得完整細節
-    const response = await phpApi.get(`recipes/recipe_detail_get.php?recipe_id=${editIdFromUrl}`);
+    
+    // 💡 關鍵：補上 &admin=1，讓 PHP 允許讀取「下架/不公開」的食譜
+    const response = await phpApi.get(`recipes/recipe_detail_get.php?recipe_id=${editIdFromUrl}&admin=1`);
     
     if (!response.data.success) {
+      // 這裡如果失敗，現在會清楚顯示 PHP 回傳的 message
       console.error('載入失敗:', response.data.message);
       return;
     }
@@ -85,6 +92,8 @@ const loadRecipeData = async () => {
       recipeForm.value.recipe_id = editIdFromUrl;
       recipeForm.value.title = found.recipe_title;
     }
+
+    recipeForm.value.servings = Number(found.recipe_servings) || 1;
 
     recipeForm.value.description = found.recipe_description || '';
     recipeForm.value.difficulty = Number(found.recipe_difficulty) || 1;
@@ -153,20 +162,33 @@ onMounted(() => {
 });
 
 const handlePreview = () => {
-  const previewForm = JSON.parse(JSON.stringify(recipeForm.value));
-  if (recipeForm.value.coverImg instanceof File) {
-    previewForm.coverImg = URL.createObjectURL(recipeForm.value.coverImg);
-  }
-  recipeForm.value.steps.forEach((step, index) => {
-    if (step.image instanceof File) {
-      previewForm.steps[index].image = URL.createObjectURL(step.image);
-    }
-  });
+  // 1. 使用「淺拷貝」配上「手動處理步驟陣列」，保留原始 File 物件
+  const previewForm = {
+    ...recipeForm.value,
+    // 處理封面圖：如果是檔案，轉成網址供預覽元件顯示
+    coverImg: recipeForm.value.coverImg instanceof File 
+      ? URL.createObjectURL(recipeForm.value.coverImg) 
+      : recipeForm.value.coverImg,
+    // 處理步驟圖
+    steps: recipeForm.value.steps.map(step => ({
+      ...step,
+      image: step.image instanceof File 
+        ? URL.createObjectURL(step.image) 
+        : step.image
+    }))
+  };
+
+  // 2. 重要：存回 store 的「原始資料」必須是原本的 recipeForm.value (含有原始 File 物件)
+  // 這樣回來編輯頁時，檔案才不會變成字串網址或消失
   recipeStore.rawEditorData = { ...recipeForm.value };
+  
+  // 3. 傳遞給預覽頁面的資料 (包含轉好的 blob 網址)
   recipeStore.setPreviewFromEditor(previewForm);
+
   const currentId = route.query.editId || route.params.id || 0;
   const query = { mode: 'preview', editId: currentId };
   if (isAdaptModeActive.value) query.action = 'adapt';
+  
   router.push({ path: `/admin/recipes/${currentId}`, query });
 };
 

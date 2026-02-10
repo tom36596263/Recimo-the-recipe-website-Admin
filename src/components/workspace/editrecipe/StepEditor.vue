@@ -39,29 +39,24 @@ const updateStepField = (index, field, value) => {
 const getStepImage = (step) => {
   if (!step || !step.image) return null;
   
-  // 如果是 File 物件 (剛上傳)，產生臨時預覽圖
+  // 如果是 File 物件
   if (step.image instanceof File) {
-    return URL.createObjectURL(step.image);
+    // 檢查是否已經產生過預覽網址，避免重複產生物件網址造成記憶體洩漏
+    if (!step.previewUrl) {
+      step.previewUrl = URL.createObjectURL(step.image);
+    }
+    return step.previewUrl;
   }
   
-  // // 如果是 Base64 或 URL 字串
-  // const imgSource = step.image;
-  // if (typeof imgSource === 'string' && imgSource.trim().length > 0) {
-  //   if (imgSource.startsWith('data:') || imgSource.startsWith('http')) return imgSource;
-  //   return imgSource.startsWith('/') ? imgSource : `/${imgSource}`;
-  // }
-  // return null;
-  // 2. 如果是字串 (資料庫來的路徑)
+  // 如果是字串 (Base64 或資料庫路徑)
   const imgSource = step.image;
   if (typeof imgSource === 'string' && imgSource.trim().length > 0) {
-    // 如果已經是完整 URL (http) 或 Base64 (data:)，直接回傳
-    if (imgSource.startsWith('data:') || imgSource.startsWith('http')) {
+    if (imgSource.startsWith('data:') || imgSource.startsWith('http') || imgSource.startsWith('blob:')) {
       return imgSource;
     }
-    
-    // ✅ 核心修改：使用 parsePublicFile 處理相對路徑 (如 img/recipes/...)
     return parsePublicFile(imgSource);
   }
+  return null;
 };
 
 const handleImgError = (e) => {
@@ -186,11 +181,17 @@ const uploadStepImg = (index) => {
   input.onchange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    // 直接將 File 物件傳回給父組件，handleSave 會處理 Base64
+
+    // ✨ 修正：產生一個持久的預覽網址
+    const previewUrl = URL.createObjectURL(file);
+    
+    // 將 File 物件存入，但同時我們需要一個方式讓 UI 顯示它
+    // 這裡我們直接把 file 存進去，UI 顯示交給下一段的 getStepImage 優化
     updateStepField(index, 'image', file); 
   };
   input.click();
 };
+
 // const uploadStepImg = (step) => {
 //   if (!props.isEditing) return;
 //   const input = document.createElement('input');
