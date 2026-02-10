@@ -192,13 +192,18 @@ const handlePreview = () => {
   router.push({ path: `/admin/recipes/${currentId}`, query });
 };
 
+const isSaving = ref(false);
+
+// 2. 修改 handleSave 函式
 const handleSave = async () => {
   if (!recipeForm.value.title) {
     alert('請輸入食譜標題');
     return;
   }
 
-  // 小技巧：將圖片轉換為 Base64 (如果它是 File 物件)
+  // 🚀 開啟全螢幕加載遮罩
+  isSaving.value = true;
+
   const toBase64 = file => new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
@@ -207,41 +212,39 @@ const handleSave = async () => {
   });
   
   try {
-    // 複製一份資料進行處理，避免影響 UI
     const payload = JSON.parse(JSON.stringify(recipeForm.value));
     payload.mode = currentMode.value;
-    payload.status = isPublished.value ? 1 : 0; // 根據 checkbox 決定狀態
+    payload.status = isPublished.value ? 1 : 0;
     payload.tags = recipeForm.value.tags.map(t => t.tag_id);
-    payload.ingredients = payload.ingredients.map(ing => ({
-        id: Number(ing.id),
-        amount: ing.amount,
-        unit: ing.unit,    // 確認這裡與資料庫欄位名一致
-        note: ing.note        // 確認這裡與資料庫欄位名一致
-    }));
-    // 處理主圖
+    
+    // 這裡處理耗時的圖片轉 Base64
     if (recipeForm.value.coverImg instanceof File) {
       payload.coverImg = await toBase64(recipeForm.value.coverImg);
     }
 
-    // 處理步驟圖
     for (let i = 0; i < payload.steps.length; i++) {
       if (recipeForm.value.steps[i].image instanceof File) {
         payload.steps[i].image = await toBase64(recipeForm.value.steps[i].image);
       }
     }
 
-    // 發送請求
-    console.log(`正在發送資料 [模式: ${payload.mode}]...`, payload);
     const res = await phpApi.post('recipes/recipe_post.php', payload);
 
     if (res.data.success) {
-      alert('儲存成功！');
-      router.push('/admin/recipes'); // 儲存後跳轉，列表頁會觸發 loadDataFromPhp 更新
+      // 稍微延遲 0.5 秒讓使用者感覺「存檔完成」的過程，體驗更好
+      setTimeout(() => {
+        isSaving.value = false;
+        alert('儲存成功！');
+        router.push('/admin/recipes');
+      }, 500);
     } else {
+      isSaving.value = false;
       alert('儲存失敗：' + res.data.message);
     }
   } catch (error) {
+    isSaving.value = false; // 發生錯誤也要記得關掉遮罩
     console.error('API 錯誤', error);
+    alert('儲存時發生錯誤，請檢查網路連線');
   }
 };
 // const handleSave = async() => {
@@ -311,6 +314,14 @@ provide('isEditing', isEditing);
         </div>
       </footer>
     </main>
+    <Transition name="fade">
+      <div v-if="isSaving" class="loading-overlay">
+        <div class="loading-content">
+          <div class="spinner"></div>
+          <p class="loading-text zh-p">食譜發布中...</p>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -403,5 +414,58 @@ provide('isEditing', isEditing);
 
 .save-btn {
   width: 200px !important;
+}
+
+// --- Loading 遮罩樣式 ---
+.loading-overlay {
+  position: fixed;
+  inset: 0; // 鋪滿全螢幕
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(4px); // 毛玻璃效果
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999; // 確保在最上層
+}
+
+.loading-content {
+  text-align: center;
+
+  .spinner {
+    width: 60px;
+    height: 60px;
+    border: 5px solid $primary-color-100;
+    border-top: 5px solid $primary-color-800; // 你的主色調
+    border-radius: 50%;
+    animation: spin 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    margin: 0 auto 20px;
+  }
+
+  .loading-text {
+    color: $primary-color-800;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    animation: pulse 1.5s infinite;
+  }
+}
+
+// 旋轉動畫
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+// 文字閃爍呼吸動畫
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+// Vue Transition 動畫
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
 }
 </style>
