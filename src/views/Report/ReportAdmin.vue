@@ -8,10 +8,17 @@ import { phpApi } from '@/utils/publicApi.js';
 
 const route = useRoute();
 
+// --- 狀態持久化邏輯 ---
+// 從 sessionStorage 讀取上一次的顯示模式，若無則預設為 false (待處理)
+const getSavedShowFinished = () => {
+  const saved = sessionStorage.getItem('report_show_finished');
+  return saved === 'true'; // 因為存進去是字串，需轉回 Boolean
+};
+
 // 1. 資料狀態
 const allReports = ref([]);
 const isLoading = ref(true);
-const showFinished = ref(false); // 🏆 預設不顯示已完成案件，保持介面清爽
+const showFinished = ref(getSavedShowFinished()); // 🏆 使用讀取的狀態初始化
 
 // 2. 分頁與搜尋設定
 const pageSize = ref(4);
@@ -22,8 +29,12 @@ const search2 = ref('');
 const currentPage3 = ref(1); 
 const search3 = ref('');
 
-// 🏆 當切換顯示狀態時，將分頁歸一
-watch(showFinished, () => {
+// 🏆 當切換顯示狀態時
+watch(showFinished, (newVal) => {
+  // 1. 將狀態存入 sessionStorage
+  sessionStorage.setItem('report_show_finished', newVal);
+  
+  // 2. 將分頁歸一
   currentPage1.value = 1;
   currentPage2.value = 1;
   currentPage3.value = 1;
@@ -191,11 +202,10 @@ onMounted(loadDataFromPhp);
 </template>
 
 <style lang="scss" scoped>
+/* 樣式保持不變 */
 .report-container {
   padding: 20px;
 }
-
-// 🏆 新增過濾區塊樣式
 .filter-header {
   display: flex;
   align-items: center;
@@ -204,7 +214,6 @@ onMounted(loadDataFromPhp);
   background: #f9f9f9;
   padding: 15px;
   border-radius: 8px;
-  
   .status-switch {
     display: flex;
     align-items: center;
@@ -215,7 +224,6 @@ onMounted(loadDataFromPhp);
     }
   }
 }
-
 .report-block {
   margin-bottom: 30px;
 }
@@ -226,23 +234,19 @@ onMounted(loadDataFromPhp);
   margin-bottom: 15px;
   h2 { margin: 0; }
 }
-
 :deep(a) {
   text-decoration: none;
   outline: none;
 }
-
 .edit-btn {
   cursor: pointer;
   font-size: 20px;
   color: #606266;
   transition: color 0.3s;
-  
   &:hover {
     color: #3E8D60; 
   }
 }
-
 :deep(.el-input__wrapper) {
   border-radius: 20px;
 }
