@@ -151,6 +151,12 @@ const handleSortChange = ({ prop, order }) => {
     let valA = a[prop];
     let valB = b[prop];
 
+    // 🔥 確保 plan_id 以數值方式排序
+    if (prop === 'plan_id') {
+      valA = Number(valA);
+      valB = Number(valB);
+    }
+
     if (prop === 'created_at') {
       // 假設排序欄位是 created_at
       valA = new Date(valA);

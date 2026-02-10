@@ -72,6 +72,12 @@ const handleSortChange = ({ prop, order }) => {
     let valA = a[prop];
     let valB = b[prop];
 
+    // 🔥 確保 faq_id 以數值方式排序
+    if (prop === 'faq_id') {
+      valA = Number(valA);
+      valB = Number(valB);
+    }
+
     // 如果是日期格式，需要轉成 Date 物件才能正確比較
     if (prop === 'USER_STARTDATE') {
       valA = new Date(valA);
