@@ -15,6 +15,12 @@ const route = useRoute(); // 用於獲取路由參數
 // 通知詳情數據（包含類別、日期、內容、圖片等）
 const notification = ref({});
 
+// 接收人信息
+const receivers = ref([]);
+const receiverCount = ref(0);
+const showReceiverList = ref(false);
+const loadingReceivers = ref(false);
+
 // 編輯模式的表單數據
 const editForm = reactive({
   title: '',
@@ -80,6 +86,9 @@ const fetchNotificationDetail = async () => {
         image: found.notification_photo_url || ''
       };
 
+      // 獲取接收人信息
+      fetchReceivers();
+
       // 初始化編輯表單
       Object.assign(editForm, {
         title: notification.value.title,
@@ -96,6 +105,60 @@ const fetchNotificationDetail = async () => {
   } finally {
     loading.value = false;
   }
+};
+
+/**
+ * 獲取接收人列表
+ */
+const fetchReceivers = async () => {
+  try {
+    loadingReceivers.value = true;
+    
+    // 查詢所有相同標題、內容、類型、日期的通知
+    const response = await phpApi.get('social/admin_notifications.php');
+    
+    if (response.data.success) {
+      const dateOnly = notification.value.date.split(' ')[0];
+      
+      // 找出同批次的所有記錄
+      const sameNotifications = response.data.data.filter(item => {
+        const itemDate = item.created_at.split(' ')[0];
+        return item.notification_title === notification.value.title &&
+               item.notification_content === notification.value.content &&
+               item.notification_type === notification.value.categoryType &&
+               itemDate === dateOnly &&
+               item.sender_id == 1;
+      });
+      
+      receiverCount.value = sameNotifications.length;
+      
+      // 如果是批量發送，獲取用戶信息
+      if (receiverCount.value > 1) {
+        const userResponse = await phpApi.get('auth/get_members.php');
+        if (userResponse.data && Array.isArray(userResponse.data)) {
+          const receiverIds = sameNotifications.map(n => n.receiver_id);
+          receivers.value = userResponse.data
+            .filter(user => receiverIds.includes(user.user_id))
+            .map(user => ({
+              id: user.user_id,
+              name: user.user_name,
+              email: user.user_email
+            }));
+        }
+      }
+    }
+  } catch (error) {
+    console.error('獲取接收人信息失敗:', error);
+  } finally {
+    loadingReceivers.value = false;
+  }
+};
+
+/**
+ * 切換接收人列表顯示
+ */
+const toggleReceiverList = () => {
+  showReceiverList.value = !showReceiverList.value;
 };
 
 /**
@@ -124,6 +187,12 @@ const handleBack = () => {
  * 切換編輯模式
  */
 const toggleEditMode = () => {
+  // 批量發送的通知不允許編輯
+  if (receiverCount.value > 1) {
+    ElMessage.warning('批量發送的通知不支持編輯，請刪除後重新發送');
+    return;
+  }
+  
   isEditMode.value = !isEditMode.value;
   if (!isEditMode.value) {
     // 取消編輯時重置表單
@@ -228,8 +297,13 @@ const handleSaveEdit = async () => {
  */
 const handleDelete = async () => {
   try {
+    const isBatch = receiverCount.value > 1;
+    const confirmMsg = isBatch
+      ? `此通知已發送給 ${receiverCount.value} 位用戶，刪除後將無法恢復。\n確定要刪除所有 ${receiverCount.value} 條記錄嗎？`
+      : '刪除後將無法恢復，確定要刪除此通知嗎？';
+    
     await ElMessageBox.confirm(
-      '刪除後將無法恢復，確定要刪除此通知嗎？',
+      confirmMsg,
       '確認刪除',
       {
         confirmButtonText: '確定刪除',
@@ -241,16 +315,23 @@ const handleDelete = async () => {
 
     // 調用刪除 API
     const response = await phpApi.delete('social/admin_notifications.php', {
-      data: { notification_id: notification.value.id }
+      data: { 
+        notification_id: notification.value.id,
+        title: isBatch ? notification.value.title : '',
+        created_at: isBatch ? notification.value.date : ''
+      }
     });
 
     if (response.data.success) {
-      ElMessage.success('刪除成功！');
+      const deleteMsg = response.data.deleted_count > 1
+        ? `已成功刪除 ${response.data.deleted_count} 條通知記錄`
+        : '刪除成功！';
+      ElMessage.success(deleteMsg);
 
       // 跳轉回列表頁
       setTimeout(() => {
         router.push('/admin/notifications');
-      }, 500);
+      }, 800);
     } else {
       ElMessage.error(response.data.message || '刪除失敗');
     }
@@ -333,7 +414,13 @@ onMounted(() => {
         </template>
         <!-- 查看模式按鈕組 -->
         <template v-else>
-          <el-button type="primary" class="btn-edit" :icon="Edit" @click="toggleEditMode">
+          <el-button 
+            type="primary" 
+            class="btn-edit" 
+            :icon="Edit" 
+            @click="toggleEditMode"
+            :disabled="receiverCount > 1"
+          >
             編輯
           </el-button>
           <el-button type="danger" class="btn-delete" :icon="Delete" @click="handleDelete">
@@ -388,6 +475,50 @@ onMounted(() => {
               <div class="info-item full-width">
                 <label>消息類別：</label>
                 <span class="info-value">{{ getCategoryLabel(notification.categoryType) }}</span>
+              </div>
+            </div>
+
+            <!-- 第五行：接收人數 -->
+            <div class="info-row" v-if="receiverCount > 0">
+              <div class="info-item full-width">
+                <label>接收人數：</label>
+                <span class="info-value">
+                  <el-tag v-if="receiverCount > 1" type="info" size="default">
+                    {{ receiverCount }} 人
+                  </el-tag>
+                  <span v-else>1 人</span>
+                  <el-button 
+                    v-if="receiverCount > 1" 
+                    type="primary" 
+                    link 
+                    size="small"
+                    @click="toggleReceiverList"
+                    style="margin-left: 10px"
+                  >
+                    {{ showReceiverList ? '收起列表' : '查看列表' }}
+                  </el-button>
+                </span>
+              </div>
+            </div>
+
+            <!-- 接收人列表（可展開） -->
+            <div class="receiver-list" v-if="showReceiverList && receiverCount > 1">
+              <div class="receiver-list-header">
+                <label>接收人列表</label>
+                <span class="receiver-count">共 {{ receivers.length }} 人</span>
+              </div>
+              <div class="receiver-list-content">
+                <el-skeleton v-if="loadingReceivers" :rows="3" animated />
+                <div v-else class="receiver-items">
+                  <div 
+                    v-for="receiver in receivers" 
+                    :key="receiver.id" 
+                    class="receiver-item"
+                  >
+                    <span class="receiver-name">{{ receiver.name }}</span>
+                    <span class="receiver-email">{{ receiver.email }}</span>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -852,6 +983,74 @@ $text-color: #333; // 文本顏色
       margin: 0;
       color: #666;
       font-size: 14px;
+    }
+  }
+}
+
+// ===== 接收人列表樣式 =====
+.receiver-list {
+  border: 1px solid $border-color;
+  border-radius: 8px;
+  padding: 20px;
+  background-color: #f9f9f9;
+  margin-top: 10px;
+
+  .receiver-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid $border-color;
+
+    label {
+      font-weight: 600;
+      color: $text-color;
+      font-size: 14px;
+    }
+
+    .receiver-count {
+      color: $primary-green;
+      font-size: 13px;
+      font-weight: 500;
+    }
+  }
+
+  .receiver-list-content {
+    max-height: 300px;
+    overflow-y: auto;
+
+    .receiver-items {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+
+      .receiver-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 15px;
+        background-color: #ffffff;
+        border-radius: 6px;
+        border: 1px solid #e8e8e8;
+        transition: all 0.3s;
+
+        &:hover {
+          border-color: $primary-green;
+          box-shadow: 0 2px 4px rgba(67, 139, 105, 0.1);
+        }
+
+        .receiver-name {
+          font-weight: 500;
+          color: $text-color;
+          font-size: 14px;
+        }
+
+        .receiver-email {
+          color: #999;
+          font-size: 13px;
+        }
+      }
     }
   }
 }
