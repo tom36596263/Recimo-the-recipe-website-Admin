@@ -225,9 +225,10 @@ const closePanel = () => {
           >
             <i-material-symbols-arrow-back-ios-new-rounded />
           </button>
-          <h2 class="plan-title">
-            {{ planData.title || '讀取中...' }} (官方模板編輯)
+          <h2 class="plan-title zh-h2">
+            {{ planData.title || '讀取中...' }}
           </h2>
+          <h3 class="zh-h3" style="color: gray">(官方模板編輯)</h3>
         </div>
 
         <div class="btn-bar__info-btn" @click="openPanel">
@@ -316,29 +317,34 @@ const closePanel = () => {
       justify-content: center;
       align-items: center;
       cursor: pointer;
-      color: #333;
+      color: $primary-color-800;
+      border: 1px solid transparent;
       &:hover {
-        background: #e0e0e0;
+        background: $accent-color-100;
+        color: $accent-color-700;
+        border: 1px solid $accent-color-800;
       }
     }
     .plan-title {
-      font-size: 1.25rem;
       font-weight: bold;
       margin: 0;
+      color: $primary-color-800;
     }
   }
   &__info-btn {
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background-color: #e8f5e9;
-    color: #2e7d32;
+    background-color: $neutral-color-100;
+    color: $primary-color-800;
     display: flex;
     justify-content: center;
     align-items: center;
     cursor: pointer;
     &:hover {
-      background-color: #c8e6c9;
+      background-color: $accent-color-100;
+      color: $accent-color-700;
+      border: 1px solid $accent-color-800;
     }
   }
 }

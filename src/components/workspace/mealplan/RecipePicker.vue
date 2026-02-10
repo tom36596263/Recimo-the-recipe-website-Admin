@@ -83,9 +83,19 @@ const selectedMealType = ref(1); // 0:早餐, 1:午餐, 2:晚餐
 const currentTotalKcal = computed(() => {
   return Math.round(
     props.currentItems.reduce((sum, item) => {
-      // 確保 detail 存在且轉型為數字
-      const kcal = item.detail?.recipe_kcal_per_100g || 0;
-      return sum + Number(kcal);
+      const recipe = item.detail || {};
+
+      // 🟢 取得食譜總熱量，並轉型為浮點數
+      const totalKcal = parseFloat(recipe.recipe_kcal_per_100g) || 0;
+
+      // 🟢 取得食譜份數，並轉型為整數
+      let servings = parseInt(recipe.recipe_servings, 10);
+
+      // 🟢 防呆：如果沒值或 <= 0，預設為 1 (避免除以 0 或 NaN)
+      if (isNaN(servings) || servings <= 0) servings = 1;
+
+      // 累加：(總熱量 / 份數) = 單人份熱量
+      return sum + totalKcal / servings;
     }, 0)
   );
 });
@@ -185,15 +195,6 @@ watch(
             當日總熱量：<span class="value p-p1">{{ currentTotalKcal }}</span>
             kcal
           </div>
-          <div class="kcal-item target">
-            目標：
-            <input
-              type="number"
-              v-model="localTarget"
-              class="kcal-input p-p1"
-            />
-            kcal
-          </div>
         </div>
       </div>
     </header>
@@ -253,7 +254,7 @@ watch(
 
     <section class="recipe-picker__browser-scroll-area row">
       <div
-        class="col-3"
+        class="col-3 col-xl-4 col-lg-6"
         v-for="recipe in filteredRecipes"
         :key="recipe.recipe_id"
         @click="selectRecipe(recipe)"
@@ -330,7 +331,7 @@ watch(
           color: $accent-color-700;
         }
         &.is-disabled {
-          color: $primary-color-100;
+          color: $primary-color-400;
           cursor: default;
         }
       }
@@ -349,22 +350,6 @@ watch(
             color: $primary-color-800;
             font-weight: bold;
             font-size: 1.2rem;
-          }
-        }
-
-        .kcal-input {
-          border: none;
-          width: 60px;
-          text-align: center;
-          outline: none;
-          color: $primary-color-800;
-          font-weight: bold;
-          background: transparent;
-          font-size: 1.2rem;
-          &::-webkit-outer-spin-button,
-          &::-webkit-inner-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
           }
         }
       }
@@ -522,7 +507,6 @@ watch(
 
   &__browser-header {
     display: flex;
-    background: $neutral-color-white;
     gap: 20px;
     .search-bar {
       flex: 1;
@@ -547,6 +531,7 @@ watch(
     flex-wrap: wrap;
     flex: 1;
     overflow-y: auto;
+    // gap: 2px;
     &::-webkit-scrollbar {
       width: 6px;
     }

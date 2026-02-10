@@ -36,10 +36,12 @@ const handleAdd = () => {
         <h4 class="zh-h4">{{ recipe.recipe_title }}</h4>
       </div>
 
-      <div class="tag-group">
-        <BaseTag :text="`${Math.round(recipe.recipe_kcal_per_100g)} kcal`" />
-        <BaseTag :text="`${recipe.recipe_protein_per_100g} P`" />
-        <BaseTag :text="`難度：${recipe.recipe_difficulty}`" />
+      <div class="tag-group p-p1">
+        <div class="tag p-p1">
+          {{ Math.round(recipe.recipe_kcal_per_100g) }}kcal
+        </div>
+        <div class="tag p-p1">{{ recipe.recipe_protein_per_100g }}P</div>
+        <div class="tag p-p1">難度：{{ recipe.recipe_difficulty }}</div>
       </div>
     </div>
   </div>
@@ -55,9 +57,9 @@ const handleAdd = () => {
   transition: 0.3s ease;
   width: auto;
   margin: 10px auto;
-  /* 增加陰影讓它更有卡片感 */
+  flex-shrink: 0;
   &:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba($neutral-color-black, 0.1);
     transform: translateY(-2px);
   }
 
@@ -101,14 +103,15 @@ const handleAdd = () => {
       display: flex;
       gap: 6px;
       flex-wrap: wrap;
-    }
-  }
-}
 
-// RWD
-@media screen and (max-width: 1300px) {
-  .recipe-card-lg {
-    /* 如果需要針對小螢幕調整 */
+      .tag {
+        background-color: $neutral-color-100;
+        color: $neutral-color-800;
+        padding: 0px 4px;
+        border-radius: 5px;
+        font-size: 12px;
+      }
+    }
   }
 }
 </style>

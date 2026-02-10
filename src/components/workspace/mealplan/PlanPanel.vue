@@ -67,17 +67,42 @@ const currentNutritionData = computed(() => {
 
   return todaysItems.reduce(
     (acc, item) => {
-      const recipe =
-        item.detail ||
+      // 1. 從 global recipes 尋找 (確保能拿到蛋白質等詳細營養素)
+      const globalRecipe =
         props.allRecipes.find(
           (r) => Number(r.recipe_id) === Number(item.recipe_id)
-        );
-      if (recipe) {
-        acc.calories += Number(recipe.recipe_kcal_per_100g) || 0;
-        acc.protein += Number(recipe.recipe_protein_per_100g) || 0;
-        acc.carbs += Number(recipe.recipe_carbs_per_100g) || 0;
-        acc.fat += Number(recipe.recipe_fat_per_100g) || 0;
-        acc.starch += Number(recipe.recipe_carbs_per_100g) * 0.7 || 0;
+        ) || {};
+
+      // 2. 從 item.detail 取得 (這裡可能有最新/最準的份數和熱量)
+      const detail = item.detail || {};
+
+      // 檢查是否真的有找到食譜資料
+      if (globalRecipe.recipe_id || detail.recipe_id) {
+        // 🟢 取得份數 (優先使用 detail 的，沒有再用 global 的)
+        let servings = parseInt(detail.recipe_servings, 10);
+        if (isNaN(servings) || servings <= 0) {
+          servings = parseInt(globalRecipe.recipe_servings, 10);
+        }
+        // 🟢 最終防呆：如果還是沒值或 <= 0，預設為 1
+        if (isNaN(servings) || servings <= 0) servings = 1;
+
+        // 🟢 取得熱量 (優先使用 detail 的，沒有再用 global 的)
+        const kcal =
+          parseFloat(detail.recipe_kcal_per_100g) ||
+          parseFloat(globalRecipe.recipe_kcal_per_100g) ||
+          0;
+
+        // 取得其他營養素 (通常只在 globalRecipe 裡)
+        const protein = parseFloat(globalRecipe.recipe_protein_per_100g) || 0;
+        const carbs = parseFloat(globalRecipe.recipe_carbs_per_100g) || 0;
+        const fat = parseFloat(globalRecipe.recipe_fat_per_100g) || 0;
+
+        // 🟢 累加時，各項營養素都要除以份數！
+        acc.calories += kcal / servings;
+        acc.protein += protein / servings;
+        acc.carbs += carbs / servings;
+        acc.fat += fat / servings;
+        acc.starch += (carbs * 0.7) / servings; // 澱粉估算也除以份數
       }
       return acc;
     },
