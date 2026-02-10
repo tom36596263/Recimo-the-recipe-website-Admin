@@ -57,30 +57,40 @@ const formatImageUrl = (url) => {
 const loadData = async () => {
   try {
     loading.value = true;
-    const reportIdFromUrl = String(route.params.id).trim();
+    // 1. 取得網址上的 ID，並統一轉為純數字字串做比對基礎
+    const rawIdFromUrl = String(route.params.id).trim();
+    const pureIdFromUrl = rawIdFromUrl.replace(/[^\d]/g, ''); 
 
-    // 1. 抓取檢舉清單資訊
     const reportRes = await phpApi.get('others/report_manage.php');
+    
     if (reportRes.data.success) {
-      const report = reportRes.data.data.find(r => String(r.report_id) === reportIdFromUrl);
+      // 🏆 修正：更強大的比對邏輯
+      const report = reportRes.data.data.find(r => {
+        const apiReportId = String(r.report_id);
+        const apiPureId = apiReportId.replace(/[^\d]/g, '');
+        // 只要純數字部分對得上，或者完全相等，就算匹配
+        return apiReportId === rawIdFromUrl || apiPureId === pureIdFromUrl;
+      });
 
       if (report) {
-        const pureId = String(report.target_id).replace(/[^\d]/g, '').trim();
+        console.log('找到對應檢舉資料:', report);
+        
+        // 🏆 修正映射：API 裡面的欄位是 "reason"，不是 "report_reason"
         reportData.value = {
-          reported_recipe_id: report.report_id,
-          recipe_id: pureId,
-          report_type: report.type_text,
-          report_reason: report.reason,
+          reported_recipe_id: report.report_id, 
+          recipe_id: report.target_id,         
+          report_type: report.type_text,       
+          report_reason: report.reason || '用戶未提供理由', // 對應 PHP 的 AS reason
           status: report.status,
           report_date: report.report_at,
-          reviewer_id: report.handler_id || '管理員',
+          reviewer_id: report.handler_id || '系統管理員',
           review_date: report.update_at || ''
         };
 
         // 2. 抓取食譜詳細內容
-        const recipeRes = await phpApi.get(`recipes/recipe_detail_get.php?recipe_id=${pureId}&admin=1`);
+        const pureRecipeId = report.target_id; 
+        const recipeRes = await phpApi.get(`recipes/recipe_detail_get.php?recipe_id=${pureRecipeId}&admin=1`);
 
-        
         if (recipeRes.data.success) {
           const resData = recipeRes.data.data;
           recipe.value = resData.main;
@@ -94,17 +104,21 @@ const loadData = async () => {
 
           steps.value = resData.steps || [];
         } else {
-          ElMessage.error('找不到食譜內容');
+          ElMessage.warning('檢舉案存在，但無法獲取食譜細節');
         }
+      } else {
+        console.error('無法在清單中找到 ID:', rawIdFromUrl);
+        ElMessage.error('找不到該檢舉案件，請確認 ID 是否正確');
       }
     }
   } catch (e) {
-    console.error('API Error:', e);
-    ElMessage.error('資料載入失敗');
+    console.error('載入失敗:', e);
+    ElMessage.error('連線伺服器失敗');
   } finally {
     loading.value = false;
   }
 };
+
 
 const recipeIntroData = computed(() => {
   if (!recipe.value) return null;
