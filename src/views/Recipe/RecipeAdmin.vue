@@ -25,7 +25,13 @@ const loadDataFromPhp = async () => {
       params: { mode: 'admin' } // 💡 告訴後端：我是管理員，我要看全部
     });
     console.log('後台載入成功', response.data);
-    tableData.value = response.data.data;
+    
+    // 🔥 修正：確保數據類型正確，避免字串導致 el-switch 異常
+    tableData.value = response.data.data.map(item => ({
+      ...item,
+      recipe_id: Number(item.recipe_id),
+      status: Number(item.status) // 確保 status 是數值型態
+    }));
   } catch (error) {
     console.error('後台載入失敗', error);
   }
@@ -57,15 +63,21 @@ const handleSortChange = ({ prop, order }) => {
 
   // 直接對原始陣列 tableData 進行排序
   tableData.value.sort((a, b) => {
-    // 這裡要根據 recipes.json 的欄位名稱做對應
-    // 例如 prop 可能是 'recipe_id', 'recipe_title' 等
     let valA = a[prop];
     let valB = b[prop];
-    // 🏆 增加這一段：如果排序的是食譜名稱，優先取改編標題
+    
+    // 🏆 如果排序的是食譜名稱，優先取改編標題
     if (prop === 'recipe_title') {
       valA = a.adaptation_title || a.recipe_title;
       valB = b.adaptation_title || b.recipe_title;
     }
+    
+    // 🔥 確保 recipe_id 以數值方式排序
+    if (prop === 'recipe_id') {
+      valA = Number(valA);
+      valB = Number(valB);
+    }
+    
     // 若是日期欄位
     if (prop === 'recipe_created_at' || prop === 'recipe_last_updated') {
       valA = new Date(valA);
@@ -96,9 +108,8 @@ onMounted(() => {
 
 const handleStatusChange = async (row) => {
   try {
-    // 💡 確保傳送的資料格式與 PHP 接收的一致
-    const response = await phpApi.post('recipes/update_status.php', {
-      recipe_id: Number(row.recipe_id),
+    const response = await phpApi.post('recipes/all_recipe_get.php', {
+      recipe_id: row.recipe_id,
       status: row.status
     });
 
@@ -107,6 +118,7 @@ const handleStatusChange = async (row) => {
         message: `食譜 ID: ${row.recipe_id} 狀態已更新為 ${row.status === 0 ? '公開' : '下架'}`,
         type: 'success',
       });
+      // loadDataFromPhp(); // ✅ 重新載入資料以更新 UI
     } else {
       throw new Error(response.data.message);
     }
