@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
 import { ArrowLeft, Plus } from '@element-plus/icons-vue';
 import { useRouter } from 'vue-router';
 import { phpApi } from '@/utils/publicApi.js';
@@ -11,8 +11,14 @@ const router = useRouter();
 const form = ref({
   title: '',
   category: 'general',
-  content: ''
+  content: '',
+  sendTarget: 'all', // 發送對象：all（全部）/ specific（特定用戶）
+  selectedUsers: [] // 選中的用戶 ID 列表
 });
+
+// 用戶列表
+const userList = ref([]);
+const isLoadingUsers = ref(false);
 
 // 表單驗證規則
 const rules = reactive({
@@ -26,6 +32,21 @@ const rules = reactive({
   content: [
     { required: true, message: '請輸入消息內容', trigger: 'blur' },
     { min: 10, max: 1000, message: '內容長度應在 10 到 1000 個字符之間', trigger: 'blur' }
+  ],
+  sendTarget: [
+    { required: true, message: '請選擇發送對象', trigger: 'change' }
+  ],
+  selectedUsers: [
+    {
+      validator: (rule, value, callback) => {
+        if (form.value.sendTarget === 'specific' && (!value || value.length === 0)) {
+          callback(new Error('請至少選擇一位用戶'));
+        } else {
+          callback();
+        }
+      },
+      trigger: 'change'
+    }
   ]
 });
 
@@ -33,6 +54,37 @@ const imageFile = ref(null);
 const imagePreview = ref(null);
 const formRef = ref(null);
 const isSubmitting = ref(false);
+
+/**
+ * 獲取用戶列表
+ */
+const fetchUsers = async () => {
+  isLoadingUsers.value = true;
+  try {
+    const response = await phpApi.get('auth/get_members.php');
+    if (response.data && Array.isArray(response.data)) {
+      // 過濾掉系統帳號（user_id = 1）
+      userList.value = response.data
+        .filter(user => user.user_id !== 1)
+        .map(user => ({
+          value: user.user_id,
+          label: `${user.user_name} (${user.user_email})`
+        }));
+    }
+  } catch (error) {
+    console.error('獲取用戶列表失敗:', error);
+    ElMessage.error('獲取用戶列表失敗');
+  } finally {
+    isLoadingUsers.value = false;
+  }
+};
+
+/**
+ * 組件掛載時獲取用戶列表
+ */
+onMounted(() => {
+  fetchUsers();
+});
 
 /**
  * 發布消息
@@ -74,7 +126,15 @@ const handlePublish = async () => {
     formData.append('notification_title', form.value.title);
     formData.append('notification_type', form.value.category);
     formData.append('notification_content', form.value.content);
-    formData.append('receiver_id', 'all'); // 固定發布給全部會員
+    
+    // 根據發送對象設置 receiver_id
+    if (form.value.sendTarget === 'all') {
+      formData.append('receiver_id', 0); // 0 表示發送給全部會員
+    } else {
+      // 發送給特定用戶，傳遞用戶 ID 陣列（JSON 字符串）
+      formData.append('receiver_id', JSON.stringify(form.value.selectedUsers));
+    }
+    
     formData.append('link_url', '');
 
     // 如果有圖片，添加到 FormData（欄位名為 notification_photo）
@@ -94,12 +154,17 @@ const handlePublish = async () => {
     });
 
     if (response.data.success) {
-      ElMessage.success(response.data.message || '消息發布成功！');
+      // 顯示發送結果（包含發送給多少用戶的信息）
+      const successMsg = response.data.message || '消息發布成功！';
+      ElMessage.success({
+        message: successMsg,
+        duration: 3000
+      });
 
       // 跳轉回列表頁
       setTimeout(() => {
         router.push('/admin/notifications');
-      }, 500);
+      }, 1000);
     } else {
       ElMessage.error(response.data.message || '發布失敗');
     }
@@ -121,7 +186,7 @@ const handlePublish = async () => {
  */
 const handleCancel = async () => {
   // 檢查是否有未保存的內容
-  const hasContent = form.value.title || form.value.content || imageFile.value;
+  const hasContent = form.value.title || form.value.content || imageFile.value || form.value.selectedUsers.length > 0;
 
   if (hasContent) {
     try {
@@ -221,6 +286,43 @@ const handleRemoveImage = () => {
               <el-option label="促銷活動" value="promotion" />
               <el-option label="功能更新" value="update" />
             </el-select>
+          </el-form-item>
+
+          <!-- 發送對象 -->
+          <el-form-item label="發送對象" prop="sendTarget">
+            <el-radio-group v-model="form.sendTarget" class="send-target-group">
+              <el-radio value="all">全部用戶</el-radio>
+              <el-radio value="specific">特定用戶</el-radio>
+            </el-radio-group>
+          </el-form-item>
+
+          <!-- 選擇用戶（僅在選擇特定用戶時顯示） -->
+          <el-form-item 
+            v-if="form.sendTarget === 'specific'" 
+            label="選擇用戶" 
+            prop="selectedUsers"
+          >
+            <el-select
+              v-model="form.selectedUsers"
+              multiple
+              filterable
+              placeholder="請選擇要發送的用戶"
+              class="form-select"
+              :loading="isLoadingUsers"
+              collapse-tags
+              collapse-tags-tooltip
+              :max-collapse-tags="3"
+            >
+              <el-option
+                v-for="user in userList"
+                :key="user.value"
+                :label="user.label"
+                :value="user.value"
+              />
+            </el-select>
+            <div class="selected-count" v-if="form.selectedUsers.length > 0">
+              已選擇 {{ form.selectedUsers.length }} 位用戶
+            </div>
           </el-form-item>
 
           <!-- 消息內容 -->
@@ -403,6 +505,21 @@ $border-color: #e0e0e0;
       width: 100%;
       box-sizing: border-box;
     }
+  }
+
+  .send-target-group {
+    width: 100%;
+
+    :deep(.el-radio) {
+      margin-right: 30px;
+    }
+  }
+
+  .selected-count {
+    margin-top: 8px;
+    font-size: 12px;
+    color: $primary-green;
+    font-weight: 500;
   }
 }
 

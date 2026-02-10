@@ -51,6 +51,36 @@ const filteredData = computed(() => {
   return filtered;
 });
 
+// 前端分組邏輯：根據標題 + 內容 + 類型 + 圖片 + 日期分組
+const groupedData = computed(() => {
+  const groups = new Map();
+  
+  filteredData.value.forEach(item => {
+    // 提取日期（只到天，忽略時分秒）
+    const dateOnly = item.created_at ? item.created_at.split(' ')[0] : '';
+    
+    // 分組鍵：標題 + 內容 + 類型 + 圖片 + 日期
+    const groupKey = `${item.notification_title}_${item.notification_content}_${item.notification_type}_${item.notification_photo_url || 'noimg'}_${dateOnly}`;
+    
+    if (!groups.has(groupKey)) {
+      groups.set(groupKey, {
+        ...item,
+        receiver_count: 1,
+        group_items: [item]
+      });
+    } else {
+      const group = groups.get(groupKey);
+      group.receiver_count++;
+      group.group_items.push(item);
+    }
+  });
+  
+  // 轉為陣列並按時間排序
+  return Array.from(groups.values()).sort((a, b) => {
+    return new Date(b.created_at) - new Date(a.created_at);
+  });
+});
+
 const loadJsonData = async () => {
   try {
     const response = await phpApi.get('social/admin_notifications.php')
@@ -101,7 +131,7 @@ const handleSortChange = ({ prop, order }) => {
 const displayData = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
   const end = start + pageSize.value
-  return filteredData.value.slice(start, end)
+  return groupedData.value.slice(start, end)
 })
 
 onMounted(() => {
@@ -114,12 +144,18 @@ const handleStatusChange = (row) => {
 };
 
 /**
- * 刪除單個通知
+ * 刪除單個通知（或整個批次）
  */
 const handleDeleteOne = async (row) => {
   try {
+    // 判斷是單條通知還是批次通知
+    const isBatch = row.receiver_count && row.receiver_count > 1;
+    const confirmMsg = isBatch 
+      ? `確定要刪除消息「${row.notification_title}」嗎？\n這將刪除發送給 ${row.receiver_count} 位用戶的所有記錄。`
+      : `確定要刪除消息「${row.notification_title}」嗎？`;
+
     await ElMessageBox.confirm(
-      `確定要刪除消息「${row.notification_title}」嗎？`,
+      confirmMsg,
       '確認刪除',
       {
         confirmButtonText: '確定',
@@ -130,16 +166,34 @@ const handleDeleteOne = async (row) => {
 
     // 調用刪除 API
     const response = await phpApi.delete('social/admin_notifications.php', {
-      data: { notification_id: Number(row.notification_id) }
+      data: { 
+        notification_id: Number(row.notification_id),
+        title: isBatch ? row.notification_title : '',
+        created_at: isBatch ? row.created_at : ''
+      }
     });
 
     if (response.data.success) {
-      // 從列表中移除
-      const index = tableData.value.findIndex(item => item.notification_id === row.notification_id);
-      if (index > -1) {
-        tableData.value.splice(index, 1);
+      // 如果是批次刪除，需要刪除所有相關記錄
+      if (isBatch && row.group_items) {
+        row.group_items.forEach(item => {
+          const index = tableData.value.findIndex(t => t.notification_id === item.notification_id);
+          if (index > -1) {
+            tableData.value.splice(index, 1);
+          }
+        });
+      } else {
+        // 單條刪除
+        const index = tableData.value.findIndex(item => item.notification_id === row.notification_id);
+        if (index > -1) {
+          tableData.value.splice(index, 1);
+        }
       }
-      ElMessage.success('刪除成功！');
+      
+      const deleteMsg = response.data.deleted_count > 1
+        ? `已刪除 ${response.data.deleted_count} 條通知記錄`
+        : '刪除成功！';
+      ElMessage.success(deleteMsg);
     } else {
       ElMessage.error(response.data.message || '刪除失敗');
     }
@@ -184,6 +238,14 @@ const handleDeleteOne = async (row) => {
           {{ getCategoryLabel(scope.row.notification_type) }}
         </template>
       </el-table-column>
+      <el-table-column label="接收人數" align="center" width="100">
+        <template #default="scope">
+          <el-tag v-if="scope.row.receiver_count > 1" type="info" size="small">
+            {{ scope.row.receiver_count }} 人
+          </el-tag>
+          <span v-else>1 人</span>
+        </template>
+      </el-table-column>
       <el-table-column prop="created_at" label="發布日期" sortable="custom" align="center" width="140" />
 
       <!-- 查看列 -->
@@ -208,7 +270,7 @@ const handleDeleteOne = async (row) => {
     </el-table>
 
     <!-- 頁籤 -->
-    <MyPagination v-model:currentPage="currentPage" :pageSize="pageSize" :total="filteredData.length" />
+    <MyPagination v-model:currentPage="currentPage" :pageSize="pageSize" :total="groupedData.length" />
   </div>
 </template>
 
