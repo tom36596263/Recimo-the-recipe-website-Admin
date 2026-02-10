@@ -96,9 +96,8 @@ onMounted(() => {
 
 const handleStatusChange = async (row) => {
   try {
-    // 💡 確保傳送的資料格式與 PHP 接收的一致
-    const response = await phpApi.post('recipes/update_status.php', {
-      recipe_id: Number(row.recipe_id),
+    const response = await phpApi.post('recipes/all_recipe_get.php', {
+      recipe_id: row.recipe_id,
       status: row.status
     });
 
@@ -107,6 +106,7 @@ const handleStatusChange = async (row) => {
         message: `食譜 ID: ${row.recipe_id} 狀態已更新為 ${row.status === 0 ? '公開' : '下架'}`,
         type: 'success',
       });
+      // loadDataFromPhp(); // ✅ 重新載入資料以更新 UI
     } else {
       throw new Error(response.data.message);
     }
