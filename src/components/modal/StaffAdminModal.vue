@@ -111,7 +111,7 @@ const handleSubmit = async (formEl) => {
       } else if (mode.value === 'edit') {
         try {
           const payload = {
-            admin_id: staffData.value.admin_id,
+            admin_id: Number(staffData.value.admin_id),
             admin_account: form.username,
             admin_password: form.password,
             admin_name: form.name,

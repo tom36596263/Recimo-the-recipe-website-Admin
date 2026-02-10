@@ -45,7 +45,7 @@ const handleStatusChange = async (row) => {
 
   try {
     const res = await phpApi.post('mealplans/admin_update_plan_status.php', {
-      plan_id: row.plan_id,
+      plan_id: Number(row.plan_id),
       is_active: row.is_active
     });
 
@@ -95,7 +95,7 @@ const handleDelete = (id) => {
     .then(async () => {
       try {
         const res = await phpApi.post('mealplans/admin_delete_plan.php', {
-          template_id: id
+          template_id: Number(id)
         });
 
         if (res.data.status === 'success') {

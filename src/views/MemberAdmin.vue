@@ -106,7 +106,7 @@ onMounted(() => {
 const handleStatusChange = async (row) => {
   try {
     const response = await phpApi.post('auth/update_status.php', {
-      user_id: row.user_id,
+      user_id: Number(row.user_id),
       is_active: row.is_active
     });
 
@@ -159,7 +159,7 @@ const handleUpdate = async (formData) => {
   const fd = new FormData();
 
   // 手動塞入所有必填欄位 (確保名稱與 PHP 接收的一模一樣)
-  fd.append('user_id', String(formData.user_id).trim());
+  fd.append('user_id', Number(formData.user_id));
   fd.append('current_admin_level', '2'); // 先測試直接寫死 '2' 看看 PHP 是否收得到
   fd.append('user_name', formData.user_name || '');
   fd.append('user_phone', formData.user_phone || '');

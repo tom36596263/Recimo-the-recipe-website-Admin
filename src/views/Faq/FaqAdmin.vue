@@ -102,7 +102,7 @@ const handleDelete = async (row) => {
       }
     );
     const params = new URLSearchParams();
-    params.append('faq_id', row.faq_id);
+    params.append('faq_id', Number(row.faq_id));
     const res = await phpApi.delete('/system/faqs.php', { data: params });
     if (res.data && res.data.success) {
       ElMessage.success('刪除成功');
