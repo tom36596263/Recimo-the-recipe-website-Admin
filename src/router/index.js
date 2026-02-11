@@ -213,12 +213,6 @@ const routes = [
             component: () => import('@/views/Plan/PlansAdmin.vue')
           },
           {
-            path: 'add', // 詳情頁：/plans/1
-            name: 'PlansAdd',
-            component: () => import('@/views/Plan/PlansAdd.vue'),
-            props: true // 將 URL 的 id 直接傳入組件作為 props
-          },
-          {
             path: ':id', // 詳情頁：/plans/1
             name: 'PlansDetail',
             component: () => import('@/views/Plan/PlansDetail.vue'),
