@@ -116,7 +116,7 @@ const handleSubmit = async (formEl) => {
             admin_password: form.password,
             admin_name: form.name,
           };
-          const res = await phpApi.patch('others/admin_update.php', payload);
+          const res = await phpApi.patch('others/admin_status.php', payload);
           ElMessage.success('更新成功');
           visible.value = false;
           emit('updated');
